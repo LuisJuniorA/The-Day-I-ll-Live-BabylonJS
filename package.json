@@ -1,0 +1,39 @@
+{
+  "name": "the-day-i-ll-live-babylonjs",
+  "version": "1.0.0",
+  "description": "A narrative action game created for Games on Web. Explore emotional realms shaped by anxiety, solitude and false joy. Fight symbolic bosses, wield three distinct weapons, and uncover a story about control, illusion and the fragile balance between pain and happiness.",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build --base=./",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LuisJuniorA/The-Day-I-ll-Live-BabylonJS.git"
+  },
+  "keywords": [
+    "babylonjs",
+    "game",
+    "narrative",
+    "metroidvania",
+    "emotions"
+  ],
+  "author": "Luis-Junior ARAUJO DA COSTA",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/LuisJuniorA/The-Day-I-ll-Live-BabylonJS/issues"
+  },
+  "homepage": "https://github.com/LuisJuniorA/The-Day-I-ll-Live-BabylonJS#readme",
+  "dependencies": {
+    "@babylonjs/core": "^8.51.2"
+  },
+  "devDependencies": {
+    "@babylonjs/inspector": "^8.51.2",
+    "vite": "^7.3.1",
+    "typescript": "~5.9.3"
+  }
+}
