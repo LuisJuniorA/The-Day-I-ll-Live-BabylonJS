@@ -1,11 +1,17 @@
-import { Engine, Scene, Vector3, HemisphericLight, Color3 } from "@babylonjs/core";
 import {
-    MeshBuilder,
-    StandardMaterial,
-    Texture,
+    Engine,
+    Scene,
+    Vector3,
+    HemisphericLight,
+    Color3
 } from "@babylonjs/core";
+
+// Indispensable pour lire les fichiers .glb / .gltf
+import "@babylonjs/loaders/glTF";
+
 import { Player } from "./entities/Player";
 import { LevelManager } from "./managers/LevelManager";
+import { WorldZones } from "./scenes/WorldData";
 
 export class App {
     private readonly engine: Engine;
@@ -14,37 +20,35 @@ export class App {
     private readonly player: Player;
     private readonly levelManager: LevelManager;
 
-    // Map des positions centrales de tes zones pour le streaming
-    private readonly zonePositions: Map<string, Vector3> = new Map();
-
     constructor() {
+        // 1. Setup du moteur et du canvas
         this.canvas = this.createCanvas();
         this.engine = new Engine(this.canvas, true);
         this.scene = new Scene(this.engine);
 
-        // Configuration essentielle pour un Metroidvania
+        // 2. Configuration physique globale
         this.scene.collisionsEnabled = true;
         this.scene.gravity = new Vector3(0, -9.81, 0);
 
-        // Initialisation des systèmes
+        // 3. Initialisation des gestionnaires
         this.player = new Player(this.scene, new Vector3(0, 2, 0));
         this.levelManager = new LevelManager(this.scene);
 
-        this.createLight();
-        this.createGround();
+        // 4. Lumière de secours (au cas où ton .glb n'en a pas)
+        this.createDefaultLight();
+
+        // 5. Outils de développement
         this.setupInspectorToggle();
 
-        // Initialisation du monde
+        // 6. Chargement du monde
         this.initWorld();
 
-        // Boucle de rendu
+        // 7. Boucle de rendu
         this.engine.runRenderLoop(() => {
-            // Mise à jour du joueur (mouvements)
             this.player.update();
 
-            // Mise à jour du streaming des niveaux (chargement/déchargement)
-            // On vérifie les zones dans un rayon de 50 unités autour du joueur
-            this.levelManager.update(this.player.position, 50, this.zonePositions);
+            // Streaming : On affiche les zones à 50 unités du joueur
+            this.levelManager.update(this.player.position, 50);
 
             this.scene.render();
         });
@@ -52,58 +56,46 @@ export class App {
         window.addEventListener("resize", () => this.engine.resize());
     }
 
+    /**
+     * Charge les assets via le LevelManager
+     */
     private async initWorld(): Promise<void> {
-        // Exemple : On définit les coordonnées de deux zones
-        this.zonePositions.set("zone_depart", new Vector3(0, 0, 0));
-        this.zonePositions.set("zone_caverne", new Vector3(60, 0, 0));
-
-        // On lance le chargement (sans attendre pour ne pas bloquer le thread principal)
-        // Les assets doivent être dans ton dossier public
-        await Promise.all([
-            this.levelManager.loadZone("zone_depart", "/assets/levels/start.glb", new Vector3(0, 0, 0)),
-            this.levelManager.loadZone("zone_caverne", "/assets/levels/cave.glb", new Vector3(60, 0, 0))
-        ]);
+        try {
+            await this.levelManager.loadWorld(WorldZones);
+            console.log("Monde chargé avec succès !");
+        } catch (error) {
+            console.error("Erreur lors du chargement initial :", error);
+        }
     }
 
+    /**
+     * Crée le canvas HTML dans le DOM
+     */
     private createCanvas(): HTMLCanvasElement {
         const canvas = document.createElement("canvas");
         canvas.id = "gameCanvas";
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-        canvas.style.display = "block"; // Évite les scrollbars inutiles
+        canvas.style.width = "100vw";
+        canvas.style.height = "100vh";
+        canvas.style.display = "block";
+        canvas.style.outline = "none";
         document.body.appendChild(canvas);
         return canvas;
     }
 
-    private createLight(): void {
-        const light = new HemisphericLight("light1", new Vector3(1, 1, 0), this.scene);
-        light.intensity = 0.7;
-        light.groundColor = new Color3(0.2, 0.2, 0.2);
+    /**
+     * Lumière ambiante basique pour éviter le noir total
+     */
+    private createDefaultLight(): void {
+        const light = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), this.scene);
+        light.intensity = 0.5;
+        light.groundColor = new Color3(0.1, 0.1, 0.1);
     }
 
-    private createGround(): void {
-        // Création d'un grand plan pour le sol
-        const ground = MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, this.scene);
-        ground.checkCollisions = true; // Important pour que le Player ne passe pas au travers
-
-        // Création d'un matériau avec un motif de grille (sans assets externes)
-        const groundMaterial = new StandardMaterial("groundMat", this.scene);
-
-        // On utilise une texture procédurale simple pour créer un damier
-        // On peut aussi utiliser une DynamicTexture pour dessiner une grille en JS
-        const dynamicTexture = new Texture("https://assets.babylonjs.com/textures/checkerboard.png", this.scene);
-        dynamicTexture.uScale = 20; // Répétition du motif sur l'axe U
-        dynamicTexture.vScale = 20; // Répétition du motif sur l'axe V
-
-        groundMaterial.diffuseTexture = dynamicTexture;
-        groundMaterial.specularColor = new Color3(0, 0, 0); // Pas de reflets brillants
-
-        ground.material = groundMaterial;
-    }
-
+    /**
+     * CTRL + ALT + SHIFT + I pour ouvrir l'inspecteur Babylon
+     */
     private setupInspectorToggle(): void {
         if (import.meta.env.DEV) {
-            // Import dynamique pour le tree-shaking en prod
             import("@babylonjs/core/Debug/debugLayer");
             import("@babylonjs/inspector");
 

@@ -1,31 +1,46 @@
+// managers/LevelManager.ts
 import {
     Scene,
     AssetContainer,
     Vector3,
-    LoadAssetContainerAsync
+    LoadAssetContainerAsync,
 } from "@babylonjs/core";
+import "@babylonjs/loaders/glTF";
 import type { LoadAssetContainerOptions } from "@babylonjs/core";
+import type { ZoneConfig } from "../scenes/WorldData"; // Import de l'interface
 
 interface ZoneEntry {
-    readonly container: AssetContainer;
+    container: AssetContainer;
+    position: Vector3; // On stocke la position ici maintenant
     isShown: boolean;
 }
 
 export class LevelManager {
-    // Déclaration explicite des propriétés
     private readonly _scene: Scene;
+    // Map consolidée : contient le container ET la position
     private readonly _zones: Map<string, ZoneEntry>;
 
     constructor(scene: Scene) {
-        // Initialisation explicite requise par erasableSyntaxOnly
         this._scene = scene;
         this._zones = new Map<string, ZoneEntry>();
     }
 
     /**
-     * Charge une zone via LoadAssetContainerAsync (BJS 8)
+     * Charge l'ensemble du monde à partir de la configuration
      */
-    public async loadZone(
+    public async loadWorld(zonesConfig: ZoneConfig[]): Promise<void> {
+        const loadingPromises = zonesConfig.map(zone =>
+            this.loadZone(zone.id, zone.path, zone.position)
+        );
+
+        await Promise.all(loadingPromises);
+        console.log("World loaded successfully");
+    }
+
+    /**
+     * Charge une zone individuelle
+     */
+    private async loadZone(
         id: string,
         url: string,
         offset: Vector3,
@@ -36,39 +51,46 @@ export class LevelManager {
         try {
             const container = await LoadAssetContainerAsync(url, this._scene, options);
 
+            // Déplacer les meshes vers leur offset global
             for (const mesh of container.meshes) {
+
+                if (mesh.name.toLowerCase().includes("ground") || mesh.name.toLowerCase().includes("floor")) {
+                    mesh.checkCollisions = true;
+                }
+
                 if (!mesh.parent) {
                     mesh.position.addInPlace(offset);
                 }
             }
 
+            // On s'assure qu'ils ne sont pas affichés au chargement
             container.removeAllFromScene();
 
             this._zones.set(id, {
                 container,
+                position: offset,
                 isShown: false
             });
 
         } catch (err) {
-            const message = err instanceof Error ? err.message : "Unknown error";
-            console.error(`[LevelManager] Failed to load zone ${id}: ${message}`);
-            throw err;
+            console.error(`[LevelManager] Failed to load zone ${id}:`, err);
         }
     }
 
     /**
-     * Streaming des zones selon la position du joueur
+     * Update simplifié : plus besoin de passer la map des positions
      */
-    public update(playerPos: Vector3, range: number, zoneCoords: Map<string, Vector3>): void {
-        for (const [id, pos] of zoneCoords) {
-            const zone = this._zones.get(id);
-            if (!zone) continue;
-
-            const isNear = Vector3.Distance(playerPos, pos) < range;
+    public update(playerPos: Vector3, range: number): void {
+        for (const [id, zone] of this._zones) {
+            // On calcule la distance avec la position stockée dans la zone
+            const dist = Vector3.Distance(playerPos, zone.position);
+            const isNear = dist < range;
 
             if (isNear && !zone.isShown) {
                 zone.container.addAllToScene();
                 zone.isShown = true;
+                // Optionnel : Log pour débugger
+                console.log(`Showing zone: ${id}`);
             } else if (!isNear && zone.isShown) {
                 zone.container.removeAllFromScene();
                 zone.isShown = false;
