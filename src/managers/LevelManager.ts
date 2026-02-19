@@ -7,7 +7,7 @@ import {
 } from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
 import type { LoadAssetContainerOptions } from "@babylonjs/core";
-import type { ZoneConfig } from "../scenes/WorldData"; // Import de l'interface
+import type { ZoneConfig } from "../scenes/WorldData";
 
 interface ZoneEntry {
     container: AssetContainer;
