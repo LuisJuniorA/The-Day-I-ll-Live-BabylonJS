@@ -1,130 +1,71 @@
-import {
-    Scene,
-    Vector3,
-    MeshBuilder,
-    Mesh,
-    UniversalCamera,
-    KeyboardEventTypes,
-    Scalar,
-    Ray
-} from "@babylonjs/core";
+import { Scene, Vector3, MeshBuilder, UniversalCamera } from "@babylonjs/core";
+import { Character } from "../core/abstracts/Character";
+import { FSM } from "../core/engines/FSM";
+import { InputHandler } from "../core/engines/InputHandler";
+import { PlayerMoveState } from "../states/PlayerMoveState";
 
-export class Player {
-    private readonly _scene: Scene;
-    private readonly _mesh: Mesh;
+export class Player extends Character {
     private readonly _camera: UniversalCamera;
+    public readonly input: InputHandler;
+    public readonly fsm: FSM<Player>;
 
-    private readonly _inputMap: Record<string, boolean> = {};
+    // Physique partagée avec les états
+    public velocity: Vector3 = Vector3.Zero();
+    public isGrounded: boolean = false;
 
-    // Paramètres physiques
-    private readonly _speed: number = 0.2;
-    private readonly _gravity: number = -0.015;
-    private readonly _jumpForce: number = 0.35;
-
-    // États
-    private _velocity: Vector3;
-    private _isGrounded: boolean = false;
+    // Tes paramètres originaux
+    public readonly speed: number = 0.2;
+    public readonly gravity: number = -0.015;
+    public readonly jumpForce: number = 0.35;
 
     constructor(scene: Scene, startPosition: Vector3) {
-        this._scene = scene;
-        this._velocity = Vector3.Zero();
+        // Initialisation Character (Nom, Scene, Stats)
+        super("Player", scene, { hp: 100, maxHp: 100, speed: 0.2, level: 1 });
 
-        // 1. Corps du joueur
-        this._mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, this._scene);
-        this._mesh.position = startPosition;
-        this._mesh.checkCollisions = true;
+        // 1. Corps (Capsule)
+        this.mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, scene);
+        this.mesh.position = startPosition;
+        this.mesh.checkCollisions = true;
+        this.mesh.ellipsoid = new Vector3(0.45, 0.9, 0.45);
+        this.mesh.parent = this.transform; // Lié au transform de l'Entity
 
-        // Configuration de l'ellipsoïde pour les collisions (très important pour le saut)
-        this._mesh.ellipsoid = new Vector3(0.45, 0.9, 0.45);
-
-        // 2. Caméra de profil (Side-scroller)
-        // On la place sur l'axe Z à -15, elle regarde vers Z=0
-        this._camera = new UniversalCamera("playerCamera", new Vector3(startPosition.x, startPosition.y, -15), this._scene);
+        // 2. Caméra
+        this._camera = new UniversalCamera("playerCamera", new Vector3(startPosition.x, startPosition.y, -15), scene);
         this._camera.setTarget(new Vector3(startPosition.x, startPosition.y, 0));
 
-        this._setupInputs();
+        // 3. Moteurs
+        this.input = new InputHandler(scene);
+        this.fsm = new FSM<Player>(this);
+
+        // 4. État initial
+        this.fsm.transitionTo(new PlayerMoveState());
     }
 
-    private _setupInputs(): void {
-        this._scene.onKeyboardObservable.add((kbInfo) => {
-            if (kbInfo.type === KeyboardEventTypes.KEYDOWN) {
-                this._inputMap[kbInfo.event.key.toLowerCase()] = true;
-            } else if (kbInfo.type === KeyboardEventTypes.KEYUP) {
-                this._inputMap[kbInfo.event.key.toLowerCase()] = false;
-            }
-        });
-    }
+    public update(dt: number): void {
+        if (this.isDead) return;
 
-    public update(): void {
-        this._applyMovements();
+        // Met à jour les inputs
+        this.input.update();
+
+        // Met à jour la FSM (c'est elle qui appelle la logique de mouvement)
+        this.fsm.update(dt);
+
+        // Met à jour la caméra
         this._updateCamera();
-    }
 
-    private _applyMovements(): void {
-        // --- Mouvement Horizontal (X uniquement) ---
-        let moveX = 0;
-        if (this._inputMap["q"] || this._inputMap["arrowleft"]) moveX = -1;
-        if (this._inputMap["d"] || this._inputMap["arrowright"]) moveX = 1;
-
-        // On lisse le mouvement horizontal
-        const targetVelocityX = moveX * this._speed;
-        this._velocity.x = Scalar.Lerp(this._velocity.x, targetVelocityX, 0.2);
-
-        // --- Mouvement Vertical (Gravité et Saut) ---
-
-        // Raycast simple vers le bas pour détecter le sol
-        this._checkGrounded();
-
-        if (this._isGrounded) {
-            this._velocity.y = 0;
-            // Saut (Espace ou Flèche Haut)
-            if (this._inputMap[" "] || this._inputMap["arrowup"] || this._inputMap["z"]) {
-                this._velocity.y = this._jumpForce;
-                this._isGrounded = false;
-            }
-        } else {
-            // Application de la gravité
-            this._velocity.y += this._gravity;
-        }
-
-        // --- Application Finale ---
-        // On force Z à 0 pour rester sur le plan 2D
-        this._velocity.z = 0;
-        this._mesh.position.z = 0;
-
-        this._mesh.moveWithCollisions(this._velocity);
-    }
-
-    private _checkGrounded(): void {
-        // Le pivot est au centre, donc les pieds sont 1 unité plus bas
-        const rayOrigin = this._mesh.position.clone();
-        rayOrigin.y -= 0.9; // On part d'un peu au dessus des pieds (1.0 - 0.1)
-
-        const rayDirection = new Vector3(0, -1, 0);
-        const rayLength = 0.2; // Il doit descendre de 0.1 pour atteindre les pieds + 0.1 pour toucher le sol
-
-        const ray = new Ray(rayOrigin, rayDirection, rayLength);
-
-        const pick = this._scene.pickWithRay(ray, (mesh) => {
-            return mesh.checkCollisions && mesh !== this._mesh;
-        });
-
-        this._isGrounded = (pick !== null && pick.hit);
-
-        // Si on touche le sol, on annule la vélocité de chute
-        if (this._isGrounded && this._velocity.y < 0) {
-            this._velocity.y = 0;
-        }
+        // Sécurité Side-scroller (Plan Z constant)
+        this.mesh!.position.z = 0;
+        this.velocity.z = 0;
     }
 
     private _updateCamera(): void {
-        // La caméra suit uniquement en X et Y, reste fixe en Z
-        const targetPos = new Vector3(this._mesh.position.x, this._mesh.position.y + 2, -15);
+        const targetPos = new Vector3(this.mesh!.position.x, this.mesh!.position.y + 2, -15);
         this._camera.position = Vector3.Lerp(this._camera.position, targetPos, 0.1);
-        this._camera.setTarget(new Vector3(this._mesh.position.x, this._mesh.position.y + 2, 0));
+        this._camera.setTarget(new Vector3(this.mesh!.position.x, this.mesh!.position.y + 2, 0));
     }
 
+    // À ajouter dans Player.ts
     public get position(): Vector3 {
-        return this._mesh.position;
+        return this.mesh ? this.mesh.position : Vector3.Zero();
     }
 }

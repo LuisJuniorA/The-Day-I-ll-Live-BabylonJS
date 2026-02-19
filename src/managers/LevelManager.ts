@@ -1,19 +1,13 @@
 // managers/LevelManager.ts
 import {
     Scene,
-    AssetContainer,
     Vector3,
     LoadAssetContainerAsync,
 } from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
 import type { LoadAssetContainerOptions } from "@babylonjs/core";
-import type { ZoneConfig } from "../scenes/WorldData";
-
-interface ZoneEntry {
-    container: AssetContainer;
-    position: Vector3; // On stocke la position ici maintenant
-    isShown: boolean;
-}
+import type { ZoneConfig } from "../core/interfaces/ZoneConfig";
+import type { ZoneEntry } from "../core/interfaces/ZoneEntry";
 
 export class LevelManager {
     private readonly _scene: Scene;
@@ -94,6 +88,7 @@ export class LevelManager {
             } else if (!isNear && zone.isShown) {
                 zone.container.removeAllFromScene();
                 zone.isShown = false;
+                console.log(`Unloading zone : ${id}`);
             }
         }
     }
