@@ -28,27 +28,37 @@ export class App {
 
         // 2. Configuration physique globale
         this.scene.collisionsEnabled = true;
+        // On garde la gravité globale même si ton Player a sa propre constante
         this.scene.gravity = new Vector3(0, -9.81, 0);
 
         // 3. Initialisation des gestionnaires
-        this.player = new Player(this.scene, new Vector3(0, 2, 0));
+        // Note: Le Player est créé avec une position de départ
+        this.player = new Player(this.scene, new Vector3(0, 5, 0));
         this.levelManager = new LevelManager(this.scene);
 
-        // 4. Lumière de secours (au cas où ton .glb n'en a pas)
+        // 4. Lumière de secours
         this.createDefaultLight();
 
         // 5. Outils de développement
         this.setupInspectorToggle();
 
-        // 6. Chargement du monde
+        // 6. Chargement du monde (Asynchrone)
         this.initWorld();
 
         // 7. Boucle de rendu
         this.engine.runRenderLoop(() => {
-            this.player.update();
+            // On récupère le temps écoulé entre deux frames (pour la FSM et la physique)
+            // Babylon donne le temps en millisecondes, on divise souvent par 1000 pour avoir des secondes
+            const deltaTime = this.engine.getDeltaTime() / 1000;
 
-            // Streaming : On affiche les zones à 50 unités du joueur
-            this.levelManager.update(this.player.position, 50);
+            if (this.player) {
+                // MISE À JOUR DU JOUEUR (Physique, FSM, Inputs)
+                this.player.update(deltaTime);
+
+                // MISE À JOUR DU STREAMING DE NIVEAU
+                // On passe la position du joueur (via le getter) et la distance de vue
+                this.levelManager.update(this.player.position, 100);
+            }
 
             this.scene.render();
         });
@@ -78,27 +88,24 @@ export class App {
         canvas.style.height = "100vh";
         canvas.style.display = "block";
         canvas.style.outline = "none";
+        canvas.style.position = "fixed"; // Évite les barres de scroll
+        canvas.style.top = "0";
+        canvas.style.left = "0";
         document.body.appendChild(canvas);
         return canvas;
     }
 
-    /**
-     * Lumière ambiante basique pour éviter le noir total
-     */
     private createDefaultLight(): void {
         const light = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), this.scene);
-        light.intensity = 0.5;
-        light.groundColor = new Color3(0.1, 0.1, 0.1);
+        light.intensity = 0.7;
+        light.groundColor = new Color3(0.2, 0.2, 0.2);
     }
 
-    /**
-     * CTRL + ALT + SHIFT + I pour ouvrir l'inspecteur Babylon
-     */
     private setupInspectorToggle(): void {
+        // @ts-ignore - meta.env est spécifique à Vite
         if (import.meta.env.DEV) {
             import("@babylonjs/core/Debug/debugLayer");
             import("@babylonjs/inspector");
-
             window.addEventListener("keydown", (ev) => {
                 if (ev.shiftKey && ev.ctrlKey && ev.altKey && ev.key === "I") {
                     if (this.scene.debugLayer.isVisible()) {

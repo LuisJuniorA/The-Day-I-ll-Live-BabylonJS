@@ -1,10 +1,5 @@
 import { Vector3 } from "@babylonjs/core";
-
-export interface ZoneConfig {
-    id: string;
-    path: string;
-    position: Vector3;
-}
+import type { ZoneConfig } from "../core/interfaces/ZoneConfig";
 
 export const WorldZones: ZoneConfig[] = [
     {
