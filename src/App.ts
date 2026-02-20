@@ -104,6 +104,8 @@ export class App {
     private setupInspectorToggle(): void {
         // @ts-ignore - meta.env est spécifique à Vite
         if (import.meta.env.DEV) {
+            import("@babylonjs/core/Debug/debugLayer");
+            import("@babylonjs/inspector");
             window.addEventListener("keydown", (ev) => {
                 if (ev.shiftKey && ev.ctrlKey && ev.altKey && ev.key === "I") {
                     if (this.scene.debugLayer.isVisible()) {
