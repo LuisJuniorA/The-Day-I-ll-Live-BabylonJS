@@ -27,8 +27,6 @@ export class FSM<T> {
 
         // 3. On initialise le nouvel état
         this._currentState.onEnter(this._owner);
-
-        console.log(`[FSM] Transition vers : ${this._currentState.name}`);
     }
 
     /**

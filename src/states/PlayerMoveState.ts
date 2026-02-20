@@ -1,52 +1,45 @@
-import { Vector3, Ray, Scalar } from "@babylonjs/core";
+import { Scalar } from "@babylonjs/core";
 import { Player } from "../entities/Player";
 import { BaseState } from "../core/abstracts/BaseState";
+import { PlayerIdleState } from "./PlayerIdleState";
+import { PlayerJumpState } from "./PlayerJumpState";
+import { PlayerFallingState } from "./PlayerFallingState";
 
 export class PlayerMoveState extends BaseState<Player> {
     public readonly name = "MoveState";
 
-    // On remplace onUpdate par handleUpdate (défini dans BaseState)
     protected handleUpdate(owner: Player, _dt: number): void {
-        this._checkGrounded(owner);
-        this._applyPhysics(owner);
+        // 1. On vérifie le sol via la méthode centralisée
+        owner.checkGrounded();
 
-        // Application du mouvement
-        owner.mesh!.moveWithCollisions(owner.velocity);
-
-        // Exemple d'utilisation du temps : transition auto après 10s (juste pour l'exemple)
-        // if (this.timeInState > 10) { ... }
-    }
-
-    private _applyPhysics(owner: Player): void {
+        // 2. Mouvement Horizontal
         const moveX = owner.input.horizontal;
         const targetVelocityX = moveX * owner.speed;
         owner.velocity.x = Scalar.Lerp(owner.velocity.x, targetVelocityX, 0.2);
 
-        if (owner.isGrounded) {
-            owner.velocity.y = 0;
-            if (owner.input.isJumping) {
-                owner.velocity.y = owner.jumpForce;
-                owner.isGrounded = false;
-            }
-        } else {
+        // 3. Gravité de base (au cas où on marche au dessus du vide)
+        if (!owner.isGrounded) {
             owner.velocity.y += owner.gravity;
         }
-    }
 
-    private _checkGrounded(owner: Player): void {
-        const rayOrigin = owner.mesh!.position.clone();
-        rayOrigin.y -= 0.9;
+        // 4. Application
+        owner.mesh!.moveWithCollisions(owner.velocity);
 
-        const ray = new Ray(rayOrigin, new Vector3(0, -1, 0), 0.2);
-        const pick = owner.mesh!.getScene().pickWithRay(ray, (m) => {
-            return m.checkCollisions && m !== owner.mesh;
-        });
+        // 5. Transitions (Le cerveau du State)
 
-        owner.isGrounded = (pick !== null && pick.hit);
+        // Si on ne bouge plus le joystick -> Idle
+        if (moveX === 0 && Math.abs(owner.velocity.x) < 0.01) {
+            owner.movementFSM.transitionTo(new PlayerIdleState());
+        }
 
-        if (owner.isGrounded && owner.velocity.y < 0) {
-            owner.velocity.y = 0;
+        // Si on saute -> Jump
+        if (owner.input.isJumping && owner.isGrounded) {
+            owner.movementFSM.transitionTo(new PlayerJumpState());
+        }
+
+        // Si on tombe d'un rebord -> Falling
+        if (!owner.isGrounded && owner.velocity.y < 0) {
+            owner.movementFSM.transitionTo(new PlayerFallingState());
         }
     }
-
 }
