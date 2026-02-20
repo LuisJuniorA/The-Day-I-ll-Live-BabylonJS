@@ -1,38 +1,34 @@
 import { Vector3, Ray, Scalar } from "@babylonjs/core";
-import type { State } from "../core/interfaces/State";
 import { Player } from "../entities/Player";
+import { BaseState } from "../core/abstracts/BaseState";
 
-export class PlayerMoveState implements State<Player> {
+export class PlayerMoveState extends BaseState<Player> {
     public readonly name = "MoveState";
 
-    public onEnter(owner: Player): void {
-        console.log("Player entered Move State");
-    }
-
-    public onUpdate(owner: Player, dt: number): void {
+    // On remplace onUpdate par handleUpdate (défini dans BaseState)
+    protected handleUpdate(owner: Player, _dt: number): void {
         this._checkGrounded(owner);
         this._applyPhysics(owner);
 
-        // Application finale du mouvement via Babylon
+        // Application du mouvement
         owner.mesh!.moveWithCollisions(owner.velocity);
+
+        // Exemple d'utilisation du temps : transition auto après 10s (juste pour l'exemple)
+        // if (this.timeInState > 10) { ... }
     }
 
     private _applyPhysics(owner: Player): void {
-        // --- Mouvement Horizontal ---
         const moveX = owner.input.horizontal;
         const targetVelocityX = moveX * owner.speed;
         owner.velocity.x = Scalar.Lerp(owner.velocity.x, targetVelocityX, 0.2);
 
-        // --- Mouvement Vertical ---
         if (owner.isGrounded) {
             owner.velocity.y = 0;
-            // Saut
             if (owner.input.isJumping) {
                 owner.velocity.y = owner.jumpForce;
                 owner.isGrounded = false;
             }
         } else {
-            // Gravité
             owner.velocity.y += owner.gravity;
         }
     }
@@ -41,10 +37,7 @@ export class PlayerMoveState implements State<Player> {
         const rayOrigin = owner.mesh!.position.clone();
         rayOrigin.y -= 0.9;
 
-        const rayDirection = new Vector3(0, -1, 0);
-        const rayLength = 0.2;
-
-        const ray = new Ray(rayOrigin, rayDirection, rayLength);
+        const ray = new Ray(rayOrigin, new Vector3(0, -1, 0), 0.2);
         const pick = owner.mesh!.getScene().pickWithRay(ray, (m) => {
             return m.checkCollisions && m !== owner.mesh;
         });
@@ -56,7 +49,4 @@ export class PlayerMoveState implements State<Player> {
         }
     }
 
-    public onExit(owner: Player): void {
-        // Nettoyage si besoin
-    }
 }
