@@ -6,19 +6,22 @@ import {
     Color3
 } from "@babylonjs/core";
 
-// Indispensable pour lire les fichiers .glb / .gltf
 import "@babylonjs/loaders/glTF";
 
 import { Player } from "./entities/Player";
 import { LevelManager } from "./managers/LevelManager";
+import { EntityManager } from "./managers/EntityManager";
 import { WorldZones } from "./scenes/WorldData";
 
 export class App {
     private readonly engine: Engine;
     private readonly scene: Scene;
     private readonly canvas: HTMLCanvasElement;
-    private readonly player: Player;
     private readonly levelManager: LevelManager;
+    private readonly entityManager: EntityManager;
+
+    // On garde une référence typée pour les besoins spécifiques (Caméra, Position)
+    private player: Player;
 
     constructor() {
         // 1. Setup du moteur et du canvas
@@ -28,47 +31,49 @@ export class App {
 
         // 2. Configuration physique globale
         this.scene.collisionsEnabled = true;
-        // On garde la gravité globale même si ton Player a sa propre constante
         this.scene.gravity = new Vector3(0, -9.81, 0);
 
         // 3. Initialisation des gestionnaires
-        // Note: Le Player est créé avec une position de départ
-        this.player = new Player(this.scene, new Vector3(0, 5, 0));
+        this.entityManager = new EntityManager(); // Initialisation du manager
         this.levelManager = new LevelManager(this.scene);
 
-        // 4. Lumière de secours
-        this.createDefaultLight();
+        // 4. Création du Player et enregistrement dans le manager
+        this.player = new Player(this.scene, new Vector3(0, 5, 0));
+        this.entityManager.add(this.player); // Le manager gère maintenant son cycle de vie
 
-        // 5. Outils de développement
+        // 5. Setup environnement
+        this.createDefaultLight();
         this.setupInspectorToggle();
 
-        // 6. Chargement du monde (Asynchrone)
+        // 6. Chargement du monde
         this.initWorld();
 
         // 7. Boucle de rendu
+        this.startRenderLoop();
+    }
+
+    private startRenderLoop(): void {
         this.engine.runRenderLoop(() => {
-            // On récupère le temps écoulé entre deux frames (pour la FSM et la physique)
-            // Babylon donne le temps en millisecondes, on divise souvent par 1000 pour avoir des secondes
             const deltaTime = this.engine.getDeltaTime() / 1000;
 
-            if (this.player) {
-                // MISE À JOUR DU JOUEUR (Physique, FSM, Inputs)
-                this.player.update(deltaTime);
+            // --- MISE À JOUR LOGIQUE ---
 
-                // MISE À JOUR DU STREAMING DE NIVEAU
-                // On passe la position du joueur (via le getter) et la distance de vue
+            // Le manager met à jour TOUTES les entités (Player, Ennemis, etc.)
+            // Cela inclut la FSM, la physique et les inputs du joueur
+            this.entityManager.update(deltaTime);
+
+            // Mise à jour du streaming de niveau (nécessite la position du player)
+            if (this.player) {
                 this.levelManager.update(this.player.position, 100);
             }
 
+            // --- RENDU ---
             this.scene.render();
         });
 
         window.addEventListener("resize", () => this.engine.resize());
     }
 
-    /**
-     * Charge les assets via le LevelManager
-     */
     private async initWorld(): Promise<void> {
         try {
             await this.levelManager.loadWorld(WorldZones);
@@ -78,19 +83,18 @@ export class App {
         }
     }
 
-    /**
-     * Crée le canvas HTML dans le DOM
-     */
     private createCanvas(): HTMLCanvasElement {
         const canvas = document.createElement("canvas");
         canvas.id = "gameCanvas";
-        canvas.style.width = "100vw";
-        canvas.style.height = "100vh";
-        canvas.style.display = "block";
-        canvas.style.outline = "none";
-        canvas.style.position = "fixed"; // Évite les barres de scroll
-        canvas.style.top = "0";
-        canvas.style.left = "0";
+        Object.assign(canvas.style, {
+            width: "100vw",
+            height: "100vh",
+            display: "block",
+            outline: "none",
+            position: "fixed",
+            top: "0",
+            left: "0"
+        });
         document.body.appendChild(canvas);
         return canvas;
     }
@@ -102,17 +106,13 @@ export class App {
     }
 
     private setupInspectorToggle(): void {
-        // @ts-ignore - meta.env est spécifique à Vite
+        // @ts-ignore import.meta.env.DEV viens de vite
         if (import.meta.env.DEV) {
             import("@babylonjs/core/Debug/debugLayer");
             import("@babylonjs/inspector");
             window.addEventListener("keydown", (ev) => {
                 if (ev.shiftKey && ev.ctrlKey && ev.altKey && ev.key === "I") {
-                    if (this.scene.debugLayer.isVisible()) {
-                        this.scene.debugLayer.hide();
-                    } else {
-                        this.scene.debugLayer.show();
-                    }
+                    this.scene.debugLayer.isVisible() ? this.scene.debugLayer.hide() : this.scene.debugLayer.show();
                 }
             });
         }

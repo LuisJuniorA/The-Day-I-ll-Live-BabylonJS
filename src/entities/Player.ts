@@ -1,4 +1,4 @@
-import { Scene, Vector3, MeshBuilder, UniversalCamera } from "@babylonjs/core";
+import { Scene, Vector3, MeshBuilder, UniversalCamera, Ray } from "@babylonjs/core";
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
 import { InputHandler } from "../core/engines/InputHandler";
@@ -7,7 +7,8 @@ import { PlayerMoveState } from "../states/PlayerMoveState";
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
     public readonly input: InputHandler;
-    public readonly fsm: FSM<Player>;
+    public readonly movementFSM: FSM<Player>;
+    public readonly attackFSM: FSM<Player>;
 
     // Physique partagée avec les états
     public velocity: Vector3 = Vector3.Zero();
@@ -35,10 +36,11 @@ export class Player extends Character {
 
         // 3. Moteurs
         this.input = new InputHandler(scene);
-        this.fsm = new FSM<Player>(this);
+        this.movementFSM = new FSM<Player>(this);
+        this.attackFSM = new FSM<Player>(this);
 
         // 4. État initial
-        this.fsm.transitionTo(new PlayerMoveState());
+        this.movementFSM.transitionTo(new PlayerMoveState());
     }
 
     public update(dt: number): void {
@@ -48,7 +50,7 @@ export class Player extends Character {
         this.input.update();
 
         // Met à jour la FSM (c'est elle qui appelle la logique de mouvement)
-        this.fsm.update(dt);
+        this.movementFSM.update(dt);
 
         // Met à jour la caméra
         this._updateCamera();
@@ -64,7 +66,16 @@ export class Player extends Character {
         this._camera.setTarget(new Vector3(this.mesh!.position.x, this.mesh!.position.y + 2, 0));
     }
 
-    // À ajouter dans Player.ts
+    public checkGrounded(): void {
+        const rayOrigin = this.mesh!.position.clone();
+        rayOrigin.y -= 0.9;
+        const ray = new Ray(rayOrigin, new Vector3(0, -1, 0), 0.2);
+        const pick = this.mesh!.getScene().pickWithRay(ray, (m) => m.checkCollisions && m !== this.mesh);
+
+        this.isGrounded = (pick !== null && pick.hit);
+        if (this.isGrounded && this.velocity.y < 0) this.velocity.y = 0;
+    }
+
     public get position(): Vector3 {
         return this.mesh ? this.mesh.position : Vector3.Zero();
     }

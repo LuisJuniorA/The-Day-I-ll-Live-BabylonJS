@@ -6,14 +6,16 @@ export abstract class Entity {
     public transform: TransformNode;
     public mesh?: AbstractMesh;
     public name: string;
+    public id: string;
 
     // On met <any> ici car Entity ne sait pas encore quel type de FSM elle aura
-    public fsm?: FSM<any>;
+    public movementFSM?: FSM<any>;
 
     constructor(name: string, scene: Scene) {
+        this.id = crypto.randomUUID();
         this.name = name;
         // Un TransformNode est plus léger qu'un Mesh si on veut juste une position
-        this.transform = new TransformNode(name, scene);
+        this.transform = new TransformNode(`${name}_${this.id.substring(0, 5)}`, scene);
     }
 
     /**
@@ -21,7 +23,7 @@ export abstract class Entity {
      * @param dt DeltaTime en secondes
      */
     public update(dt: number): void {
-        this.fsm?.update(dt);
+        this.movementFSM?.update(dt);
     }
 
     /**
