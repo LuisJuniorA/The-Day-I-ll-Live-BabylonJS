@@ -5,6 +5,7 @@ import type { CharacterStats } from "../types/CharacterStats";
 export abstract class Character extends Entity {
     public stats: CharacterStats;
     public isDead: boolean = false;
+    public onDeath?: () => void;
 
     constructor(name: string, scene: Scene, initialStats: CharacterStats) {
         super(name, scene);
@@ -22,6 +23,7 @@ export abstract class Character extends Entity {
 
         if (this.stats.hp <= 0) {
             this.die();
+            this.onDeath?.();
         }
     }
 
