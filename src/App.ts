@@ -12,6 +12,8 @@ import { Player } from "./entities/Player";
 import { LevelManager } from "./managers/LevelManager";
 import { EntityManager } from "./managers/EntityManager";
 import { WorldZones } from "./scenes/WorldData";
+import { GameStateManager } from "./managers/GameStateManager";
+import { GameState } from "./core/types/GameState";
 
 export class App {
     private readonly engine: Engine;
@@ -19,6 +21,7 @@ export class App {
     private readonly canvas: HTMLCanvasElement;
     private readonly levelManager: LevelManager;
     private readonly entityManager: EntityManager;
+    private readonly gameStateManager: GameStateManager
 
     // On garde une référence typée pour les besoins spécifiques (Caméra, Position)
     private player: Player;
@@ -36,9 +39,13 @@ export class App {
         // 3. Initialisation des gestionnaires
         this.entityManager = new EntityManager(); // Initialisation du manager
         this.levelManager = new LevelManager(this.scene);
+        this.gameStateManager = new GameStateManager();
 
         // 4. Création du Player et enregistrement dans le manager
         this.player = new Player(this.scene, new Vector3(0, 5, 0));
+        this.player.onDeath = () => {
+            this.gameStateManager.setGameOver();
+        };
         this.entityManager.add(this.player); // Le manager gère maintenant son cycle de vie
 
         // 5. Setup environnement
@@ -60,11 +67,21 @@ export class App {
 
             // Le manager met à jour TOUTES les entités (Player, Ennemis, etc.)
             // Cela inclut la FSM, la physique et les inputs du joueur
-            this.entityManager.update(deltaTime);
+            if (this.gameStateManager.isPlaying()) {
 
-            // Mise à jour du streaming de niveau (nécessite la position du player)
-            if (this.player) {
-                this.levelManager.update(this.player.position, 100);
+                this.entityManager.update(deltaTime);
+
+                if (this.player) {
+                    // VERIFICATION DE LA MORT
+                    if (this.player.stats.hp <= 0 || this.player.isDead) {
+                        this.gameStateManager.setGameOver();
+                    }
+
+                    this.levelManager.update(this.player.position, 100);
+                }
+            }
+            else if (this.gameStateManager.state === GameState.GAME_OVER) {
+                // Optionnel: On peut faire tourner la caméra ou ralentir le temps
             }
 
             // --- RENDU ---
