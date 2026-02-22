@@ -41,6 +41,8 @@ export class Player extends Character {
 
         // 4. État initial
         this.movementFSM.transitionTo(new PlayerMoveState());
+
+        this._scene.activeCamera = this._camera;
     }
 
     public update(dt: number): void {

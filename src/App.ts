@@ -3,7 +3,8 @@ import {
     Scene,
     Vector3,
     HemisphericLight,
-    Color3
+    Color3,
+    UniversalCamera
 } from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
@@ -13,104 +14,162 @@ import { LevelManager } from "./managers/LevelManager";
 import { EntityManager } from "./managers/EntityManager";
 import { WorldZones } from "./scenes/WorldData";
 import { GameStateManager } from "./managers/GameStateManager";
-import { GameState } from "./core/types/GameState";
+import { UIManager } from "./managers/UIManager";
 
 export class App {
     private readonly engine: Engine;
     private readonly scene: Scene;
     private readonly canvas: HTMLCanvasElement;
+
+    // Managers
+    private readonly gameStateManager: GameStateManager;
+    private readonly uiManager: UIManager;
     private readonly levelManager: LevelManager;
     private readonly entityManager: EntityManager;
-    private readonly gameStateManager: GameStateManager
 
-    // On garde une référence typée pour les besoins spécifiques (Caméra, Position)
-    private player: Player;
+    private menuCamera!: UniversalCamera;
+    private player!: Player;
 
     constructor() {
-        // 1. Setup du moteur et du canvas
+        // 1. Initialisation de base
         this.canvas = this.createCanvas();
         this.engine = new Engine(this.canvas, true);
         this.scene = new Scene(this.engine);
 
-        // 2. Configuration physique globale
+        // 2. Gestionnaires de logique (State & UI en premier)
+        this.gameStateManager = new GameStateManager();
+        this.uiManager = new UIManager(this.scene, this.gameStateManager);
+
+        this.entityManager = new EntityManager();
+        this.levelManager = new LevelManager(this.scene);
+
+        // 3. Configuration du Monde et Physique
         this.scene.collisionsEnabled = true;
         this.scene.gravity = new Vector3(0, -9.81, 0);
 
-        // 3. Initialisation des gestionnaires
-        this.entityManager = new EntityManager(); // Initialisation du manager
-        this.levelManager = new LevelManager(this.scene);
-        this.gameStateManager = new GameStateManager();
+        // 4. Initialisation du Joueur et des Entrées
+        this.setupInputs();
 
-        // 4. Création du Player et enregistrement dans le manager
-        this.player = new Player(this.scene, new Vector3(0, 5, 0));
-        this.player.onDeath = () => {
-            this.gameStateManager.setGameOver();
-        };
-        this.entityManager.add(this.player); // Le manager gère maintenant son cycle de vie
-
-        // 5. Setup environnement
+        // 5. Environnement et Lancement
         this.createDefaultLight();
         this.setupInspectorToggle();
-
-        // 6. Chargement du monde
         this.initWorld();
-
-        // 7. Boucle de rendu
+        this.initMenu();
         this.startRenderLoop();
     }
 
+    /**
+     * Initialise le joueur et ses événements
+     */
+    private spawnPlayer(): void {
+        this.player = new Player(this.scene, new Vector3(0, 5, 0));
+
+        // On lie la mort du joueur au GameState
+        this.player.onDeath = () => {
+            this.gameStateManager.setGameOver();
+        };
+        this.menuCamera.dispose();
+        this.entityManager.add(this.player);
+    }
+
+    /**
+     * Centralise la gestion des entrées clavier et des clics UI
+     */
+    private setupInputs(): void {
+        // 1. On passe par pointerlock et non echap, car le navigateur intercepte la touche, libère la souris, mais ne propage pas forcément l'événement (et c'est chiant)
+        document.addEventListener("pointerlockchange", () => {
+            if (document.pointerLockElement === null) {
+                this.gameStateManager.setPause();
+            }
+        });
+
+        // 2. Le bouton Resume relance le jeu ET cache la souris (autorisé car c'est un clic)
+        this.uiManager.mainMenuView.onResumeObservable.add(() => {
+            if (!this.player) {
+                this.spawnPlayer();
+                // Optionnel : Lancer la cinématique ici avant de passer en "Playing"
+            }
+            this.gameStateManager.setPlaying();
+            this.pointerLock();
+        });
+
+        this.uiManager.mainMenuView.onQuitObservable.add(() => {
+            window.location.reload();
+        });
+    }
+
+    private initMenu(): void {
+        // Une caméra fixe qui filme ton beau niveau en attendant
+        this.menuCamera = new UniversalCamera("menuCam", new Vector3(0, 10, -20), this.scene);
+        this.menuCamera.setTarget(new Vector3(0, 5, 0));
+
+        // On dit à Babylon d'utiliser celle-là par défaut
+        this.scene.activeCamera = this.menuCamera;
+    }
+
+    private pointerLock(): void {
+        const canvas = document.querySelector("canvas");
+
+        if (this.gameStateManager.isPlaying()) {
+            canvas?.requestPointerLock();
+        } else {
+            // Sécurité : on ne demande la sortie que si le pointeur est déjà locké
+            if (document.pointerLockElement) {
+                document.exitPointerLock();
+            }
+        }
+    }
+
+    /**
+     * Boucle de rendu principale
+     */
     private startRenderLoop(): void {
         this.engine.runRenderLoop(() => {
             const deltaTime = this.engine.getDeltaTime() / 1000;
 
-            // --- MISE À JOUR LOGIQUE ---
-
-            // Le manager met à jour TOUTES les entités (Player, Ennemis, etc.)
-            // Cela inclut la FSM, la physique et les inputs du joueur
+            // --- UPDATE LOGIQUE ---
+            // On ne met à jour le monde que si on est en jeu
             if (this.gameStateManager.isPlaying()) {
-
                 this.entityManager.update(deltaTime);
 
                 if (this.player) {
-                    // VERIFICATION DE LA MORT
+                    // Check additionnel pour la mort (sécurité)
                     if (this.player.stats.hp <= 0 || this.player.isDead) {
                         this.gameStateManager.setGameOver();
                     }
-
                     this.levelManager.update(this.player.position, 100);
                 }
             }
-            else if (this.gameStateManager.state === GameState.GAME_OVER) {
-                // Optionnel: On peut faire tourner la caméra ou ralentir le temps
-            }
 
             // --- RENDU ---
+            // On rend toujours la scène (pour voir le jeu en fond derrière l'UI)
             this.scene.render();
         });
 
         window.addEventListener("resize", () => this.engine.resize());
     }
 
+    /**
+     * Chargement asynchrone des assets du monde
+     */
     private async initWorld(): Promise<void> {
         try {
             await this.levelManager.loadWorld(WorldZones);
-            console.log("Monde chargé avec succès !");
+            console.log("Monde chargé !");
         } catch (error) {
-            console.error("Erreur lors du chargement initial :", error);
+            console.error("Erreur de chargement :", error);
         }
     }
+
+    // --- HELPERS ENVIRONNEMENT ---
 
     private createCanvas(): HTMLCanvasElement {
         const canvas = document.createElement("canvas");
         canvas.id = "gameCanvas";
         Object.assign(canvas.style, {
-            width: "100vw",
-            height: "100vh",
-            display: "block",
-            outline: "none",
-            position: "fixed",
-            top: "0",
-            left: "0"
+            width: "100vw", height: "100vh",
+            display: "block", outline: "none",
+            position: "fixed", top: "0", left: "0"
         });
         document.body.appendChild(canvas);
         return canvas;
@@ -123,7 +182,7 @@ export class App {
     }
 
     private setupInspectorToggle(): void {
-        // @ts-ignore import.meta.env.DEV viens de vite
+        // @ts-ignore
         if (import.meta.env.DEV) {
             import("@babylonjs/core/Debug/debugLayer");
             import("@babylonjs/inspector");
