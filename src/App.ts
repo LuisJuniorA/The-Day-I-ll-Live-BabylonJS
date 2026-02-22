@@ -3,7 +3,8 @@ import {
     Scene,
     Vector3,
     HemisphericLight,
-    Color3
+    Color3,
+    UniversalCamera
 } from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
@@ -26,6 +27,7 @@ export class App {
     private readonly levelManager: LevelManager;
     private readonly entityManager: EntityManager;
 
+    private menuCamera!: UniversalCamera;
     private player!: Player;
 
     constructor() {
@@ -46,27 +48,27 @@ export class App {
         this.scene.gravity = new Vector3(0, -9.81, 0);
 
         // 4. Initialisation du Joueur et des Entrées
-        this.initPlayer();
         this.setupInputs();
 
         // 5. Environnement et Lancement
         this.createDefaultLight();
         this.setupInspectorToggle();
         this.initWorld();
+        this.initMenu();
         this.startRenderLoop();
     }
 
     /**
      * Initialise le joueur et ses événements
      */
-    private initPlayer(): void {
+    private spawnPlayer(): void {
         this.player = new Player(this.scene, new Vector3(0, 5, 0));
 
         // On lie la mort du joueur au GameState
         this.player.onDeath = () => {
             this.gameStateManager.setGameOver();
         };
-
+        this.menuCamera.dispose();
         this.entityManager.add(this.player);
     }
 
@@ -83,6 +85,10 @@ export class App {
 
         // 2. Le bouton Resume relance le jeu ET cache la souris (autorisé car c'est un clic)
         this.uiManager.mainMenuView.onResumeObservable.add(() => {
+            if (!this.player) {
+                this.spawnPlayer();
+                // Optionnel : Lancer la cinématique ici avant de passer en "Playing"
+            }
             this.gameStateManager.setPlaying();
             this.pointerLock();
         });
@@ -90,6 +96,15 @@ export class App {
         this.uiManager.mainMenuView.onQuitObservable.add(() => {
             window.location.reload();
         });
+    }
+
+    private initMenu(): void {
+        // Une caméra fixe qui filme ton beau niveau en attendant
+        this.menuCamera = new UniversalCamera("menuCam", new Vector3(0, 10, -20), this.scene);
+        this.menuCamera.setTarget(new Vector3(0, 5, 0));
+
+        // On dit à Babylon d'utiliser celle-là par défaut
+        this.scene.activeCamera = this.menuCamera;
     }
 
     private pointerLock(): void {

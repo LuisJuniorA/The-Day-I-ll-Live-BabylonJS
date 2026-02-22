@@ -7,6 +7,7 @@ export abstract class Entity {
     public mesh?: AbstractMesh;
     public name: string;
     public id: string;
+    protected readonly _scene: Scene;
 
     // On met <any> ici car Entity ne sait pas encore quel type de FSM elle aura
     public movementFSM?: FSM<any>;
@@ -14,6 +15,7 @@ export abstract class Entity {
     constructor(name: string, scene: Scene) {
         this.id = crypto.randomUUID();
         this.name = name;
+        this._scene = scene;
         // Un TransformNode est plus léger qu'un Mesh si on veut juste une position
         this.transform = new TransformNode(`${name}_${this.id.substring(0, 5)}`, scene);
     }
