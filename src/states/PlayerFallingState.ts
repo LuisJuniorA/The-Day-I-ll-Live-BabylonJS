@@ -2,6 +2,7 @@ import { Scalar } from "@babylonjs/core";
 import { BaseState } from "../core/abstracts/BaseState";
 import { Player } from "../entities/Player";
 import { PlayerIdleState } from "./PlayerIdleState";
+import { PlayerJumpState } from "./PlayerJumpState";
 
 export class PlayerFallingState extends BaseState<Player> {
     public readonly name = "FallingState";
@@ -24,6 +25,14 @@ export class PlayerFallingState extends BaseState<Player> {
         //     this._canDoubleJump = false;
         //     owner.velocity.y = owner.jumpForce * 0.8; // Saut un peu plus faible
         // }
+
+        // Coyote
+
+        if (owner.buffer.isActive("jump") && owner.coyoteTimeCounter > 0) {
+            owner.buffer.consume("jump");
+            owner.movementFSM.transitionTo(new PlayerJumpState());
+            return;
+        }
 
         // Retour au sol
         if (owner.isGrounded) {

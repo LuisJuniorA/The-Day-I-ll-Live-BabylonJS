@@ -3,6 +3,7 @@ import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
 import { InputHandler } from "../core/engines/InputHandler";
 import { PlayerMoveState } from "../states/PlayerMoveState";
+import { InputBufferManager } from "../managers/InputBufferManager";
 
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
@@ -18,6 +19,14 @@ export class Player extends Character {
     public readonly speed: number = 0.2;
     public readonly gravity: number = -0.015;
     public readonly jumpForce: number = 0.35;
+
+    // --- Paramètres Coyote & Buffer ---
+    public readonly buffer: InputBufferManager = new InputBufferManager();
+    public coyoteTimeCounter: number = 0;
+    private readonly coyoteTimeDuration: number = 0.2;
+
+    public jumpBufferCounter: number = 0;
+    public readonly jumpBufferDuration: number = 0.2; // 200ms
 
     constructor(scene: Scene, startPosition: Vector3) {
         // Initialisation Character (Nom, Scene, Stats)
@@ -50,6 +59,15 @@ export class Player extends Character {
 
         // Met à jour les inputs
         this.input.update();
+        this.buffer.update(dt); // On fait défiler tous les buffers
+
+        if (this.input.isJumping) this.buffer.trigger("jump");
+        if (this.input.isAttacking) this.buffer.trigger("attack");
+        //if (this.input.isDashing) this.buffer.trigger("dash");
+
+        // --- Gestion Coyote Time ---
+        this.checkGrounded(); // On vérifie le sol avant pour timer le coyote
+        this.coyoteTimeCounter = this.isGrounded ? this.coyoteTimeDuration : this.coyoteTimeCounter - dt;
 
         // Met à jour la FSM (c'est elle qui appelle la logique de mouvement)
         this.movementFSM.update(dt);
