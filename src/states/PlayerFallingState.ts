@@ -28,22 +28,15 @@ export class PlayerFallingState extends BaseState<Player> {
 
         // Coyote
 
-        if (owner.jumpBufferCounter > 0 && owner.coyoteTimeCounter > 0) {
-            owner.jumpBufferCounter = 0;
-            owner.coyoteTimeCounter = 0; // On vide pour éviter le multi-jump
+        if (owner.buffer.isActive("jump") && owner.coyoteTimeCounter > 0) {
+            owner.buffer.consume("jump");
             owner.movementFSM.transitionTo(new PlayerJumpState());
             return;
         }
 
         // Retour au sol
         if (owner.isGrounded) {
-            if (owner.jumpBufferCounter > 0) {
-                // Le joueur voulait sauter juste avant de toucher le sol
-                owner.jumpBufferCounter = 0;
-                owner.movementFSM.transitionTo(new PlayerJumpState());
-            } else {
-                owner.movementFSM.transitionTo(new PlayerIdleState());
-            }
+            owner.movementFSM.transitionTo(new PlayerIdleState());
         }
     }
 }
