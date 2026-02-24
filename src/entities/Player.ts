@@ -19,6 +19,13 @@ export class Player extends Character {
     public readonly gravity: number = -0.015;
     public readonly jumpForce: number = 0.35;
 
+    // --- Paramètres Coyote & Buffer ---
+    public coyoteTimeCounter: number = 0;
+    public readonly coyoteTimeDuration: number = 0.2; // 200ms
+
+    public jumpBufferCounter: number = 0;
+    public readonly jumpBufferDuration: number = 0.2; // 200ms
+
     constructor(scene: Scene, startPosition: Vector3) {
         // Initialisation Character (Nom, Scene, Stats)
         super("Player", scene, { hp: 100, maxHp: 100, speed: 0.2, level: 1 });
@@ -50,6 +57,21 @@ export class Player extends Character {
 
         // Met à jour les inputs
         this.input.update();
+
+        // --- Gestion Coyote Time ---
+        this.checkGrounded(); // On vérifie le sol avant pour timer le coyote
+        if (this.isGrounded) {
+            this.coyoteTimeCounter = this.coyoteTimeDuration;
+        } else {
+            this.coyoteTimeCounter -= dt;
+        }
+
+        // --- Gestion Input Buffer ---
+        if (this.input.isJumping) {
+            this.jumpBufferCounter = this.jumpBufferDuration;
+        } else {
+            this.jumpBufferCounter -= dt;
+        }
 
         // Met à jour la FSM (c'est elle qui appelle la logique de mouvement)
         this.movementFSM.update(dt);
