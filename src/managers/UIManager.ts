@@ -5,6 +5,8 @@ import { HUDView } from "../ui/views/HUDView";
 import { GameState } from "../core/types/GameState";
 import type { GameStateType } from "../core/types/GameState";
 import { GameStateManager } from "./GameStateManager";
+import { OnInteractionAvailable } from "../core/interfaces/Interactable";
+import { AbstractMesh } from "@babylonjs/core";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
@@ -24,6 +26,20 @@ export class UIManager {
             this.handleStateChange(state);
         });
 
+        OnInteractionAvailable.add((event) => {
+            // 1. On vérifie d'abord si l'interactable existe (on élimine le 'undefined')
+            if (event.isNear && event.interactable) {
+                const npcMesh = event.interactable.transform as AbstractMesh;
+
+                // FORCE la mise à jour des coordonnées mondiales du NPC
+                npcMesh.computeWorldMatrix(true);
+
+                this.hudView.interactionPrompt.showAtMesh(npcMesh); // Utilise des petites valeurs si c'est linkOffsetY
+            } else {
+                this.hudView.interactionPrompt.hide();
+            }
+        });
+
         // On initialise l'UI avec l'état actuel
         this.handleStateChange(gameStateManager.state);
     }
@@ -32,6 +48,7 @@ export class UIManager {
         switch (state) {
             case GameState.MENU:
             case GameState.PAUSED:
+                this.hudView.interactionPrompt.hide();
                 this.showMenu();
                 break;
 
@@ -48,6 +65,7 @@ export class UIManager {
     public showHUD(): void {
         this.mainMenuView.hide();
         this.hudView.show();
+        this.hudView.interactionPrompt.show();
     }
 
     public showMenu(): void {

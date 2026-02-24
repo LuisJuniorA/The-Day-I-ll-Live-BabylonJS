@@ -4,12 +4,14 @@ import { FSM } from "../core/engines/FSM";
 import { InputHandler } from "../core/engines/InputHandler";
 import { PlayerMoveState } from "../states/PlayerMoveState";
 import { InputBufferManager } from "../managers/InputBufferManager";
+import { OnInteractionAvailable, type Interactable } from "../core/interfaces/Interactable";
 
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
     public readonly input: InputHandler;
     public readonly movementFSM: FSM<Player>;
     public readonly attackFSM: FSM<Player>;
+    private _targetInteractable: Interactable | null = null;
 
     // Physique partagée avec les états
     public velocity: Vector3 = Vector3.Zero();
@@ -32,12 +34,26 @@ export class Player extends Character {
         // Initialisation Character (Nom, Scene, Stats)
         super("Player", scene, { hp: 100, maxHp: 100, speed: 0.2, level: 1 });
 
+        // Interaction Observer
+        OnInteractionAvailable.add((event) => {
+            if (event.isNear) {
+                this._targetInteractable = event.interactable;
+            } else {
+                // On ne reset que si c'était bien cet objet qui était enregistré
+                if (this._targetInteractable === event.interactable) {
+                    this._targetInteractable = null;
+                }
+            }
+        });
+
         // 1. Corps (Capsule)
         this.mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, scene);
         this.mesh.position = startPosition;
         this.mesh.checkCollisions = true;
         this.mesh.ellipsoid = new Vector3(0.45, 0.9, 0.45);
-        this.mesh.parent = this.transform; // Lié au transform de l'Entity
+
+        this.transform.dispose();
+        this.transform = this.mesh;
 
         // 2. Caméra
         this._camera = new UniversalCamera("playerCamera", new Vector3(startPosition.x, startPosition.y, -15), scene);
@@ -63,6 +79,12 @@ export class Player extends Character {
 
         if (this.input.isJumping) this.buffer.trigger("jump");
         if (this.input.isAttacking) this.buffer.trigger("attack");
+        if (this.input.isInteracting && this._targetInteractable) {
+            this._targetInteractable.onInteract();
+
+            // Optionnel : on reset l'input pour éviter les répétitions si pas de buffer
+            this.input.isInteracting = false;
+        }
         //if (this.input.isDashing) this.buffer.trigger("dash");
 
         // --- Gestion Coyote Time ---

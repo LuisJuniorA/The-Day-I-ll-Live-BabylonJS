@@ -1,22 +1,19 @@
 import { Scene, KeyboardEventTypes } from "@babylonjs/core";
 
 export class InputHandler {
-    // On utilise un Set pour stocker les touches pressées (plus rapide qu'un objet/record)
     private _keys: Set<string> = new Set();
+    private _lastKeys: Set<string> = new Set(); // <--- Nouveau : pour comparer avec la frame d'avant
 
-    // Valeurs lissées pour le mouvement
     public horizontal: number = 0;
     public vertical: number = 0;
 
-    // Actions "One-shot" ou continues
     public isJumping: boolean = false;
     public isAttacking: boolean = false;
+    public isInteracting: boolean = false;
 
     constructor(scene: Scene) {
-        // L'observable de Babylon est plus performant que window.addEventListener
         scene.onKeyboardObservable.add((kbInfo) => {
             const key = kbInfo.event.key.toLowerCase();
-
             if (kbInfo.type === KeyboardEventTypes.KEYDOWN) {
                 this._keys.add(key);
             } else if (kbInfo.type === KeyboardEventTypes.KEYUP) {
@@ -26,26 +23,27 @@ export class InputHandler {
     }
 
     /**
-     * Doit être appelé à chaque frame (dans le update du Player)
+     * Méthode utilitaire pour savoir si une touche vient d'être pressée
      */
+    private _isJustPressed(key: string): boolean {
+        return this._keys.has(key) && !this._lastKeys.has(key);
+    }
+
     public update(): void {
-        // --- Calcul du mouvement horizontal (X) ---
-        // Droite (D ou flèche droite) - Gauche (Q ou flèche gauche)
+        // --- Mouvements (Continus) ---
         const right = (this._keys.has("d") || this._keys.has("arrowright")) ? 1 : 0;
         const left = (this._keys.has("q") || this._keys.has("arrowleft")) ? 1 : 0;
         this.horizontal = right - left;
 
-        // --- Calcul du mouvement vertical (Y) ---
-        // Uniquement si tu en as besoin pour grimper ou voler, sinon sert pour ZQSD
-        const up = (this._keys.has("z") || this._keys.has("arrowup")) ? 1 : 0;
-        const down = (this._keys.has("s") || this._keys.has("arrowdown")) ? 1 : 0;
-        this.vertical = up - down;
+        // --- Actions "One-shot" (Déclenchées une seule fois) ---
+        // On utilise _isJustPressed au lieu de .has()
+        this.isJumping = this._isJustPressed(" ");
+        this.isInteracting = this._isJustPressed("e");
+        this.isAttacking = this._isJustPressed("f");
 
-        // --- Saut ---
-        this.isJumping = this._keys.has(" "); // Barre espace
-
-        // --- Attaque (E, F ou Clic Gauche plus tard) ---
-        this.isAttacking = this._keys.has("f") || this._keys.has("e");
+        // --- FIN DE UPDATE : On synchronise les states ---
+        // On copie les touches actuelles dans lastKeys pour la prochaine frame
+        this._lastKeys = new Set(this._keys);
     }
 
     /**

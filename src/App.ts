@@ -15,6 +15,7 @@ import { EntityManager } from "./managers/EntityManager";
 import { WorldZones } from "./scenes/WorldData";
 import { GameStateManager } from "./managers/GameStateManager";
 import { UIManager } from "./managers/UIManager";
+import { NPCInteractable } from "./core/abstracts/NPCInteractable";
 
 export class App {
     private readonly engine: Engine;
@@ -56,6 +57,7 @@ export class App {
         this.initWorld();
         this.initMenu();
         this.startRenderLoop();
+        this.spawnTest();
     }
 
     /**
@@ -69,7 +71,22 @@ export class App {
             this.gameStateManager.setGameOver();
         };
         this.menuCamera.dispose();
+        this.entityManager.setPlayerTarget(this.player.transform);
         this.entityManager.add(this.player);
+    }
+
+    // This is only for test purpose
+    private spawnTest(): void {
+        let npc = new NPCInteractable(this.scene, new Vector3(0, 1, 0), {
+            name: "Bob le Bricoleur",
+            texts: [
+                "Salut ! Beau temps pour construire, non ?",
+                "Fais attention aux monstres la nuit.",
+                "Si tu as besoin d'une pelle, repasse demain."
+            ]
+        });
+        this.entityManager.add(npc);
+
     }
 
     /**

@@ -1,23 +1,28 @@
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
-import { BaseView } from "../../core/abstracts/BaseView"; // Ajuste le chemin selon ton projet
+import { BaseView } from "../../core/abstracts/BaseView";
+import { PromptButtonComponent } from "../components/PromptButtonComponent";
 
 export class HUDView extends BaseView {
+    private _interactionPrompt!: PromptButtonComponent;
 
     constructor(advancedTexture: AdvancedDynamicTexture) {
         super(advancedTexture, "HUDView");
         this.buildUI();
     }
 
-    /**
-     * Pour le moment, cette vue est vide.
-     * C'est ici que tu ajouteras plus tard ta barre de vie, 
-     * ton compteur de munitions ou ta mini-map.
-     */
     protected buildUI(): void {
-        // Le rootContainer est déjà créé et ajouté à l'AdvancedDynamicTexture par BaseView.
-        // On le laisse vide pour l'instant.
+        // 1. Instanciation du composant
+        this._interactionPrompt = new PromptButtonComponent("PlayerInteraction", "E");
+
+        // 2. Ajout au container racine de la vue
+        // Comme PromptButtonComponent EST un Rectangle, on l'ajoute directement
+        this.advancedTexture.addControl(this._interactionPrompt);
     }
 
-    // Exemple de future méthode pour mettre à jour les données du jeu
-    // public updateStats(data: any): void { }
+    /**
+     * Getter pour accéder au composant depuis un Controller ou Manager
+     */
+    public get interactionPrompt(): PromptButtonComponent {
+        return this._interactionPrompt;
+    }
 }
