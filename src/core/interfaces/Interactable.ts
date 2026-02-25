@@ -1,9 +1,7 @@
-import { TransformNode } from "@babylonjs/core";
 import { Observable } from "@babylonjs/core";
+import type { Targeting } from "./Targeting";
 
-export interface Interactable {
-    readonly transform: TransformNode; interactionRange: number;
-    setProximityState(isNear: boolean): void;
+export interface Interactable extends Targeting {
     onInteract(): void;
 }
 

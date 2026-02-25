@@ -1,8 +1,7 @@
 import { Vector3, TransformNode } from "@babylonjs/core";
-import type { Interactable } from "../interfaces/Interactable";
-
+import type { Targeting } from "../interfaces/Targeting";
 export class ProximitySystem {
-    private _interactables: Set<Interactable> = new Set();
+    private _interactables: Set<Targeting> = new Set();
     private _target?: TransformNode;
 
     // On peut limiter la fréquence de calcul pour les performances (ex: 10 fois par seconde)
@@ -13,11 +12,11 @@ export class ProximitySystem {
         this._target = target;
     }
 
-    public add(entity: Interactable) {
+    public add(entity: Targeting) {
         this._interactables.add(entity);
     }
 
-    public remove(entity: Interactable) {
+    public remove(entity: Targeting) {
         this._interactables.delete(entity);
     }
 
@@ -41,5 +40,9 @@ export class ProximitySystem {
 
     public disposeAll(): void {
         this._interactables.clear();
+    }
+
+    public get target(): TransformNode | undefined {
+        return this._target;
     }
 }

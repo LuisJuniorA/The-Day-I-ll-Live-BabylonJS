@@ -1,6 +1,6 @@
 import { Scalar } from "@babylonjs/core";
-import { BaseState } from "../core/abstracts/BaseState";
-import { Player } from "../entities/Player";
+import { BaseState } from "../../core/abstracts/BaseState";
+import { Player } from "../../entities/Player";
 import { PlayerMoveState } from "./PlayerMoveState";
 import { PlayerFallingState } from "./PlayerFallingState";
 import { PlayerJumpState } from "./PlayerJumpState";

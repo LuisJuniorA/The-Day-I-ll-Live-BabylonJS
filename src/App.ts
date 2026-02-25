@@ -4,7 +4,8 @@ import {
     Vector3,
     HemisphericLight,
     Color3,
-    UniversalCamera
+    UniversalCamera,
+    MeshBuilder
 } from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
@@ -16,6 +17,7 @@ import { WorldZones } from "./scenes/WorldData";
 import { GameStateManager } from "./managers/GameStateManager";
 import { UIManager } from "./managers/UIManager";
 import { NPCInteractable } from "./core/abstracts/NPCInteractable";
+import { Enemy } from "./core/abstracts/Enemy";
 
 export class App {
     private readonly engine: Engine;
@@ -41,7 +43,7 @@ export class App {
         this.gameStateManager = new GameStateManager();
         this.uiManager = new UIManager(this.scene, this.gameStateManager);
 
-        this.entityManager = new EntityManager();
+        this.entityManager = new EntityManager(this.scene);
         this.levelManager = new LevelManager(this.scene);
 
         // 3. Configuration du Monde et Physique
@@ -86,6 +88,22 @@ export class App {
             ]
         });
         this.entityManager.add(npc);
+
+        let enemy = new Enemy("enemy", this.scene, {
+            hp: 100,
+            maxHp: 100,
+            speed: 10
+        },
+            this.entityManager._proximitySystem);
+        enemy.position.copyFrom(new Vector3(4, 0, 0));
+
+        enemy.mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, this.scene);
+        enemy.mesh.position = enemy.position;
+        enemy.mesh.checkCollisions = true;
+        enemy.mesh.ellipsoid = new Vector3(0.45, 0.9, 0.45);
+
+        this.entityManager.add(enemy);
+
 
     }
 

@@ -2,7 +2,7 @@ import { Scene, Vector3, MeshBuilder, UniversalCamera, Ray } from "@babylonjs/co
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
 import { InputHandler } from "../core/engines/InputHandler";
-import { PlayerMoveState } from "../states/PlayerMoveState";
+import { PlayerMoveState } from "../states/player/PlayerMoveState";
 import { InputBufferManager } from "../managers/InputBufferManager";
 import { OnInteractionAvailable, type Interactable } from "../core/interfaces/Interactable";
 
@@ -14,7 +14,6 @@ export class Player extends Character {
     private _targetInteractable: Interactable | null = null;
 
     // Physique partagée avec les états
-    public velocity: Vector3 = Vector3.Zero();
     public isGrounded: boolean = false;
 
     // Tes paramètres originaux
@@ -32,7 +31,7 @@ export class Player extends Character {
 
     constructor(scene: Scene, startPosition: Vector3) {
         // Initialisation Character (Nom, Scene, Stats)
-        super("Player", scene, { hp: 100, maxHp: 100, speed: 0.2, level: 1 });
+        super("Player", scene, { hp: 100, maxHp: 100, speed: 0.2 });
 
         // Interaction Observer
         OnInteractionAvailable.add((event) => {
@@ -116,9 +115,5 @@ export class Player extends Character {
 
         this.isGrounded = (pick !== null && pick.hit);
         if (this.isGrounded && this.velocity.y < 0) this.velocity.y = 0;
-    }
-
-    public get position(): Vector3 {
-        return this.mesh ? this.mesh.position : Vector3.Zero();
     }
 }
