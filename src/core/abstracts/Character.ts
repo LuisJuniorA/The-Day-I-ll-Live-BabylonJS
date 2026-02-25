@@ -1,10 +1,11 @@
-import { Scene } from "@babylonjs/core";
+import { Scene, Vector3 } from "@babylonjs/core";
 import { Entity } from "./Entity";
 import type { CharacterStats } from "../types/CharacterStats";
 
 export abstract class Character extends Entity {
     public stats: CharacterStats;
     public isDead: boolean = false;
+    public velocity: Vector3 = Vector3.Zero();
     public onDeath?: () => void;
 
     constructor(name: string, scene: Scene, initialStats: CharacterStats) {

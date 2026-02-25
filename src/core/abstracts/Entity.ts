@@ -1,4 +1,4 @@
-import { AbstractMesh, Scene, TransformNode } from "@babylonjs/core";
+import { AbstractMesh, Scene, TransformNode, Vector3 } from "@babylonjs/core";
 import { FSM } from "../engines/FSM";
 
 export abstract class Entity {
@@ -34,5 +34,9 @@ export abstract class Entity {
     public dispose(): void {
         this.mesh?.dispose();
         this.transform.dispose();
+    }
+
+    public get position(): Vector3 {
+        return this.mesh ? this.mesh.position : Vector3.Zero();
     }
 }

@@ -1,14 +1,18 @@
 import { Entity } from "../core/abstracts/Entity";
 import { ProximitySystem } from "../core/engines/ProximitySystem";
 import { isInteractableEntity } from "../core/interfaces/Interactable";
-import { TransformNode } from "@babylonjs/core";
+import { Scene, TransformNode } from "@babylonjs/core";
+import { ENTITY_REGISTRY } from "../core/data/EntityRegistry";
 
 export class EntityManager {
     private _entities: Map<string, Entity> = new Map();
     private _toRemove: Set<string> = new Set();
+    private _scene: Scene;
+    public _proximitySystem: ProximitySystem = new ProximitySystem();
 
-    // On instancie le système de proximité
-    private _proximitySystem: ProximitySystem = new ProximitySystem();
+    constructor(scene: Scene) {
+        this._scene = scene;
+    }
 
     // Permet de définir le joueur depuis l'extérieur (ex: au spawn du joueur)
     public setPlayerTarget(transform: TransformNode): void {
@@ -22,6 +26,38 @@ export class EntityManager {
         if (isInteractableEntity(entity)) {
             this._proximitySystem.add(entity);
         }
+    }
+
+    public spawnFromMetadata(spawner: TransformNode): void {
+        const type = spawner.metadata?.type;
+        const stats = spawner.metadata?.stats || {};
+
+        const EntityClass = ENTITY_REGISTRY[type];
+
+        if (!EntityClass) {
+            console.warn(`Type d'entité inconnu : ${type}`);
+            return;
+        }
+
+        // On prépare les arguments communs
+        // On récupère la cible (joueur) pour les ennemis qui en ont besoin
+        const name = `${type}_${Date.now()}`;
+
+        // INSTANCIATION :
+        // On passe name, scene, stats et target. 
+        // Un NPC (Villager) ignorera peut-être la target dans son constructeur, 
+        // alors qu'un Enemy s'en servira.
+        const entityInstance = new EntityClass(
+            name,
+            this._scene,
+            stats,
+            this._proximitySystem
+        );
+
+        entityInstance.position.copyFrom(spawner.position);
+        if (spawner.rotation) entityInstance.rotation.copyFrom(spawner.rotation);
+
+        this.add(entityInstance);
     }
 
     public remove(id: string): void {
