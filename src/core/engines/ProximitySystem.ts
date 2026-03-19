@@ -30,7 +30,10 @@ export class ProximitySystem {
         const targetPos = this._target.position;
 
         for (const entity of this._interactables) {
-            const distance = Vector3.Distance(entity.transform.position, targetPos);
+            const distance = Vector3.Distance(
+                entity.transform.position,
+                targetPos,
+            );
             const isNear = distance <= entity.interactionRange;
 
             // On délègue la réaction à l'entité
