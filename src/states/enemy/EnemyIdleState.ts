@@ -5,24 +5,25 @@ import { EnemyChaseState } from "./EnemyChaseState";
 
 export class EnemyIdleState extends BaseState<Enemy> {
     public readonly name = "IdleState";
-    private readonly DETECTION_RANGE = 12;
 
     protected handleEnter(owner: Enemy): void {
-        owner.velocity.x = 0;
-        owner.velocity.z = 0;
-        // owner.playAnimation("idle");
+        owner.velocity.setAll(0);
+        owner.playAnim("idle", true);
     }
 
-    protected handleUpdate(owner: Enemy, _dt: number): void {
-        // Application de la gravité de base
-        owner.mesh?.moveWithCollisions(new Vector3(0, -0.1, 0));
+    protected handleUpdate(owner: Enemy, dt: number): void {
+        // On applique une petite gravité constante (plus propre que le -0.1 en dur)
+        owner.velocity.y = owner.isGrounded ? -1 : 0.91 * dt;
+
+        // On utilise le nouveau move qui gère le Tunnel Z et la synchro
+        owner.move(owner.velocity, dt);
 
         const target = owner.targetTransform;
         if (target) {
             const distance = Vector3.Distance(owner.position, target.position);
 
-            // Si le joueur entre dans la zone de détection, on passe en Chase
-            if (distance <= this.DETECTION_RANGE) {
+            // On utilise la config de l'ennemi pour la détection
+            if (distance <= owner.config.detectionRange) {
                 owner.fsm.transitionTo(new EnemyChaseState());
             }
         }

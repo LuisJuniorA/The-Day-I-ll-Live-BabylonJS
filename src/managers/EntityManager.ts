@@ -1,85 +1,113 @@
+import { Scene, TransformNode, Vector3 } from "@babylonjs/core";
 import { Entity } from "../core/abstracts/Entity";
 import { ProximitySystem } from "../core/engines/ProximitySystem";
 import { isInteractableEntity } from "../core/interfaces/Interactable";
-import { Scene, TransformNode } from "@babylonjs/core";
-import { ENTITY_REGISTRY } from "../core/data/EntityRegistry";
+import { EntityFactory } from "../factories/EntityFactory";
+import { isPerceivableEntity } from "../core/interfaces/Perceivable";
 
 export class EntityManager {
     private _entities: Map<string, Entity> = new Map();
     private _toRemove: Set<string> = new Set();
     private _scene: Scene;
+
+    // Système gérant les distances Joueur/Entités
     public _proximitySystem: ProximitySystem = new ProximitySystem();
 
     constructor(scene: Scene) {
         this._scene = scene;
     }
 
-    // Permet de définir le joueur depuis l'extérieur (ex: au spawn du joueur)
+    /**
+     * Définit le transform du joueur pour le calcul de proximité
+     */
     public setPlayerTarget(transform: TransformNode): void {
         this._proximitySystem.setTarget(transform);
     }
 
+    /**
+     * Ajoute une entité déjà créée au manager et au système de proximité
+     */
     public add(entity: Entity): void {
         this._entities.set(entity.id, entity);
 
-        // AUTO-DETECTION : Si l'entité supporte la proximité, on l'ajoute au système
+        // Si l'entité implémente IInteractable, elle est suivie par le ProximitySystem
         if (isInteractableEntity(entity)) {
-            this._proximitySystem.add(entity);
+            this._proximitySystem.addInteractable(entity);
+        }
+        if (isPerceivableEntity(entity)) {
+            this._proximitySystem.registerPerceivable(entity);
         }
     }
 
-    public spawnFromMetadata(spawner: TransformNode): void {
-        const type = spawner.metadata?.type;
-        const stats = spawner.metadata?.stats || {};
-
-        const EntityClass = ENTITY_REGISTRY[type];
-
-        if (!EntityClass) {
-            console.warn(`Type d'entité inconnu : ${type}`);
-            return;
-        }
-
-        // On prépare les arguments communs
-        // On récupère la cible (joueur) pour les ennemis qui en ont besoin
-        const name = `${type}_${Date.now()}`;
-
-        // INSTANCIATION :
-        // On passe name, scene, stats et target. 
-        // Un NPC (Villager) ignorera peut-être la target dans son constructeur, 
-        // alors qu'un Enemy s'en servira.
-        const entityInstance = new EntityClass(
-            name,
+    /**
+     * Crée et ajoute une entité de manière asynchrone (via la Factory)
+     */
+    public async spawn(type: string, position: Vector3): Promise<Entity> {
+        const entity = await EntityFactory.Create(
+            type,
             this._scene,
-            stats,
-            this._proximitySystem
+            position,
+            this._proximitySystem,
         );
 
-        entityInstance.position.copyFrom(spawner.position);
-        if (spawner.rotation) entityInstance.rotation.copyFrom(spawner.rotation);
-
-        this.add(entityInstance);
+        this.add(entity);
+        return entity;
     }
 
+    /**
+     * Spawn automatique basé sur les données d'un node (ex: import Blender)
+     */
+    public async spawnFromMetadata(spawner: TransformNode): Promise<void> {
+        const type = spawner.metadata?.type || "unknown";
+
+        // On utilise la Factory pour construire l'objet (GLB ou Placeholder)
+        const entity = await EntityFactory.Create(
+            type,
+            this._scene,
+            spawner.position.clone(),
+            this._proximitySystem,
+        );
+
+        // On récupère l'orientation du spawner
+        if (spawner.rotationQuaternion) {
+            entity.transform.rotationQuaternion =
+                spawner.rotationQuaternion.clone();
+        } else {
+            entity.transform.rotation = spawner.rotation.clone();
+        }
+
+        this.add(entity);
+    }
+
+    /**
+     * Marque une entité pour suppression au prochain frame
+     */
     public remove(id: string): void {
         const entity = this._entities.get(id);
         if (entity && isInteractableEntity(entity)) {
-            this._proximitySystem.remove(entity);
+            this._proximitySystem.removeInteractable(entity);
+        }
+        if (isPerceivableEntity(entity)) {
+            this._proximitySystem.unregisterPerceivable(entity);
         }
         this._toRemove.add(id);
     }
 
+    /**
+     * Boucle de mise à jour logique
+     */
     public update(dt: number): void {
-        // 1. Update du système de proximité (calculs optimisés)
+        // 1. Mise à jour des distances
         this._proximitySystem.update(dt);
 
-        // 2. Update classique des entités
+        // 2. Mise à jour de la logique interne (FSM, etc.)
         for (const entity of this._entities.values()) {
             entity.update(dt);
         }
 
-        // 3. Nettoyage
+        // 3. Nettoyage des entités supprimées
         if (this._toRemove.size > 0) {
-            this._toRemove.forEach(id => {
+            this._toRemove.forEach((id) => {
                 const entity = this._entities.get(id);
                 if (entity) {
                     entity.dispose();
@@ -90,12 +118,14 @@ export class EntityManager {
         }
     }
 
+    /**
+     * Nettoyage complet
+     */
     public disposeAll(): void {
         for (const entity of this._entities.values()) {
             entity.dispose();
         }
         this._entities.clear();
-        // On n'oublie pas de vider le système de proximité
         this._proximitySystem.disposeAll();
     }
 }

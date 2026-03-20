@@ -5,7 +5,6 @@ import {
     HemisphericLight,
     Color3,
     UniversalCamera,
-    MeshBuilder
 } from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
@@ -17,7 +16,6 @@ import { WorldZones } from "./scenes/WorldData";
 import { GameStateManager } from "./managers/GameStateManager";
 import { UIManager } from "./managers/UIManager";
 import { NPCInteractable } from "./core/abstracts/NPCInteractable";
-import { Enemy } from "./core/abstracts/Enemy";
 
 export class App {
     private readonly engine: Engine;
@@ -59,6 +57,8 @@ export class App {
         this.initWorld();
         this.initMenu();
         this.startRenderLoop();
+
+        // On lance le test (async)
         this.spawnTest();
     }
 
@@ -66,63 +66,64 @@ export class App {
      * Initialise le joueur et ses événements
      */
     private spawnPlayer(): void {
+        // 1. Création du joueur (le constructeur gère déjà la hiérarchie interne)
         this.player = new Player(this.scene, new Vector3(0, 5, 0));
 
-        // On lie la mort du joueur au GameState
+        // 2. Réintégration du callback de mort (Essentiel !)
         this.player.onDeath = () => {
+            console.log("GAME OVER");
             this.gameStateManager.setGameOver();
+            //this.uiManager.showGameOver();
         };
-        this.menuCamera.dispose();
+
+        // 3. Nettoyage caméra menu
+        if (this.menuCamera) {
+            this.menuCamera.dispose();
+        }
+
+        // 4. Enregistrement dans les systèmes
+        // On donne le TRANSFORM (pivot) à l'EntityManager pour le calcul de distance
         this.entityManager.setPlayerTarget(this.player.transform);
         this.entityManager.add(this.player);
     }
 
-    // This is only for test purpose
-    private spawnTest(): void {
-        let npc = new NPCInteractable(this.scene, new Vector3(0, 1, 0), {
+    /**
+     * Test de spawn utilisant la Factory et l'EntityManager
+     */
+    private async spawnTest(): Promise<void> {
+        // 1. Test NPC (Interactable)
+        // Note: Si tu veux un NPC spécifique via Factory, il faudra ajouter le case "npc" dans la factory
+        const npc = new NPCInteractable(this.scene, new Vector3(0, 1, 0), {
             name: "Bob le Bricoleur",
             texts: [
                 "Salut ! Beau temps pour construire, non ?",
                 "Fais attention aux monstres la nuit.",
-                "Si tu as besoin d'une pelle, repasse demain."
-            ]
+                "Si tu as besoin d'une pelle, repasse demain.",
+            ],
         });
         this.entityManager.add(npc);
 
-        let enemy = new Enemy("enemy", this.scene, {
-            hp: 100,
-            maxHp: 100,
-            speed: 10
-        },
-            this.entityManager._proximitySystem);
-        enemy.position.copyFrom(new Vector3(4, 0, 0));
+        // 2. Test Ennemi "Effroi" via la Factory (Async)
+        // Cela va charger le GLB (ou le placeholder rouge si échec)
+        await this.entityManager.spawn("effroi", new Vector3(0, 1, 0));
+        await this.entityManager.spawn("effroi", new Vector3(0, 1, 0));
 
-        enemy.mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, this.scene);
-        enemy.mesh.position = enemy.position;
-        enemy.mesh.checkCollisions = true;
-        enemy.mesh.ellipsoid = new Vector3(0.45, 0.9, 0.45);
-
-        this.entityManager.add(enemy);
-
-
+        console.log("Spawn de test terminé.");
     }
 
     /**
      * Centralise la gestion des entrées clavier et des clics UI
      */
     private setupInputs(): void {
-        // 1. On passe par pointerlock et non echap, car le navigateur intercepte la touche, libère la souris, mais ne propage pas forcément l'événement (et c'est chiant)
         document.addEventListener("pointerlockchange", () => {
             if (document.pointerLockElement === null) {
                 this.gameStateManager.setPause();
             }
         });
 
-        // 2. Le bouton Resume relance le jeu ET cache la souris (autorisé car c'est un clic)
         this.uiManager.mainMenuView.onResumeObservable.add(() => {
             if (!this.player) {
                 this.spawnPlayer();
-                // Optionnel : Lancer la cinématique ici avant de passer en "Playing"
             }
             this.gameStateManager.setPlaying();
             this.pointerLock();
@@ -134,21 +135,20 @@ export class App {
     }
 
     private initMenu(): void {
-        // Une caméra fixe qui filme ton beau niveau en attendant
-        this.menuCamera = new UniversalCamera("menuCam", new Vector3(0, 10, -20), this.scene);
+        this.menuCamera = new UniversalCamera(
+            "menuCam",
+            new Vector3(0, 10, -20),
+            this.scene,
+        );
         this.menuCamera.setTarget(new Vector3(0, 5, 0));
-
-        // On dit à Babylon d'utiliser celle-là par défaut
         this.scene.activeCamera = this.menuCamera;
     }
 
     private pointerLock(): void {
         const canvas = document.querySelector("canvas");
-
         if (this.gameStateManager.isPlaying()) {
             canvas?.requestPointerLock();
         } else {
-            // Sécurité : on ne demande la sortie que si le pointeur est déjà locké
             if (document.pointerLockElement) {
                 document.exitPointerLock();
             }
@@ -162,13 +162,10 @@ export class App {
         this.engine.runRenderLoop(() => {
             const deltaTime = this.engine.getDeltaTime() / 1000;
 
-            // --- UPDATE LOGIQUE ---
-            // On ne met à jour le monde que si on est en jeu
             if (this.gameStateManager.isPlaying()) {
                 this.entityManager.update(deltaTime);
 
                 if (this.player) {
-                    // Check additionnel pour la mort (sécurité)
                     if (this.player.stats.hp <= 0 || this.player.isDead) {
                         this.gameStateManager.setGameOver();
                     }
@@ -176,8 +173,6 @@ export class App {
                 }
             }
 
-            // --- RENDU ---
-            // On rend toujours la scène (pour voir le jeu en fond derrière l'UI)
             this.scene.render();
         });
 
@@ -202,16 +197,24 @@ export class App {
         const canvas = document.createElement("canvas");
         canvas.id = "gameCanvas";
         Object.assign(canvas.style, {
-            width: "100vw", height: "100vh",
-            display: "block", outline: "none",
-            position: "fixed", top: "0", left: "0"
+            width: "100vw",
+            height: "100vh",
+            display: "block",
+            outline: "none",
+            position: "fixed",
+            top: "0",
+            left: "0",
         });
         document.body.appendChild(canvas);
         return canvas;
     }
 
     private createDefaultLight(): void {
-        const light = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), this.scene);
+        const light = new HemisphericLight(
+            "ambientLight",
+            new Vector3(0, 1, 0),
+            this.scene,
+        );
         light.intensity = 0.7;
         light.groundColor = new Color3(0.2, 0.2, 0.2);
     }
@@ -223,7 +226,9 @@ export class App {
             import("@babylonjs/inspector");
             window.addEventListener("keydown", (ev) => {
                 if (ev.shiftKey && ev.ctrlKey && ev.altKey && ev.key === "I") {
-                    this.scene.debugLayer.isVisible() ? this.scene.debugLayer.hide() : this.scene.debugLayer.show();
+                    this.scene.debugLayer.isVisible()
+                        ? this.scene.debugLayer.hide()
+                        : this.scene.debugLayer.show();
                 }
             });
         }

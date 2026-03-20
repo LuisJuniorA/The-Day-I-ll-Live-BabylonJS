@@ -1,41 +1,43 @@
 import { Scalar } from "@babylonjs/core";
-import { BaseState } from "../../core/abstracts/BaseState";
 import { Player } from "../../entities/Player";
+import { BaseState } from "../../core/abstracts/BaseState";
 import { PlayerIdleState } from "./PlayerIdleState";
 import { PlayerJumpState } from "./PlayerJumpState";
 
 export class PlayerFallingState extends BaseState<Player> {
     public readonly name = "FallingState";
-    //private _canDoubleJump: boolean = true;
 
-    protected handleEnter(_owner: Player): void {
-        //this._canDoubleJump = true;
+    protected handleEnter(owner: Player): void {
+        // Optionnel : jouer une animation de chute
+        owner.playAnim("falling", true);
     }
 
-    protected handleUpdate(owner: Player, _dt: number): void {
+    protected handleUpdate(owner: Player, dt: number): void {
+        // 1. Détection du sol
         owner.checkGrounded();
 
-        // Mouvement latéral
-        owner.velocity.x = Scalar.Lerp(owner.velocity.x, owner.input.horizontal * owner.speed, 0.1);
+        // 2. Mouvement latéral (Inertie en l'air)
+        const targetX = owner.input.horizontal * owner.speed;
+        owner.velocity.x = Scalar.Lerp(owner.velocity.x, targetX, 0.1);
+
+        // 3. Gravité (Accélération constante)
+        // On multiplie par dt car la gravité est une accélération (m/s²)
         owner.velocity.y += owner.gravity;
-        owner.mesh!.moveWithCollisions(owner.velocity);
 
-        // Logique Double Jump
-        // if (this._canDoubleJump && owner.input.isJumping) {
-        //     this._canDoubleJump = false;
-        //     owner.velocity.y = owner.jumpForce * 0.8; // Saut un peu plus faible
-        // }
+        // 4. APPLICATION PHYSIQUE (Le Bridge Transform/Mesh)
+        owner.move(owner.velocity, dt);
 
-        // Coyote
-
+        // 5. Logique Coyote Time & Jump Buffer
+        // Si on a pressé saut juste avant de toucher le sol ou juste après être tombé d'un rebord
         if (owner.buffer.isActive("jump") && owner.coyoteTimeCounter > 0) {
             owner.buffer.consume("jump");
             owner.movementFSM.transitionTo(new PlayerJumpState());
             return;
         }
 
-        // Retour au sol
+        // 6. Retour au sol
         if (owner.isGrounded) {
+            owner.playAnim("land", false); // Animation d'atterrissage
             owner.movementFSM.transitionTo(new PlayerIdleState());
         }
     }

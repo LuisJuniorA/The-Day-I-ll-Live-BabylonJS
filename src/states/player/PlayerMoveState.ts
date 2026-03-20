@@ -8,38 +8,31 @@ import { PlayerFallingState } from "./PlayerFallingState";
 export class PlayerMoveState extends BaseState<Player> {
     public readonly name = "MoveState";
 
-    protected handleUpdate(owner: Player, _dt: number): void {
-        // 1. On vérifie le sol via la méthode centralisée
+    protected handleUpdate(owner: Player, dt: number): void {
         owner.checkGrounded();
 
-        // 2. Mouvement Horizontal
+        // 1. Calcul de la direction
         const moveX = owner.input.horizontal;
-        const targetVelocityX = moveX * owner.speed;
+        const targetVelocityX = moveX * owner.stats.speed;
+
+        // Interpolation pour la fluidité
         owner.velocity.x = Scalar.Lerp(owner.velocity.x, targetVelocityX, 0.2);
 
-        // 3. Gravité de base (au cas où on marche au dessus du vide)
+        // 2. Gravité
         if (!owner.isGrounded) {
             owner.velocity.y += owner.gravity;
         }
 
-        // 4. Application
-        owner.mesh!.moveWithCollisions(owner.velocity);
+        // 3. APPLICATION DU MOUVEMENT (Appelle la méthode Character.move)
+        owner.move(owner.velocity, dt);
 
-        // 5. Transitions (Le cerveau du State)
-
-        // Si on ne bouge plus le joystick -> Idle
-        if (moveX === 0 && Math.abs(owner.velocity.x) < 0.01) {
-            owner.movementFSM.transitionTo(new PlayerIdleState());
-        }
-
-        // Si on saute -> Jump
+        // 4. Transitions
         if (owner.input.isJumping && owner.isGrounded) {
             owner.movementFSM.transitionTo(new PlayerJumpState());
-        }
-
-        // Si on tombe d'un rebord -> Falling
-        if (!owner.isGrounded && owner.velocity.y < 0) {
+        } else if (!owner.isGrounded && owner.velocity.y < 0) {
             owner.movementFSM.transitionTo(new PlayerFallingState());
+        } else if (moveX === 0 && Math.abs(owner.velocity.x) < 0.1) {
+            owner.movementFSM.transitionTo(new PlayerIdleState());
         }
     }
 }

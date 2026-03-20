@@ -1,10 +1,20 @@
-import { Scene, Vector3, MeshBuilder, UniversalCamera, Ray } from "@babylonjs/core";
+import {
+    Scene,
+    Vector3,
+    MeshBuilder,
+    UniversalCamera,
+    Ray,
+} from "@babylonjs/core";
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
 import { InputHandler } from "../core/engines/InputHandler";
 import { PlayerMoveState } from "../states/player/PlayerMoveState";
 import { InputBufferManager } from "../managers/InputBufferManager";
-import { OnInteractionAvailable, type Interactable } from "../core/interfaces/Interactable";
+import {
+    OnInteractionAvailable,
+    type Interactable,
+} from "../core/interfaces/Interactable";
+import { CollisionLayers } from "../core/data/CollisionLayers";
 
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
@@ -13,107 +23,129 @@ export class Player extends Character {
     public readonly attackFSM: FSM<Player>;
     private _targetInteractable: Interactable | null = null;
 
-    // Physique partagée avec les états
-    public isGrounded: boolean = false;
+    // --- Paramètres de mouvement (Ajustés pour le calcul par seconde) ---
+    public readonly speed: number = 12;
+    public readonly gravity: number = -0.9;
+    public readonly jumpForce: number = 21;
 
-    // Tes paramètres originaux
-    public readonly speed: number = 0.2;
-    public readonly gravity: number = -0.015;
-    public readonly jumpForce: number = 0.35;
-
-    // --- Paramètres Coyote & Buffer ---
+    // --- Coyote & Buffer ---
     public readonly buffer: InputBufferManager = new InputBufferManager();
     public coyoteTimeCounter: number = 0;
     private readonly coyoteTimeDuration: number = 0.2;
 
-    public jumpBufferCounter: number = 0;
-    public readonly jumpBufferDuration: number = 0.2; // 200ms
-
     constructor(scene: Scene, startPosition: Vector3) {
-        // Initialisation Character (Nom, Scene, Stats)
-        super("Player", scene, { hp: 100, maxHp: 100, speed: 0.2 });
+        // 1. Initialisation Character (Le transform de Entity est créé ici)
+        super("Player", scene, { hp: 100, maxHp: 100, speed: 12 });
 
-        // Interaction Observer
-        OnInteractionAvailable.add((event) => {
-            if (event.isNear) {
-                this._targetInteractable = event.interactable;
-            } else {
-                // On ne reset que si c'était bien cet objet qui était enregistré
-                if (this._targetInteractable === event.interactable) {
-                    this._targetInteractable = null;
-                }
-            }
-        });
+        // 2. Positionnement du pivot logique (TransformNode)
+        this.transform.position.copyFrom(startPosition);
 
-        // 1. Corps (Capsule)
-        this.mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, scene);
-        this.mesh.position = startPosition;
+        // 3. Corps physique (ENFANT du transform)
+        this.mesh = MeshBuilder.CreateCapsule(
+            "player_collider",
+            { height: 2, radius: 0.5 },
+            scene,
+        );
+        this.mesh.parent = this.transform;
+        this.mesh.position.setAll(0); // Centré sur le pivot
         this.mesh.checkCollisions = true;
+        this.mesh.collisionMask = CollisionLayers.ENVIRONMENT;
+        this.mesh.collisionGroup = CollisionLayers.PLAYER;
         this.mesh.ellipsoid = new Vector3(0.45, 0.9, 0.45);
+        this.mesh.isVisible = true; // Mets à false quand tu as ton vrai modèle
 
-        this.transform.dispose();
-        this.transform = this.mesh;
+        // 4. Caméra (Détachée pour le Lerp fluide)
+        this._camera = new UniversalCamera(
+            "playerCamera",
+            new Vector3(startPosition.x, startPosition.y, -15),
+            scene,
+        );
+        this._scene.activeCamera = this._camera;
 
-        // 2. Caméra
-        this._camera = new UniversalCamera("playerCamera", new Vector3(startPosition.x, startPosition.y, -15), scene);
-        this._camera.setTarget(new Vector3(startPosition.x, startPosition.y, 0));
-
-        // 3. Moteurs
+        // 5. Systèmes
         this.input = new InputHandler(scene);
         this.movementFSM = new FSM<Player>(this);
         this.attackFSM = new FSM<Player>(this);
 
-        // 4. État initial
-        this.movementFSM.transitionTo(new PlayerMoveState());
+        // 6. Interaction Observer
+        OnInteractionAvailable.add((event) => {
+            if (event.isNear) {
+                this._targetInteractable = event.interactable;
+            } else if (this._targetInteractable === event.interactable) {
+                this._targetInteractable = null;
+            }
+        });
 
-        this._scene.activeCamera = this._camera;
+        this.movementFSM.transitionTo(new PlayerMoveState());
     }
 
     public update(dt: number): void {
         if (this.isDead) return;
 
-        // Met à jour les inputs
+        // Mise à jour des moteurs
         this.input.update();
-        this.buffer.update(dt); // On fait défiler tous les buffers
+        this.buffer.update(dt);
 
+        // Enregistrement des intentions dans le buffer
         if (this.input.isJumping) this.buffer.trigger("jump");
         if (this.input.isAttacking) this.buffer.trigger("attack");
+
+        // Interaction immédiate
         if (this.input.isInteracting && this._targetInteractable) {
             this._targetInteractable.onInteract();
-
-            // Optionnel : on reset l'input pour éviter les répétitions si pas de buffer
             this.input.isInteracting = false;
         }
-        //if (this.input.isDashing) this.buffer.trigger("dash");
 
-        // --- Gestion Coyote Time ---
-        this.checkGrounded(); // On vérifie le sol avant pour timer le coyote
-        this.coyoteTimeCounter = this.isGrounded ? this.coyoteTimeDuration : this.coyoteTimeCounter - dt;
+        // Physique et Sol
+        this.checkGrounded();
+        this.coyoteTimeCounter = this.isGrounded
+            ? this.coyoteTimeDuration
+            : this.coyoteTimeCounter - dt;
 
-        // Met à jour la FSM (c'est elle qui appelle la logique de mouvement)
+        // La FSM appellera owner.move(owner.velocity, dt)
         this.movementFSM.update(dt);
 
-        // Met à jour la caméra
+        // Rendu Caméra et Sécurité Z
         this._updateCamera();
-
-        // Sécurité Side-scroller (Plan Z constant)
-        this.mesh!.position.z = 0;
+        this.transform.position.z = 0;
         this.velocity.z = 0;
     }
 
     private _updateCamera(): void {
-        const targetPos = new Vector3(this.mesh!.position.x, this.mesh!.position.y + 2, -15);
-        this._camera.position = Vector3.Lerp(this._camera.position, targetPos, 0.1);
-        this._camera.setTarget(new Vector3(this.mesh!.position.x, this.mesh!.position.y + 2, 0));
+        // On suit le TRANSFORM (pivot logique), pas le mesh
+        const targetPos = new Vector3(
+            this.transform.position.x,
+            this.transform.position.y + 2,
+            -15,
+        );
+        this._camera.position = Vector3.Lerp(
+            this._camera.position,
+            targetPos,
+            0.1,
+        );
+        this._camera.setTarget(
+            new Vector3(
+                this.transform.position.x,
+                this.transform.position.y + 2,
+                0,
+            ),
+        );
     }
 
     public checkGrounded(): void {
-        const rayOrigin = this.mesh!.position.clone();
+        // Raycast à partir du pivot logique
+        const rayOrigin = this.transform.position.clone();
         rayOrigin.y -= 0.9;
-        const ray = new Ray(rayOrigin, new Vector3(0, -1, 0), 0.2);
-        const pick = this.mesh!.getScene().pickWithRay(ray, (m) => m.checkCollisions && m !== this.mesh);
+        const ray = new Ray(rayOrigin, new Vector3(0, -1, 0), 0.3); // Rayon légèrement plus long (0.3)
 
-        this.isGrounded = (pick !== null && pick.hit);
-        if (this.isGrounded && this.velocity.y < 0) this.velocity.y = 0;
+        const pick = this._scene.pickWithRay(ray, (m) => {
+            // CONDITION : Le mesh doit avoir les collisions ET faire partie de l'environnement (Mask 1)
+            return m.checkCollisions && m.collisionGroup === 1;
+        });
+
+        this.isGrounded = !!(pick && pick.hit);
+        if (this.isGrounded && this.velocity.y < 0) {
+            this.velocity.y = 0;
+        }
     }
 }

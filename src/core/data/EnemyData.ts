@@ -9,7 +9,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
             detectionRange: 15,
             escapeRange: 20,
             interactionRange: 2,
-            arrivalRadius: 2.0,
+            arrivalRadius: 3.0,
             maxSpeed: 5,
             turnSpeed: 0.12,
             weights: { seek: 3, separation: 1 },

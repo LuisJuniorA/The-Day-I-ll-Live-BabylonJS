@@ -1,29 +1,32 @@
 import { Character } from "./Character";
 import { FSM } from "../engines/FSM";
 import { ProximitySystem } from "../engines/ProximitySystem";
-import { Scene, TransformNode } from "@babylonjs/core";
+import { AbstractMesh, Scene, TransformNode } from "@babylonjs/core";
 import { EnemyIdleState } from "../../states/enemy/EnemyIdleState";
 import type { EnemyConfig, EnemyBehaviorConfig } from "../types/EnemyConfig";
+import { CollisionLayers } from "../data/CollisionLayers";
 
 export class Enemy extends Character {
-    private _proximitySystem: ProximitySystem;
-    public fsm: FSM<Enemy>;
+    public readonly fsm: FSM<Enemy>;
     public readonly config: EnemyBehaviorConfig;
-
-    public isNear: boolean = false;
+    private _proximitySystem: ProximitySystem;
 
     constructor(
         scene: Scene,
-        data: EnemyConfig, // On injecte tout le bloc Data ici
+        data: EnemyConfig,
         proximitySystem: ProximitySystem,
+        mesh: AbstractMesh,
     ) {
         super(data.displayName, scene, data.stats);
-
         this.config = data.behavior;
-        this.config.interactionRange;
         this._proximitySystem = proximitySystem;
-
         this.fsm = new FSM<Enemy>(this);
+        this.mesh = mesh;
+        this.mesh.parent = this.transform;
+        this.mesh.checkCollisions = true;
+        this.mesh.collisionMask = CollisionLayers.ENVIRONMENT;
+
+        this.mesh!.collisionGroup = CollisionLayers.ENEMY;
         this.fsm.transitionTo(new EnemyIdleState());
     }
 
@@ -31,18 +34,16 @@ export class Enemy extends Character {
         return this._proximitySystem.target;
     }
 
-    // Helper pour récupérer les alliés proches (pour la séparation)
-    // À implémenter selon ton système de gestion de scène
-    public getNearbyNeighbors(): Enemy[] {
-        return []; // ex: return this.levelManager.getEnemiesInRange(this.position, 5);
-    }
-
-    public setProximityState(isNear: boolean): void {
-        this.isNear = isNear;
-    }
-
     public update(dt: number): void {
         if (this.isDead) return;
         this.fsm.update(dt);
+    }
+
+    public getNearbyNeighbors(): Enemy[] {
+        return this._proximitySystem.getEntitiesInRadius(
+            this.position,
+            4,
+            this.id,
+        );
     }
 }

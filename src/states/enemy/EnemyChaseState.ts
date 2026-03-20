@@ -2,67 +2,76 @@ import { Vector3, Scalar } from "@babylonjs/core";
 import { BaseState } from "../../core/abstracts/BaseState";
 import { Enemy } from "../../core/abstracts/Enemy";
 import { EnemyIdleState } from "./EnemyIdleState";
+import { SteeringManager } from "../../managers/SteeringManager";
 
 export class EnemyChaseState extends BaseState<Enemy> {
     public readonly name = "ChaseState";
-    private readonly ESCAPE_RANGE = 18; // Distance à laquelle l'ennemi abandonne
+
+    protected handleEnter(owner: Enemy): void {
+        owner.playAnim("run", true);
+    }
 
     protected handleUpdate(owner: Enemy, dt: number): void {
         const target = owner.targetTransform;
-
-        // 1. Sortie de l'état si plus de cible
         if (!target) {
             owner.fsm.transitionTo(new EnemyIdleState());
             return;
         }
 
-        const targetPos = target.position;
-        const currentPos = owner.position;
+        const dist = Vector3.Distance(owner.position, target.position);
 
-        // 2. Calcul du mouvement
-        const direction = targetPos.subtract(currentPos);
-        direction.y = 0; // On reste sur le plan horizontal
-        const distance = direction.length();
+        // --- LOGIQUE IA ---
+        if (dist > owner.config.interactionRange) {
+            // Forces de steering
+            const seekForce = SteeringManager.seek(owner, target.position);
 
-        // Si on est encore loin, on avance
-        if (distance > 1.2) {
-            direction.normalize();
+            // RAYON DE SÉPARATION : Il doit être supérieur à la largeur physique de tes ennemis.
+            // Si tes ennemis font 1 mètre de diamètre, mets un rayon de 1.5 ou 2.0.
+            const neighbors = owner.getNearbyNeighbors();
+            const sepForce = SteeringManager.separate(owner, neighbors, 10.0);
 
-            // Calcul des vélocités cibles
-            const targetVX = direction.x * owner.stats.speed;
-            const targetVZ = direction.z * owner.stats.speed;
+            // Combinaison des forces.
+            // LE SECRET DU SEPARATE : Son coefficient (weights.separation) doit être ÉLEVÉ.
+            // Essaie weights.seek = 1.0 et weights.separation = 5.0 pour tester.
+            const steering = seekForce
+                .scale(owner.config.weights.seek)
+                .add(sepForce.scale(owner.config.weights.separation));
 
-            // Lerp pour un mouvement fluide
-            owner.velocity.x = Scalar.Lerp(owner.velocity.x, targetVX, 0.1);
-            owner.velocity.z = Scalar.Lerp(owner.velocity.z, targetVZ, 0.1);
+            // Application de l'accélération (On multiplie par 10 pour la nervosité)
+            owner.velocity.addInPlace(steering.scale(dt * 10));
 
-            // Orientation du mesh vers la cible (uniquement sur l'axe Y)
-            owner.mesh?.lookAt(new Vector3(targetPos.x, currentPos.y, targetPos.z));
+            // Limitation de la vitesse max
+            if (owner.velocity.length() > owner.config.maxSpeed) {
+                owner.velocity.normalize().scaleInPlace(owner.config.maxSpeed);
+            }
         } else {
-            // On freine si on est arrivé
-            owner.velocity.x = Scalar.Lerp(owner.velocity.x, 0, 0.2);
-            owner.velocity.z = Scalar.Lerp(owner.velocity.z, 0, 0.2);
+            // Freinage doux (Damping indépendant du framerate)
+            owner.velocity.scaleInPlace(Math.pow(0.01, dt)); // Réduit la vitesse de 99% par seconde
+
+            if (owner.velocity.length() < 0.1) {
+                owner.velocity.setAll(0);
+                owner.playAnim("idle", true);
+            }
         }
 
-        // 3. Application du mouvement avec moveWithCollisions
-        // On multiplie par dt pour la frame et on ajoute une gravité constante
-        const movement = new Vector3(
-            owner.velocity.x * dt,
-            -0.1,
-            owner.velocity.z * dt
-        );
-        owner.mesh?.moveWithCollisions(movement);
+        // --- APPLICATION PHYSIQUE CENTRALISÉE ---
+        // C'est CA qui synchronise le pivot logique (Transform) et évite les TP.
+        owner.move(owner.velocity, dt);
 
-        // 4. Transitions basées sur le ProximitySystem (tracking)
+        // --- ROTATION VISUELLE (Indépendante du framerate) ---
+        if (owner.mesh && owner.velocity.length() > 0.2) {
+            const targetAngle = Math.atan2(owner.velocity.x, owner.velocity.z);
 
-        // Si le ProximitySystem dit qu'on est au corps à corps
-        if (owner.isNear) {
-            // owner.fsm.transitionTo(new EnemyAttackState());
-            console.log(`${owner.name} est à portée !`);
+            // On lisse la rotation avec turnSpeed (ex: 0.1) normalisé à 60fps
+            owner.mesh.rotation.y = Scalar.LerpAngle(
+                owner.mesh.rotation.y,
+                targetAngle,
+                owner.config.turnSpeed * (dt * 60),
+            );
         }
 
-        // Si le joueur a semé l'ennemi
-        if (distance > this.ESCAPE_RANGE) {
+        // Transitions
+        if (dist > owner.config.escapeRange) {
             owner.fsm.transitionTo(new EnemyIdleState());
         }
     }

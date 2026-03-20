@@ -1,13 +1,10 @@
 // managers/LevelManager.ts
-import {
-    Scene,
-    Vector3,
-    LoadAssetContainerAsync,
-} from "@babylonjs/core";
+import { Scene, Vector3, LoadAssetContainerAsync } from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
 import type { LoadAssetContainerOptions } from "@babylonjs/core";
 import type { ZoneConfig } from "../core/interfaces/ZoneConfig";
 import type { ZoneEntry } from "../core/interfaces/ZoneEntry";
+import { CollisionLayers } from "../core/data/CollisionLayers";
 
 export class LevelManager {
     private readonly _scene: Scene;
@@ -23,8 +20,8 @@ export class LevelManager {
      * Charge l'ensemble du monde à partir de la configuration
      */
     public async loadWorld(zonesConfig: ZoneConfig[]): Promise<void> {
-        const loadingPromises = zonesConfig.map(zone =>
-            this.loadZone(zone.id, zone.path, zone.position)
+        const loadingPromises = zonesConfig.map((zone) =>
+            this.loadZone(zone.id, zone.path, zone.position),
         );
 
         await Promise.all(loadingPromises);
@@ -38,18 +35,26 @@ export class LevelManager {
         id: string,
         url: string,
         offset: Vector3,
-        options?: LoadAssetContainerOptions
+        options?: LoadAssetContainerOptions,
     ): Promise<void> {
         if (this._zones.has(id)) return;
 
         try {
-            const container = await LoadAssetContainerAsync(url, this._scene, options);
+            const container = await LoadAssetContainerAsync(
+                url,
+                this._scene,
+                options,
+            );
 
             // Déplacer les meshes vers leur offset global
             for (const mesh of container.meshes) {
-
-                if (mesh.name.toLowerCase().includes("ground") || mesh.name.toLowerCase().includes("floor")) {
+                if (
+                    mesh.name.toLowerCase().includes("ground") ||
+                    mesh.name.toLowerCase().includes("floor")
+                ) {
                     mesh.checkCollisions = true;
+                    mesh.collisionGroup = CollisionLayers.ENVIRONMENT;
+                    mesh.collisionMask = CollisionLayers.ALL;
                 }
 
                 if (!mesh.parent) {
@@ -63,9 +68,8 @@ export class LevelManager {
             this._zones.set(id, {
                 container,
                 position: offset,
-                isShown: false
+                isShown: false,
             });
-
         } catch (err) {
             console.error(`[LevelManager] Failed to load zone ${id}:`, err);
         }
