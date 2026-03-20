@@ -4,20 +4,17 @@ export type SteeringWeights = {
     seek: number; // Importance de la poursuite
     separation: number; // Importance de l'évitement des autres ennemis
 };
-
 export type EnemyBehaviorConfig = {
-    // Distances de décision
-    detectionRange: number; // Portée de vue (Idle -> Chase)
-    escapeRange: number; // Distance d'abandon (Chase -> Idle)
-    interactionRange: number; // Portée d'attaque (ProximitySystem)
+    detectionRange: number;
+    escapeRange: number;
+    interactionRange: number; // Quand l'IA s'arrête pour frapper
+    attackRange: number; // Portée réelle des dégâts (Hitbox)
 
-    // Paramètres Steering
-    arrivalRadius: number; // Rayon où l'IA commence à ralentir
+    arrivalRadius: number;
     weights: SteeringWeights;
-
-    // Physique
     maxSpeed: number;
-    turnSpeed: number; // Facteur de Lerp pour la rotation (ex: 0.1)
+    turnSpeed: number;
+    maxForce: number;
 };
 
 export type EnemyConfig = {

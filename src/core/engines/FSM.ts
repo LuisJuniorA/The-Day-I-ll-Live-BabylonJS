@@ -37,4 +37,8 @@ export class FSM<T> {
             this._currentState.onUpdate(this._owner, dt);
         }
     }
+
+    public get currentState(): State<T> | null {
+        return this._currentState;
+    }
 }

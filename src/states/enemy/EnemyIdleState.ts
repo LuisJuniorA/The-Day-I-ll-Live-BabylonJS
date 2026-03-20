@@ -24,7 +24,7 @@ export class EnemyIdleState extends BaseState<Enemy> {
 
             // On utilise la config de l'ennemi pour la détection
             if (distance <= owner.config.detectionRange) {
-                owner.fsm.transitionTo(new EnemyChaseState());
+                owner.movementFSM.transitionTo(new EnemyChaseState());
             }
         }
     }

@@ -87,6 +87,7 @@ export class EntityFactory {
 
                     // Le pivot visuel est fils du root (collision)
                     visualPivot.parent = root;
+                    visualPivot.scaling.setAll(2.0);
 
                     // On déplace tous les enfants réels (géométrie, squelette) sous le pivot visuel
                     const children = root.getChildren();

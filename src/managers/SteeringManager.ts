@@ -3,14 +3,14 @@ import { Enemy } from "../core/abstracts/Enemy";
 
 export class SteeringManager {
     /**
-     * SEEK : Force d'accélération vers la cible.
+     * SEEK : Force d'accélération vers la cible, limitée par maxForce.
      */
     public static seek(owner: Enemy, target: Vector3): Vector3 {
         const desired = target.subtract(owner.position);
-        desired.y = 0; // Plan horizontal
+        desired.y = 0; // Plan horizontal (Metroidvania X/Z ou X/Y selon ta config)
         const distance = desired.length();
 
-        // Zone d'interaction : on freine
+        // Zone d'interaction : on freine brutalement
         if (distance <= owner.config.interactionRange) {
             return owner.velocity.scale(-1.5);
         }
@@ -23,12 +23,24 @@ export class SteeringManager {
                 owner.config.maxSpeed * (distance / owner.config.arrivalRadius);
         }
 
+        // 1. Calcul de la vitesse désirée
         const desiredVelocity = desired.normalize().scale(speed);
-        return desiredVelocity.subtract(owner.velocity);
+
+        // 2. Calcul de la force de steering (Vitesse désirée - Vitesse actuelle)
+        let steeringForce = desiredVelocity.subtract(owner.velocity);
+
+        // 3. APPLICATION DU MAXFORCE
+        // On limite l'amplitude du vecteur de force pour une accélération progressive
+        const maxF = owner.config.maxForce || 0.1; // Fallback au cas où
+        if (steeringForce.length() > maxF) {
+            steeringForce.normalize().scaleInPlace(maxF);
+        }
+
+        return steeringForce;
     }
 
     /**
-     * SEPARATE : Force d'accélération pour éviter le chevauchement.
+     * SEPARATE : Évitement, également limité par maxForce pour éviter les saccades.
      */
     public static separate(
         owner: Enemy,
@@ -39,21 +51,16 @@ export class SteeringManager {
         let count = 0;
 
         for (const other of neighbors) {
-            // owner.position et other.position sont les pivots LOGIQUES (Transform)
             const diff = owner.position.subtract(other.position);
             diff.y = 0;
             let dist = diff.length();
 
-            // Superposition parfaite : on crée une direction aléatoire
             if (dist === 0) {
                 diff.set(Math.random() - 0.5, 0, Math.random() - 0.5);
-                dist = 0.1; // Distance minimale simulée
+                dist = 0.1;
             }
 
-            // Si on est dans le rayon de séparation
             if (dist < radius) {
-                // Force quadratique inverse : Plus on est proche, plus la répulsion explose.
-                // On normalise puis on divise par la distance
                 diff.normalize().scaleInPlace(1 / dist);
                 steering.addInPlace(diff);
                 count++;
@@ -61,11 +68,17 @@ export class SteeringManager {
         }
 
         if (count > 0) {
-            steering.scaleInPlace(1 / count); // Moyenne des forces de répulsion
+            steering.scaleInPlace(1 / count);
+            const desiredSeparation = steering.scale(owner.config.maxSpeed * 2);
+            let separationForce = desiredSeparation.subtract(owner.velocity);
 
-            // On veut que la séparation soit puissante.
-            // On la scale par rapport à la maxSpeed pour qu'elle puisse contrer le Seek.
-            return steering.scale(owner.config.maxSpeed * 2);
+            // On bride aussi la séparation par maxForce pour la fluidité
+            const maxF = owner.config.maxForce || 0.1;
+            if (separationForce.length() > maxF) {
+                separationForce.normalize().scaleInPlace(maxF);
+            }
+
+            return separationForce;
         }
 
         return Vector3.Zero();

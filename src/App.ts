@@ -106,7 +106,7 @@ export class App {
         // 2. Test Ennemi "Effroi" via la Factory (Async)
         // Cela va charger le GLB (ou le placeholder rouge si échec)
         await this.entityManager.spawn("effroi", new Vector3(0, 1, 0));
-        await this.entityManager.spawn("effroi", new Vector3(0, 1, 0));
+        //await this.entityManager.spawn("effroi", new Vector3(0, 1, 0));
 
         console.log("Spawn de test terminé.");
     }

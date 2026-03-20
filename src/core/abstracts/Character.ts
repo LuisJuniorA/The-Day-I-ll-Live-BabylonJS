@@ -1,6 +1,8 @@
 import { AnimationGroup, Scene, Vector3 } from "@babylonjs/core";
 import { Entity } from "./Entity";
 import type { CharacterStats } from "../types/CharacterStats";
+import { OnEntityDamaged } from "../interfaces/CombatEvent";
+import type { FactionType } from "../types/Faction";
 
 export abstract class Character extends Entity {
     public stats: CharacterStats;
@@ -8,15 +10,31 @@ export abstract class Character extends Entity {
     public isDead: boolean = false;
     public isGrounded: boolean = false;
     public animations: Map<string, AnimationGroup> = new Map();
+    protected faction: FactionType;
 
     public onDeath?: () => void;
 
-    constructor(name: string, scene: Scene, stats: CharacterStats) {
+    constructor(
+        name: string,
+        scene: Scene,
+        stats: CharacterStats,
+        faction: FactionType,
+    ) {
         super(name, scene);
         this.stats = { ...stats };
+        this.faction = faction;
+
+        OnEntityDamaged.add((event) => {
+            if (event.targetId !== this.id) return;
+
+            if (event.attackerFaction === this.faction) return;
+
+            this.takeDamage(event.amount);
+        });
     }
 
     public takeDamage(amount: number): void {
+        console.log(this.name, this.stats.hp);
         if (this.isDead) return;
         this.stats.hp -= amount;
         if (this.stats.hp <= 0) this.die();

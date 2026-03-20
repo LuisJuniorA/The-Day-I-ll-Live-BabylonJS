@@ -25,4 +25,8 @@ export abstract class Entity {
         this.mesh?.dispose();
         this.transform.dispose();
     }
+
+    public getScene(): Scene {
+        return this._scene;
+    }
 }

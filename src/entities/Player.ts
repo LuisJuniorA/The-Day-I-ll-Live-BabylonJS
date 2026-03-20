@@ -15,6 +15,8 @@ import {
     type Interactable,
 } from "../core/interfaces/Interactable";
 import { CollisionLayers } from "../core/data/CollisionLayers";
+import { OnEntityDamaged } from "../core/interfaces/CombatEvent";
+import { Faction } from "../core/types/Faction";
 
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
@@ -35,7 +37,12 @@ export class Player extends Character {
 
     constructor(scene: Scene, startPosition: Vector3) {
         // 1. Initialisation Character (Le transform de Entity est créé ici)
-        super("Player", scene, { hp: 100, maxHp: 100, speed: 12 });
+        super(
+            "Player",
+            scene,
+            { hp: 100, maxHp: 100, speed: 12, damage: 10 },
+            Faction.PLAYER,
+        );
 
         // 2. Positionnement du pivot logique (TransformNode)
         this.transform.position.copyFrom(startPosition);
@@ -74,6 +81,9 @@ export class Player extends Character {
             } else if (this._targetInteractable === event.interactable) {
                 this._targetInteractable = null;
             }
+        });
+        OnEntityDamaged.add((event) => {
+            this.takeDamage(event.amount);
         });
 
         this.movementFSM.transitionTo(new PlayerMoveState());
