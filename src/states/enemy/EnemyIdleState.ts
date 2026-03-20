@@ -8,7 +8,7 @@ export class EnemyIdleState extends BaseState<Enemy> {
 
     protected handleEnter(owner: Enemy): void {
         owner.velocity.setAll(0);
-        owner.playAnim("idle", true);
+        owner.playAnim("relax", true);
     }
 
     protected handleUpdate(owner: Enemy, dt: number): void {

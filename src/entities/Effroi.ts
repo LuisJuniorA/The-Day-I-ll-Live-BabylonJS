@@ -18,7 +18,5 @@ export class Effroi extends Enemy {
             // Sécurité : nom en minuscule pour matcher playAnim()
             this.animations.set(ag.name.toLowerCase(), ag);
         });
-
-        this.playAnim("idle");
     }
 }

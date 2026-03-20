@@ -1,4 +1,4 @@
-import { Vector3, Scalar } from "@babylonjs/core";
+import { Vector3, Scalar, TransformNode } from "@babylonjs/core";
 import { BaseState } from "../../core/abstracts/BaseState";
 import { Enemy } from "../../core/abstracts/Enemy";
 import { EnemyIdleState } from "./EnemyIdleState";
@@ -8,11 +8,12 @@ export class EnemyChaseState extends BaseState<Enemy> {
     public readonly name = "ChaseState";
 
     protected handleEnter(owner: Enemy): void {
-        owner.playAnim("run", true);
+        owner.playAnim("relax", true);
     }
 
     protected handleUpdate(owner: Enemy, dt: number): void {
         const target = owner.targetTransform;
+
         if (!target) {
             owner.fsm.transitionTo(new EnemyIdleState());
             return;
@@ -20,57 +21,56 @@ export class EnemyChaseState extends BaseState<Enemy> {
 
         const dist = Vector3.Distance(owner.position, target.position);
 
-        // --- LOGIQUE IA ---
+        // --- 1. MOUVEMENT ---
         if (dist > owner.config.interactionRange) {
-            // Forces de steering
             const seekForce = SteeringManager.seek(owner, target.position);
-
-            // RAYON DE SÉPARATION : Il doit être supérieur à la largeur physique de tes ennemis.
-            // Si tes ennemis font 1 mètre de diamètre, mets un rayon de 1.5 ou 2.0.
             const neighbors = owner.getNearbyNeighbors();
             const sepForce = SteeringManager.separate(owner, neighbors, 10.0);
 
-            // Combinaison des forces.
-            // LE SECRET DU SEPARATE : Son coefficient (weights.separation) doit être ÉLEVÉ.
-            // Essaie weights.seek = 1.0 et weights.separation = 5.0 pour tester.
             const steering = seekForce
                 .scale(owner.config.weights.seek)
                 .add(sepForce.scale(owner.config.weights.separation));
 
-            // Application de l'accélération (On multiplie par 10 pour la nervosité)
             owner.velocity.addInPlace(steering.scale(dt * 10));
 
-            // Limitation de la vitesse max
             if (owner.velocity.length() > owner.config.maxSpeed) {
                 owner.velocity.normalize().scaleInPlace(owner.config.maxSpeed);
             }
         } else {
-            // Freinage doux (Damping indépendant du framerate)
-            owner.velocity.scaleInPlace(Math.pow(0.01, dt)); // Réduit la vitesse de 99% par seconde
-
+            owner.velocity.scaleInPlace(Math.pow(0.01, dt));
             if (owner.velocity.length() < 0.1) {
                 owner.velocity.setAll(0);
-                owner.playAnim("idle", true);
+                owner.playAnim("relax", true);
             }
         }
 
-        // --- APPLICATION PHYSIQUE CENTRALISÉE ---
-        // C'est CA qui synchronise le pivot logique (Transform) et évite les TP.
         owner.move(owner.velocity, dt);
 
-        // --- ROTATION VISUELLE (Indépendante du framerate) ---
-        if (owner.mesh && owner.velocity.length() > 0.2) {
-            const targetAngle = Math.atan2(owner.velocity.x, owner.velocity.z);
+        // --- 2. ORIENTATION (SUR LES BONS AXES) ---
+        // On récupère le pivot visuel (celui qui a l'offset -1)
+        const visualPivot =
+            owner.transform
+                .getChildMeshes()
+                .find((m) => m.name.includes("visual_pivot"))?.parent ||
+            owner.transform
+                .getChildren()
+                .find((c) => c.name.includes("visual_pivot"));
 
-            // On lisse la rotation avec turnSpeed (ex: 0.1) normalisé à 60fps
-            owner.mesh.rotation.y = Scalar.LerpAngle(
-                owner.mesh.rotation.y,
+        if (visualPivot instanceof TransformNode) {
+            const diffX = target.position.x - owner.transform.position.x;
+
+            // SI PI/2 FAISAIT DEVANT/DERRIERE :
+            // Alors Droite = 0 et Gauche = PI (180°)
+            const targetAngle = diffX > 0 ? 0 : Math.PI;
+
+            visualPivot.rotation.y = Scalar.LerpAngle(
+                visualPivot.rotation.y,
                 targetAngle,
                 owner.config.turnSpeed * (dt * 60),
             );
         }
 
-        // Transitions
+        // --- 3. TRANSITION ---
         if (dist > owner.config.escapeRange) {
             owner.fsm.transitionTo(new EnemyIdleState());
         }

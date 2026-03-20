@@ -9,7 +9,7 @@ export class PlayerIdleState extends BaseState<Player> {
     public readonly name = "IdleState";
 
     protected handleEnter(owner: Player): void {
-        owner.playAnim("idle", true);
+        //owner.playAnim("idle", true);
         owner.velocity.y = 0;
     }
 

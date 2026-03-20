@@ -6,55 +6,34 @@ export abstract class Character extends Entity {
     public stats: CharacterStats;
     public velocity: Vector3 = Vector3.Zero();
     public isDead: boolean = false;
-    public isGrounded: boolean = false; // Utile pour les calculs de saut/chute
+    public isGrounded: boolean = false;
     public animations: Map<string, AnimationGroup> = new Map();
 
-    /** * Callback déclenché à la mort du personnage.
-     * Permet à l'App ou au Manager de réagir (Game Over, Loot, Suppression).
-     */
     public onDeath?: () => void;
 
     constructor(name: string, scene: Scene, stats: CharacterStats) {
         super(name, scene);
-        // On crée une copie des stats pour éviter de modifier l'objet de config original
         this.stats = { ...stats };
     }
 
-    /**
-     * Applique des dégâts au personnage.
-     */
     public takeDamage(amount: number): void {
         if (this.isDead) return;
-
         this.stats.hp -= amount;
-        console.log(`${this.name} PV: ${this.stats.hp}/${this.stats.maxHp}`);
-
-        if (this.stats.hp <= 0) {
-            this.die();
-        }
+        if (this.stats.hp <= 0) this.die();
     }
 
-    /**
-     * Gère la logique interne de la mort.
-     */
     protected die(): void {
         if (this.isDead) return;
-
         this.isDead = true;
         this.stats.hp = 0;
-        this.velocity.setAll(0); // On stoppe tout mouvement
-
-        console.log(`${this.name} a succombé.`);
-
-        if (this.onDeath) {
-            this.onDeath();
-        }
+        this.velocity.setAll(0);
+        if (this.onDeath) this.onDeath();
     }
 
     /**
-     * Système de mouvement "Bridge" :
-     * Utilise moveWithCollisions sur le mesh enfant, synchronise le Transform parent,
-     * puis reset la position locale du mesh pour éviter les décalages (offsets).
+     * Système de mouvement simplifié :
+     * Le mesh enfant sert de "sonde" de collision.
+     * Le pivot visuel (géré dans l'EntityFactory) s'occupe de l'offset Y.
      */
     public move(velocity: Vector3, dt: number): void {
         if (this.isDead || !this.mesh) return;
@@ -62,50 +41,80 @@ export abstract class Character extends Entity {
         // 1. CALCUL DE LA VÉLOCITÉ FINALE
         const finalVelocity = velocity.clone();
 
-        // Sécurité sol (coller au sol)
+        // Gravité légère si au sol pour éviter de flotter
         if (this.isGrounded && finalVelocity.y < 0) {
             finalVelocity.y = -0.01;
         }
 
-        // --- ALIGNEMENT AUTOMATIQUE Z (FORCE DE RAPPEL) ---
-        // Si on n'est pas à Z=0, on ajoute une petite force de retour.
-        // Plus on est loin du centre, plus le retour est pressant.
+        // Rappel vers l'axe central (Z=0) pour le gameplay 2.5D
         const springStrength = 2.0;
         finalVelocity.z += -this.transform.position.z * springStrength;
 
-        // 2. DÉPLACEMENT PHYSIQUE
+        // 2. DÉPLACEMENT PHYSIQUE (Le mesh bouge localement)
         const frameMove = finalVelocity.scale(dt);
         this.mesh.moveWithCollisions(frameMove);
 
-        // --- TUNNEL PHYSIQUE (Z-CLAMP) ---
-        // On empêche physiquement de sortir des limites, même si une force de steering pousse trop fort.
-        const zLimit = 1.5;
-        if (this.mesh.position.z > zLimit) this.mesh.position.z = zLimit;
-        if (this.mesh.position.z < -zLimit) this.mesh.position.z = -zLimit;
-
         // 3. SYNCHRONISATION
+        // On transfère le mouvement du mesh vers le parent (TransformNode)
         this.transform.position.addInPlace(this.mesh.position);
 
-        // 5. RESET POSITION LOCALE
+        // 4. RESET POSITION DU MESH
+        // On remet toujours le mesh à 0 relatif au parent.
+        // L'offset Y est préservé grâce au TransformNode intermédiaire (visualPivot).
         this.mesh.position.setAll(0);
+
+        // 5. TUNNEL PHYSIQUE (Z-CLAMP)
+        const zLimit = 1.0;
+        if (this.transform.position.z > zLimit)
+            this.transform.position.z = zLimit;
+        if (this.transform.position.z < -zLimit)
+            this.transform.position.z = -zLimit;
+
+        // 6. ROTATION (Flip automatique vers la direction du mouvement)
+        this._handleSpriteFlip();
     }
 
     /**
-     * Gère la lecture des animations enregistrées.
+     * Oriente le personnage vers sa direction de marche
      */
+    private _handleSpriteFlip(): void {
+        if (!this.mesh) return;
+
+        // Si on va vers la droite (X positif)
+        if (this.velocity.x > 0.1) {
+            this.transform.rotation.y = 0;
+        }
+        // Si on va vers la gauche (X négatif)
+        else if (this.velocity.x < -0.1) {
+            this.transform.rotation.y = Math.PI; // 180°
+        }
+    }
+
     public playAnim(name: string, loop: boolean = true): void {
-        const animName = name.toLowerCase();
-        const anim = this.animations.get(animName);
+        const search = name.toLowerCase();
 
-        if (!anim || anim.isPlaying) return;
+        // On cherche dans la Map une clé qui CONTIENT le nom demandé
+        const entry = Array.from(this.animations.entries()).find(([key]) =>
+            key.toLowerCase().includes(search),
+        );
 
-        // On arrête toutes les autres animations proprement
+        if (!entry) {
+            // Debug pour voir ce qu'il y a vraiment si ça rate
+            console.warn(
+                `Anim "${name}" non trouvée. Dispo:`,
+                Array.from(this.animations.keys()),
+            );
+            return;
+        }
+
+        const targetAnim = entry[1];
+        if (targetAnim.isPlaying) return;
+
+        // On stoppe les autres
         this.animations.forEach((a) => {
-            if (a !== anim && a.isPlaying) {
-                a.stop();
-            }
+            if (a !== targetAnim && a.isPlaying) a.stop();
         });
 
-        anim.play(loop);
+        targetAnim.play(loop);
     }
 }
