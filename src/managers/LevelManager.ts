@@ -4,7 +4,7 @@ import "@babylonjs/loaders/glTF";
 import type { LoadAssetContainerOptions } from "@babylonjs/core";
 import type { ZoneConfig } from "../core/interfaces/ZoneConfig";
 import type { ZoneEntry } from "../core/interfaces/ZoneEntry";
-import { CollisionLayers } from "../core/data/CollisionLayers";
+import { CollisionLayers } from "../core/constants/CollisionLayers";
 
 export class LevelManager {
     private readonly _scene: Scene;

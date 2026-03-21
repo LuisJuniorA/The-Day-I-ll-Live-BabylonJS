@@ -15,7 +15,7 @@ import { Entity } from "../core/abstracts/Entity";
 import { Player } from "../entities/Player";
 import { Effroi } from "../entities/Effroi";
 import { ProximitySystem } from "../core/engines/ProximitySystem";
-import { ENEMY_CONFIGS } from "../core/data/EnemyData";
+import { ENEMY_CONFIGS } from "..//data/EnemyData";
 import type { EnemyConfig } from "../core/types/EnemyConfig";
 
 export class EntityFactory {

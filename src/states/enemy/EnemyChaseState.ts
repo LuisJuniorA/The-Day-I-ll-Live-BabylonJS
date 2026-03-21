@@ -1,17 +1,13 @@
 import { Vector3, Scalar, TransformNode } from "@babylonjs/core";
 import { BaseState } from "../../core/abstracts/BaseState";
-import { Enemy } from "../../core/abstracts/Enemy"; // Vérifie ton import
+import { Enemy } from "../../core/abstracts/Enemy";
 import { EnemyIdleState } from "./EnemyIdleState";
-import { EnemyAttackState } from "./EnemyAttackState"; // Import indispensable
+import { EnemyAttackState } from "./EnemyAttackState";
 import { EnemyAttackIdleState } from "./EnemyAttackIdleState";
-import { SteeringManager } from "../../managers/SteeringManager";
+import { SteeringSystem } from "../../core/engines/SteeringSystem";
 
 export class EnemyChaseState extends BaseState<Enemy> {
     public readonly name = "ChaseState";
-
-    protected handleEnter(owner: Enemy): void {
-        owner.playAnim("relax", true);
-    }
 
     protected handleUpdate(owner: Enemy, dt: number): void {
         const target = owner.targetTransform;
@@ -24,11 +20,10 @@ export class EnemyChaseState extends BaseState<Enemy> {
         const dist = Vector3.Distance(owner.position, target.position);
 
         // --- 1. MOUVEMENT ---
-        // Si on est plus loin que la portée d'interaction, on avance
         if (dist > owner.config.interactionRange) {
-            const seekForce = SteeringManager.seek(owner, target.position);
+            const seekForce = SteeringSystem.seek(owner, target.position);
             const neighbors = owner.getNearbyNeighbors();
-            const sepForce = SteeringManager.separate(owner, neighbors, 10.0);
+            const sepForce = SteeringSystem.separate(owner, neighbors, 10.0);
 
             const steering = seekForce
                 .scale(owner.config.weights.seek)
@@ -39,13 +34,15 @@ export class EnemyChaseState extends BaseState<Enemy> {
             if (owner.velocity.length() > owner.config.maxSpeed) {
                 owner.velocity.normalize().scaleInPlace(owner.config.maxSpeed);
             }
-        }
-        // Si on est à portée, on freine proprement
-        else {
+
+            // On demande l'anim à chaque frame (sera ignorée si une attaque tourne)
+            owner.playMove();
+        } else {
             owner.velocity.scaleInPlace(Math.pow(0.01, dt));
             if (owner.velocity.length() < 0.1) {
                 owner.velocity.setAll(0);
             }
+            owner.playIdle();
         }
 
         owner.move(owner.velocity, dt);
@@ -53,11 +50,9 @@ export class EnemyChaseState extends BaseState<Enemy> {
         // --- 2. ORIENTATION ---
         this.updateOrientation(owner, target, dt);
 
-        // --- 3. LOGIQUE D'ATTAQUE (Le lien entre les deux FSM) ---
-        // Si on est assez proche ET que l'AttackFSM est au repos (Idle)
+        // --- 3. LOGIQUE D'ATTAQUE ---
         if (dist <= owner.config.interactionRange) {
             const currentAttackState = owner.attackFSM.currentState;
-
             if (currentAttackState instanceof EnemyAttackIdleState) {
                 if (currentAttackState.canAttack) {
                     owner.attackFSM.transitionTo(new EnemyAttackState());
@@ -65,7 +60,7 @@ export class EnemyChaseState extends BaseState<Enemy> {
             }
         }
 
-        // --- 4. TRANSITION DE SORTIE (ABANDON) ---
+        // --- 4. ABANDON ---
         if (dist > owner.config.escapeRange) {
             owner.movementFSM.transitionTo(new EnemyIdleState());
         }

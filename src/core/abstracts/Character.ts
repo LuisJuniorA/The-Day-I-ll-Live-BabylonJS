@@ -12,6 +12,8 @@ export abstract class Character extends Entity {
     public animations: Map<string, AnimationGroup> = new Map();
     protected faction: FactionType;
 
+    private _isPriorityAnimActive: boolean = false;
+
     public onDeath?: () => void;
 
     constructor(
@@ -26,15 +28,12 @@ export abstract class Character extends Entity {
 
         OnEntityDamaged.add((event) => {
             if (event.targetId !== this.id) return;
-
             if (event.attackerFaction === this.faction) return;
-
             this.takeDamage(event.amount);
         });
     }
 
     public takeDamage(amount: number): void {
-        console.log(this.name, this.stats.hp);
         if (this.isDead) return;
         this.stats.hp -= amount;
         if (this.stats.hp <= 0) this.die();
@@ -48,91 +47,76 @@ export abstract class Character extends Entity {
         if (this.onDeath) this.onDeath();
     }
 
-    /**
-     * Système de mouvement simplifié :
-     * Le mesh enfant sert de "sonde" de collision.
-     * Le pivot visuel (géré dans l'EntityFactory) s'occupe de l'offset Y.
-     */
     public move(velocity: Vector3, dt: number): void {
         if (this.isDead || !this.mesh) return;
 
-        // 1. CALCUL DE LA VÉLOCITÉ FINALE
         const finalVelocity = velocity.clone();
 
-        // Gravité légère si au sol pour éviter de flotter
         if (this.isGrounded && finalVelocity.y < 0) {
             finalVelocity.y = -0.01;
         }
 
-        // Rappel vers l'axe central (Z=0) pour le gameplay 2.5D
         const springStrength = 2.0;
         finalVelocity.z += -this.transform.position.z * springStrength;
 
-        // 2. DÉPLACEMENT PHYSIQUE (Le mesh bouge localement)
         const frameMove = finalVelocity.scale(dt);
         this.mesh.moveWithCollisions(frameMove);
 
-        // 3. SYNCHRONISATION
-        // On transfère le mouvement du mesh vers le parent (TransformNode)
         this.transform.position.addInPlace(this.mesh.position);
-
-        // 4. RESET POSITION DU MESH
-        // On remet toujours le mesh à 0 relatif au parent.
-        // L'offset Y est préservé grâce au TransformNode intermédiaire (visualPivot).
         this.mesh.position.setAll(0);
 
-        // 5. TUNNEL PHYSIQUE (Z-CLAMP)
         const zLimit = 1.0;
         if (this.transform.position.z > zLimit)
             this.transform.position.z = zLimit;
         if (this.transform.position.z < -zLimit)
             this.transform.position.z = -zLimit;
 
-        // 6. ROTATION (Flip automatique vers la direction du mouvement)
         this._handleSpriteFlip();
     }
 
-    /**
-     * Oriente le personnage vers sa direction de marche
-     */
     private _handleSpriteFlip(): void {
         if (!this.mesh) return;
-
-        // Si on va vers la droite (X positif)
         if (this.velocity.x > 0.1) {
             this.transform.rotation.y = 0;
-        }
-        // Si on va vers la gauche (X négatif)
-        else if (this.velocity.x < -0.1) {
-            this.transform.rotation.y = Math.PI; // 180°
+        } else if (this.velocity.x < -0.1) {
+            this.transform.rotation.y = Math.PI;
         }
     }
 
-    public playAnim(name: string, loop: boolean = true): void {
-        const search = name.toLowerCase();
+    public playAnim(
+        name: string,
+        loop: boolean = true,
+        isPriority: boolean = false,
+    ): void {
+        if (this._isPriorityAnimActive && loop) return;
 
-        // On cherche dans la Map une clé qui CONTIENT le nom demandé
+        const search = name.toLowerCase();
         const entry = Array.from(this.animations.entries()).find(([key]) =>
             key.toLowerCase().includes(search),
         );
 
-        if (!entry) {
-            // Debug pour voir ce qu'il y a vraiment si ça rate
-            console.warn(
-                `Anim "${name}" non trouvée. Dispo:`,
-                Array.from(this.animations.keys()),
-            );
-            return;
-        }
+        if (!entry) return;
 
         const targetAnim = entry[1];
-        if (targetAnim.isPlaying) return;
 
-        // On stoppe les autres
+        if (targetAnim.isPlaying && loop) return;
+
+        // --- LOGIQUE DE TRANSITION ---
         this.animations.forEach((a) => {
-            if (a !== targetAnim && a.isPlaying) a.stop();
+            if (a !== targetAnim && a.isPlaying) {
+                a.stop();
+            }
         });
 
+        if (isPriority) {
+            this._isPriorityAnimActive = true;
+            targetAnim.onAnimationEndObservable.addOnce(() => {
+                this._isPriorityAnimActive = false;
+            });
+        }
+
+        // Lance l'animation : grâce à enableBlending = true,
+        // elle va "shifter" doucement depuis la pose actuelle.
         targetAnim.play(loop);
     }
 }

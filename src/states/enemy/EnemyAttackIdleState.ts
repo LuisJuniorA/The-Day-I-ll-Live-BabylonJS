@@ -1,22 +1,18 @@
 import { BaseState } from "../../core/abstracts/BaseState";
-import { Enemy } from "../../core/abstracts/Enemy";
+import type { Enemy } from "../../core/abstracts/Enemy";
 
 export class EnemyAttackIdleState extends BaseState<Enemy> {
     public readonly name = "AttackIdle";
-
     private _cooldownTimer: number = 0;
-    // On peut imaginer mettre ce cooldown dans la config de l'ennemi plus tard
-    private readonly COOLDOWN_DURATION: number = 1.5;
 
-    /**
-     * Permet au ChaseState de savoir s'il peut déclencher une nouvelle attaque
-     */
     public get canAttack(): boolean {
-        return this._cooldownTimer >= this.COOLDOWN_DURATION;
+        // On peut utiliser une valeur par défaut ou une valeur config
+        const cd = 1.5;
+        return this._cooldownTimer >= cd;
     }
 
     protected handleEnter(): void {
-        this._cooldownTimer = 0; // Reset le chrono au début du repos
+        this._cooldownTimer = 0;
     }
 
     protected handleUpdate(_owner: Enemy, dt: number): void {

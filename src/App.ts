@@ -37,10 +37,14 @@ export class App {
         this.engine = new Engine(this.canvas, true);
         this.scene = new Scene(this.engine);
 
-        // 2. Gestionnaires de logique (State & UI en premier)
+        // --- FIX DU SKIP D'ANIMATION ---
+        // On dit à la scène de ne pas utiliser le temps système pour les animations
+        // mais d'attendre qu'on lui donne manuellement le delta (via render)
+        this.scene.useConstantAnimationDeltaTime = true;
+
+        // 2. Gestionnaires de logique
         this.gameStateManager = new GameStateManager();
         this.uiManager = new UIManager(this.scene, this.gameStateManager);
-
         this.entityManager = new EntityManager(this.scene);
         this.levelManager = new LevelManager(this.scene);
 
@@ -58,41 +62,26 @@ export class App {
         this.initMenu();
         this.startRenderLoop();
 
-        // On lance le test (async)
         this.spawnTest();
     }
 
-    /**
-     * Initialise le joueur et ses événements
-     */
     private spawnPlayer(): void {
-        // 1. Création du joueur (le constructeur gère déjà la hiérarchie interne)
         this.player = new Player(this.scene, new Vector3(0, 5, 0));
 
-        // 2. Réintégration du callback de mort (Essentiel !)
         this.player.onDeath = () => {
             console.log("GAME OVER");
             this.gameStateManager.setGameOver();
-            //this.uiManager.showGameOver();
         };
 
-        // 3. Nettoyage caméra menu
         if (this.menuCamera) {
             this.menuCamera.dispose();
         }
 
-        // 4. Enregistrement dans les systèmes
-        // On donne le TRANSFORM (pivot) à l'EntityManager pour le calcul de distance
         this.entityManager.setPlayerTarget(this.player.transform);
         this.entityManager.add(this.player);
     }
 
-    /**
-     * Test de spawn utilisant la Factory et l'EntityManager
-     */
     private async spawnTest(): Promise<void> {
-        // 1. Test NPC (Interactable)
-        // Note: Si tu veux un NPC spécifique via Factory, il faudra ajouter le case "npc" dans la factory
         const npc = new NPCInteractable(this.scene, new Vector3(0, 1, 0), {
             name: "Bob le Bricoleur",
             texts: [
@@ -103,20 +92,16 @@ export class App {
         });
         this.entityManager.add(npc);
 
-        // 2. Test Ennemi "Effroi" via la Factory (Async)
-        // Cela va charger le GLB (ou le placeholder rouge si échec)
         await this.entityManager.spawn("effroi", new Vector3(0, 1, 0));
-        //await this.entityManager.spawn("effroi", new Vector3(0, 1, 0));
-
         console.log("Spawn de test terminé.");
     }
 
-    /**
-     * Centralise la gestion des entrées clavier et des clics UI
-     */
     private setupInputs(): void {
         document.addEventListener("pointerlockchange", () => {
-            if (document.pointerLockElement === null) {
+            if (
+                document.pointerLockElement === null &&
+                this.gameStateManager.isPlaying()
+            ) {
                 this.gameStateManager.setPause();
             }
         });
@@ -156,13 +141,18 @@ export class App {
     }
 
     /**
-     * Boucle de rendu principale
+     * Boucle de rendu principale avec gestion du temps figé
      */
     private startRenderLoop(): void {
         this.engine.runRenderLoop(() => {
-            const deltaTime = this.engine.getDeltaTime() / 1000;
-
             if (this.gameStateManager.isPlaying()) {
+                // On récupère le delta réel entre deux frames
+                const deltaTime = this.engine.getDeltaTime() / 1000;
+
+                // On active les animations
+                this.scene.animationsEnabled = true;
+
+                // Update de la logique
                 this.entityManager.update(deltaTime);
 
                 if (this.player) {
@@ -171,17 +161,23 @@ export class App {
                     }
                     this.levelManager.update(this.player.position, 100);
                 }
-            }
 
-            this.scene.render();
+                // Rendu normal : Babylon utilise le delta interne pour avancer les anims
+                this.scene.render();
+            } else {
+                // EN PAUSE :
+                // On coupe les calculs d'animations
+                this.scene.animationsEnabled = false;
+
+                // render(true) dessine l'image mais SANS mettre à jour les timers.
+                // Comme useConstantAnimationDeltaTime est actif, l'horloge ne bouge pas.
+                this.scene.render(true);
+            }
         });
 
         window.addEventListener("resize", () => this.engine.resize());
     }
 
-    /**
-     * Chargement asynchrone des assets du monde
-     */
     private async initWorld(): Promise<void> {
         try {
             await this.levelManager.loadWorld(WorldZones);
@@ -190,8 +186,6 @@ export class App {
             console.error("Erreur de chargement :", error);
         }
     }
-
-    // --- HELPERS ENVIRONNEMENT ---
 
     private createCanvas(): HTMLCanvasElement {
         const canvas = document.createElement("canvas");

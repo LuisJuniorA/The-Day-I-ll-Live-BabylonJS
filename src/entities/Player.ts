@@ -14,7 +14,7 @@ import {
     OnInteractionAvailable,
     type Interactable,
 } from "../core/interfaces/Interactable";
-import { CollisionLayers } from "../core/data/CollisionLayers";
+import { CollisionLayers } from "../core/constants/CollisionLayers";
 import { OnEntityDamaged } from "../core/interfaces/CombatEvent";
 import { Faction } from "../core/types/Faction";
 
