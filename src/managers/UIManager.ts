@@ -1,19 +1,22 @@
-import { Scene } from "@babylonjs/core";
+import { Scene, AbstractMesh } from "@babylonjs/core";
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
 import { MainMenuView } from "../ui/views/MainMenuView";
 import { HUDView } from "../ui/views/HUDView";
-import { GameState } from "../core/types/GameState";
-import type { GameStateType } from "../core/types/GameState";
+import { DialogueView } from "../ui/views/DialogueView";
+import { GameState, type GameStateType } from "../core/types/GameState";
 import { GameStateManager } from "./GameStateManager";
-import { OnInteractionAvailable } from "../core/interfaces/Interactable";
-import { AbstractMesh } from "@babylonjs/core";
+import {
+    OnDialogueRequest,
+    OnInteractionAvailable,
+    type DialogueRequest,
+} from "../core/interfaces/Interactable";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
-
-    // On utilise les types précis pour avoir l'autocomplétion sur les méthodes spécifiques
     public mainMenuView: MainMenuView;
     public hudView: HUDView;
+    public dialogueView: DialogueView;
+    private _gameStateManager: GameStateManager;
 
     constructor(scene: Scene, gameStateManager: GameStateManager) {
         this._advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI(
@@ -21,52 +24,71 @@ export class UIManager {
             true,
             scene,
         );
+        this._gameStateManager = gameStateManager;
 
         this.mainMenuView = new MainMenuView(this._advancedTexture);
         this.hudView = new HUDView(this._advancedTexture);
+        this.dialogueView = new DialogueView(this._advancedTexture);
 
-        // --- LA CONNEXION ---
-        gameStateManager.onStateChangedObservable.add((state) => {
+        // --- ECOUTEURS ---
+
+        // Changement d'état global
+        this._gameStateManager.onStateChangedObservable.add((state) => {
             this.handleStateChange(state);
         });
 
+        // Interaction HUD
         OnInteractionAvailable.add((event) => {
             const isNear = !!(event.isNear && event.interactable);
             const mesh = event.interactable?.transform as AbstractMesh;
-
-            // On met à jour l'état dans le HUD
             this.hudView.setInteractionAvailable(isNear, mesh);
         });
 
-        // On initialise l'UI avec l'état actuel
-        this.handleStateChange(gameStateManager.state);
+        // Requête de dialogue (vient du monde 3D)
+        OnDialogueRequest.add((data) => {
+            this.openDialogue(data);
+        });
+
+        // FIN DE DIALOGUE (vient de la DialogueView)
+        this.dialogueView.onFinishObservable.add(() => {
+            this.closeDialogue();
+        });
+
+        this.handleStateChange(this._gameStateManager.getCurrentState());
     }
 
     private handleStateChange(state: GameStateType): void {
         switch (state) {
             case GameState.MENU:
             case GameState.PAUSED:
-                this.hudView.interactionPrompt.hide();
-                this.showMenu();
+                this.hudView.hide();
+                this.mainMenuView.show();
+                this.dialogueView.hide();
                 break;
-
             case GameState.PLAYING:
-                this.showHUD();
+                this.mainMenuView.hide();
+                this.dialogueView.hide();
+                this.hudView.show();
                 break;
-
-            case GameState.GAME_OVER:
-                //this.showGameOver();
+            case GameState.DIALOGUE:
+                this.hudView.hide();
+                this.mainMenuView.hide();
+                this.dialogueView.show();
                 break;
         }
     }
 
-    public showHUD(): void {
-        this.mainMenuView.hide();
-        this.hudView.show();
+    public openDialogue(data: DialogueRequest): void {
+        this._gameStateManager.setDialogue();
+        this.dialogueView.requestDialogue(data);
     }
 
-    public showMenu(): void {
-        this.hudView.hide();
-        this.mainMenuView.show();
+    public closeDialogue(): void {
+        this.dialogueView.reset();
+        this._gameStateManager.setPlaying();
+    }
+
+    public update(dt: number): void {
+        this.dialogueView.update(dt);
     }
 }

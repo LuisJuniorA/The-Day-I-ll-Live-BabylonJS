@@ -89,10 +89,7 @@ export class Player extends Character {
         this.movementFSM.transitionTo(new PlayerMoveState());
     }
 
-    public update(dt: number): void {
-        if (this.isDead) return;
-
-        // Mise à jour des moteurs
+    public updateInput(dt: number) {
         this.input.update();
         this.buffer.update(dt);
 
@@ -105,6 +102,12 @@ export class Player extends Character {
             this._targetInteractable.onInteract();
             this.input.isInteracting = false;
         }
+    }
+
+    public update(dt: number): void {
+        if (this.isDead) return;
+        this.updateInput(dt);
+        // Mise à jour des moteurs
 
         // Physique et Sol
         this.checkGrounded();
@@ -157,5 +160,9 @@ export class Player extends Character {
         if (this.isGrounded && this.velocity.y < 0) {
             this.velocity.y = 0;
         }
+    }
+
+    public getCamera(): UniversalCamera {
+        return this._camera;
     }
 }

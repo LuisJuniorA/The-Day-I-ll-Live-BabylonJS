@@ -15,3 +15,11 @@ export const OnInteractionAvailable = new Observable<InteractionEvent>();
 export function isInteractableEntity(entity: any): entity is Interactable {
     return "setProximityState" in entity && "interactionRange" in entity;
 }
+
+export interface DialogueRequest {
+    speakerName: string;
+    text: string;
+    onComplete: () => boolean;
+}
+
+export const OnDialogueRequest = new Observable<DialogueRequest>();

@@ -1,5 +1,8 @@
 import type { Interactable } from "../interfaces/Interactable";
-import { OnInteractionAvailable } from "../interfaces/Interactable";
+import {
+    OnDialogueRequest,
+    OnInteractionAvailable,
+} from "../interfaces/Interactable";
 import { NPC } from "./NPC";
 
 export class NPCInteractable extends NPC implements Interactable {
@@ -13,7 +16,7 @@ export class NPCInteractable extends NPC implements Interactable {
 
             OnInteractionAvailable.notifyObservers({
                 interactable: this,
-                isNear: isNear
+                isNear: isNear,
             });
 
             console.log(`${this.name} est à portée : ${isNear}`);
@@ -21,7 +24,21 @@ export class NPCInteractable extends NPC implements Interactable {
     }
 
     public onInteract(): void {
-        console.log(this.data.texts[this._currentIndex++ % this.data.texts.length])
+        const text = this.data.texts[this._currentIndex];
+
+        OnDialogueRequest.notifyObservers({
+            speakerName: this.name,
+            text: text,
+            onComplete: () => {
+                this._currentIndex++;
+                if (this._currentIndex >= this.data.texts.length) {
+                    this._currentIndex = 0;
+                    return true;
+                }
+                this.onInteract();
+                return false;
+            },
+        });
     }
 
     // Plus de calcul de distance ici !

@@ -8,10 +8,6 @@ export class GameStateManager {
     // L'émetteur d'événements
     public onStateChangedObservable = new Observable<GameStateType>();
 
-    public get state(): GameStateType {
-        return this._currentState;
-    }
-
     // Méthode interne pour changer l'état et notifier tout le monde
     private _setState(newState: GameStateType): void {
         if (this._currentState === newState) return; // On évite les updates inutiles
@@ -35,7 +31,11 @@ export class GameStateManager {
         this._setState(GameState.GAME_OVER);
     }
 
-    public isPlaying(): boolean {
-        return this._currentState === GameState.PLAYING;
+    public setDialogue(): void {
+        this._setState(GameState.DIALOGUE);
+    }
+
+    public getCurrentState(): GameStateType {
+        return this._currentState;
     }
 }

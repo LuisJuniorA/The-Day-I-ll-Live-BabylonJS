@@ -15,6 +15,7 @@ import { EntityManager } from "./managers/EntityManager";
 import { WorldZones } from "./scenes/WorldData";
 import { GameStateManager } from "./managers/GameStateManager";
 import { UIManager } from "./managers/UIManager";
+import { GameState } from "./core/types/GameState";
 
 export class App {
     private readonly engine: Engine;
@@ -97,9 +98,22 @@ export class App {
         document.addEventListener("pointerlockchange", () => {
             if (
                 document.pointerLockElement === null &&
-                this.gameStateManager.isPlaying()
+                this.gameStateManager.getCurrentState() === GameState.PLAYING
             ) {
                 this.gameStateManager.setPause();
+            }
+        });
+
+        this.gameStateManager.onStateChangedObservable.add((state) => {
+            const canvas = this.canvas;
+
+            if (state === GameState.PLAYING) {
+                canvas.requestPointerLock();
+            } else {
+                // On libère le curseur pour le MENU, PAUSE et DIALOGUE
+                if (document.pointerLockElement === canvas) {
+                    document.exitPointerLock();
+                }
             }
         });
 
@@ -112,7 +126,6 @@ export class App {
                 }
             }
             this.gameStateManager.setPlaying();
-            this.pointerLock();
         });
 
         this.uiManager.mainMenuView.onQuitObservable.add(() => {
@@ -130,49 +143,47 @@ export class App {
         this.scene.activeCamera = this.menuCamera;
     }
 
-    private pointerLock(): void {
-        const canvas = document.querySelector("canvas");
-        if (this.gameStateManager.isPlaying()) {
-            canvas?.requestPointerLock();
-        } else {
-            if (document.pointerLockElement) {
-                document.exitPointerLock();
-            }
-        }
-    }
-
     /**
      * Boucle de rendu principale avec gestion du temps figé
      */
     private startRenderLoop(): void {
         this.engine.runRenderLoop(() => {
-            if (this.gameStateManager.isPlaying()) {
-                // On récupère le delta réel entre deux frames
-                const deltaTime = this.engine.getDeltaTime() / 1000;
+            const dt = this.engine.getDeltaTime() / 1000;
+            const currentState = this.gameStateManager.getCurrentState();
 
-                // On active les animations
-                this.scene.animationsEnabled = true;
+            switch (currentState) {
+                case GameState.MENU:
+                    this.scene.render();
+                    break;
 
-                // Update de la logique
-                this.entityManager.update(deltaTime);
-
-                if (this.player) {
-                    if (this.player.stats.hp <= 0 || this.player.isDead) {
-                        this.gameStateManager.setGameOver();
+                case GameState.PLAYING:
+                    this.scene.animationsEnabled = true;
+                    this.entityManager.update(dt);
+                    if (this.player) {
+                        if (this.player.stats.hp <= 0 || this.player.isDead) {
+                            this.gameStateManager.setGameOver();
+                        }
+                        this.levelManager.update(this.player.position, 100);
                     }
-                    this.levelManager.update(this.player.position, 100);
-                }
+                    this.scene.render();
+                    break;
 
-                // Rendu normal : Babylon utilise le delta interne pour avancer les anims
-                this.scene.render();
-            } else {
-                // EN PAUSE :
-                // On coupe les calculs d'animations
-                this.scene.animationsEnabled = false;
+                case GameState.DIALOGUE:
+                    // Logique UI
+                    this.uiManager.update(dt);
+                    // On permet au joueur de tourner la caméra ou d'interagir
+                    if (this.player) this.player.updateInput(dt);
 
-                // render(true) dessine l'image mais SANS mettre à jour les timers.
-                // Comme useConstantAnimationDeltaTime est actif, l'horloge ne bouge pas.
-                this.scene.render(true);
+                    // PLUS DE CHECK "isVisible" ICI.
+                    // L'UIManager s'en occupe via l'observable.
+
+                    this.scene.render();
+                    break;
+
+                case GameState.PAUSED:
+                    this.scene.animationsEnabled = false;
+                    this.scene.render(true);
+                    break;
             }
         });
 
