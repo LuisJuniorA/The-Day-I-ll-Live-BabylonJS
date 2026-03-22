@@ -1,9 +1,9 @@
 import { Scene, AbstractMesh, AnimationGroup, Vector3 } from "@babylonjs/core";
-import { Enemy } from "../core/abstracts/Enemy";
-import { ProximitySystem } from "../core/engines/ProximitySystem";
-import type { EnemyConfig } from "../core/types/EnemyConfig";
-import type { AttackBehavior } from "../core/interfaces/AttackBehavior";
-import { EffroiClaw, EffroiRoar } from "../gameplay/attacks/EffroiAttacks";
+import { Enemy } from "../../core/abstracts/Enemy";
+import { ProximitySystem } from "../../core/engines/ProximitySystem";
+import type { EnemyConfig } from "../../core/types/EnemyConfig";
+import type { AttackBehavior } from "../../core/interfaces/AttackBehavior";
+import { EffroiClaw, EffroiRoar } from "../../gameplay/attacks/EffroiAttacks";
 
 export class Effroi extends Enemy {
     // On définit les attaques spécifiques à l'Effroi

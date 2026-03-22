@@ -111,6 +111,7 @@ export class EntityManager {
                 const entity = this._entities.get(id);
                 if (entity) {
                     entity.dispose();
+                    EntityFactory.UnloadAsset(entity.assetPath);
                     this._entities.delete(id);
                 }
             });

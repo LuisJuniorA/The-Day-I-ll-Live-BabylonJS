@@ -16,7 +16,11 @@ export class UIManager {
     public hudView: HUDView;
 
     constructor(scene: Scene, gameStateManager: GameStateManager) {
-        this._advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("MainUI", true, scene);
+        this._advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI(
+            "MainUI",
+            true,
+            scene,
+        );
 
         this.mainMenuView = new MainMenuView(this._advancedTexture);
         this.hudView = new HUDView(this._advancedTexture);
@@ -27,17 +31,11 @@ export class UIManager {
         });
 
         OnInteractionAvailable.add((event) => {
-            // 1. On vérifie d'abord si l'interactable existe (on élimine le 'undefined')
-            if (event.isNear && event.interactable) {
-                const npcMesh = event.interactable.transform as AbstractMesh;
+            const isNear = !!(event.isNear && event.interactable);
+            const mesh = event.interactable?.transform as AbstractMesh;
 
-                // FORCE la mise à jour des coordonnées mondiales du NPC
-                npcMesh.computeWorldMatrix(true);
-
-                this.hudView.interactionPrompt.showAtMesh(npcMesh); // Utilise des petites valeurs si c'est linkOffsetY
-            } else {
-                this.hudView.interactionPrompt.hide();
-            }
+            // On met à jour l'état dans le HUD
+            this.hudView.setInteractionAvailable(isNear, mesh);
         });
 
         // On initialise l'UI avec l'état actuel
@@ -65,7 +63,6 @@ export class UIManager {
     public showHUD(): void {
         this.mainMenuView.hide();
         this.hudView.show();
-        this.hudView.interactionPrompt.show();
     }
 
     public showMenu(): void {

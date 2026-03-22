@@ -1,16 +1,16 @@
 import { Scene, Vector3 } from "@babylonjs/core";
 import { Entity } from "./Entity";
-import type { DialogueData } from "../data/NPCDialogues";
+import type { NPCConfig } from "../../data/NPCDialogues";
 import { FSM } from "../engines/FSM";
 
 export class NPC extends Entity {
-    public readonly data: DialogueData;
+    public readonly data: NPCConfig;
 
     // On peut quand même avoir une FSM pour le mouvement (Idle, Wander)
     // On précise <NPC> pour que les états sachent à qui ils parlent
     public movementFSM: FSM<NPC>;
 
-    constructor(scene: Scene, position: Vector3, data: DialogueData) {
+    constructor(scene: Scene, position: Vector3, data: NPCConfig) {
         super(data.name, scene);
         this.data = data;
         this.transform.position = position.clone();

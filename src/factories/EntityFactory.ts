@@ -4,22 +4,33 @@ import {
     LoadAssetContainerAsync,
     AssetContainer,
     MeshBuilder,
-    StandardMaterial,
-    Color3,
     AbstractMesh,
     AnimationGroup,
     TransformNode,
+    StandardMaterial,
+    Color3,
 } from "@babylonjs/core";
 
 import { Entity } from "../core/abstracts/Entity";
 import { Player } from "../entities/Player";
-import { Effroi } from "../entities/Effroi";
+import { Effroi } from "../entities/enemies/Effroi";
+import { Villager } from "../entities/Villager";
 import { ProximitySystem } from "../core/engines/ProximitySystem";
-import { ENEMY_CONFIGS } from "..//data/EnemyData";
-import type { EnemyConfig } from "../core/types/EnemyConfig";
+
+import { ENEMY_CONFIGS } from "../data/EnemyData";
+import { NPC_DATA } from "../data/NPCDialogues";
+import { GenericEnemy } from "../entities/enemies/GenericEnemy";
+
+interface VisualAssets {
+    root: AbstractMesh;
+    anims: AnimationGroup[];
+}
 
 export class EntityFactory {
-    private static _containerCache: Map<string, AssetContainer> = new Map();
+    private static _containerCache: Map<
+        string,
+        { container: AssetContainer; refCount: number }
+    > = new Map();
 
     public static async Create(
         type: string,
@@ -27,130 +38,154 @@ export class EntityFactory {
         position: Vector3,
         proximitySystem: ProximitySystem,
     ): Promise<Entity> {
-        const entityType = type.toLowerCase();
-        const data: EnemyConfig | undefined = ENEMY_CONFIGS[entityType];
+        const typeUpper = type.toUpperCase();
+        const typeLower = type.toLowerCase();
 
-        switch (entityType) {
-            case "player":
+        const npcData = NPC_DATA[typeUpper];
+        const enemyData = ENEMY_CONFIGS[typeLower];
+
+        const assetPath =
+            npcData?.assetPath ||
+            enemyData?.assetPath ||
+            `assets/models/${typeLower}.glb`;
+
+        const assets = await this._getVisualAssets(assetPath, scene);
+        let entity: Entity;
+
+        switch (typeUpper) {
+            case "PLAYER":
                 return new Player(scene, position);
 
-            case "effroi": {
-                if (!data)
-                    throw new Error(`Config manquante pour ${entityType}`);
+            case "EFFROI":
+                entity = new Effroi(
+                    scene,
+                    enemyData,
+                    proximitySystem,
+                    assets.root,
+                    assets.anims,
+                );
+                assets.root.parent = entity.transform;
+                this._setupVisualPivot(
+                    assets.root,
+                    2.0,
+                    new Vector3(0, -1, 0),
+                    new Vector3(6.4, Math.PI / 2, 0),
+                );
+                break;
 
-                let root: AbstractMesh;
-                let anims: AnimationGroup[] = [];
-
-                try {
-                    // 1. CHARGEMENT / CACHE DU GLB
-                    let container = this._containerCache.get(entityType);
-                    if (!container) {
-                        container = await LoadAssetContainerAsync(
-                            `assets/models/${entityType}.glb`,
-                            scene,
-                        );
-                        this._containerCache.set(entityType, container);
-                    }
-
-                    // 2. INSTANCIATION DES MESHES
-                    const entries = container.instantiateModelsToScene(
-                        (n) => `${n}_${Date.now()}`,
-                        true,
-                    );
-
-                    // root est le noeud "__root__" du GLB
-                    root = entries.rootNodes[0] as AbstractMesh;
-                    anims = entries.animationGroups;
-                    console.log(
-                        `Animations pour ${entityType}:`,
-                        anims.map((a) => a.name),
-                    );
-
-                    // 3. CRÉATION DU PIVOT VISUEL (L'OFFSET)
-                    const visualPivot = new TransformNode(
-                        `visual_pivot_${entityType}`,
-                        scene,
-                    );
-
-                    // --- CONFIGURATION DE LA HIÉRARCHIE ---
-                    // On crée l'entité d'abord pour avoir le Transform parent
-                    const enemy = new Effroi(
-                        scene,
-                        data,
-                        proximitySystem,
-                        root,
-                        anims,
-                    );
-
-                    // Le root (collision) est fils du transform logique
-                    root.parent = enemy.transform;
-
-                    // Le pivot visuel est fils du root (collision)
-                    visualPivot.parent = root;
-                    visualPivot.scaling.setAll(2.0);
-
-                    // On déplace tous les enfants réels (géométrie, squelette) sous le pivot visuel
-                    const children = root.getChildren();
-                    children.forEach((child) => {
-                        if (child !== visualPivot) {
-                            child.parent = visualPivot;
-                        }
-                    });
-
-                    // 4. RÉGLAGES VISUELS PRÉCIS
-                    // On applique la rotation sur le root pour que la collision suive l'orientation
-                    root.rotationQuaternion = null;
-                    root.rotation.setAll(0);
-                    root.rotation.x = 6.4; // Ton réglage d'inclinaison
-                    root.rotation.y = Math.PI / 2; // Regard vers la droite
-                    root.scaling.setAll(1.0);
-
-                    // L'OFFSET : On descend le pivot visuel de 1 unité
-                    // Les pieds de l'Effroi seront maintenant à Y=0 par rapport au transform
-                    visualPivot.position.y = -1.0;
-
-                    // Positionnement initial dans le monde
-                    enemy.transform.position.copyFrom(position);
-
-                    return enemy;
-                } catch (e) {
-                    console.error(
-                        `Erreur chargement ${entityType}, fallback placeholder`,
-                        e,
-                    );
-                    const placeholder = this._CreatePlaceholder(
-                        entityType,
-                        scene,
-                    );
-                    const enemy = new Effroi(
-                        scene,
-                        data,
-                        proximitySystem,
-                        placeholder,
-                        [],
-                    );
-                    enemy.transform.position.copyFrom(position);
-                    return enemy;
-                }
-            }
+            case "VILLAGER_BOB":
+            case "VILLAGER_ANNA":
+                entity = new Villager(scene, position, npcData);
+                assets.root.parent = entity.transform;
+                this._setupVisualPivot(assets.root);
+                break;
 
             default:
-                throw new Error(`Type ${type} inconnu`);
+                if (!enemyData) throw new Error(`Config ${type} introuvable.`);
+                entity = new GenericEnemy(
+                    scene,
+                    enemyData,
+                    proximitySystem,
+                    assets.root,
+                );
+                assets.root.parent = entity.transform;
+                this._setupVisualPivot(assets.root);
+                break;
+        }
+
+        entity.transform.position.copyFrom(position);
+        entity.assetPath = assetPath;
+        return entity;
+    }
+
+    private static _setupVisualPivot(
+        root: AbstractMesh,
+        scale: number = 1.0,
+        offset: Vector3 = Vector3.Zero(),
+        rotation: Vector3 = Vector3.Zero(),
+    ): void {
+        const scene = root.getScene();
+        const visualPivot = new TransformNode(`pivot_${root.name}`, scene);
+        visualPivot.parent = root;
+
+        const children = [...root.getChildren()];
+        children.forEach((child) => {
+            if (child !== visualPivot) child.parent = visualPivot;
+        });
+
+        visualPivot.scaling.setAll(scale);
+        visualPivot.position.copyFrom(offset);
+        visualPivot.rotationQuaternion = null;
+        visualPivot.rotation.copyFrom(rotation);
+
+        root.rotationQuaternion = null;
+        root.rotation.setAll(0);
+    }
+
+    private static async _getVisualAssets(
+        path: string,
+        scene: Scene,
+    ): Promise<VisualAssets> {
+        try {
+            // Utilise la méthode publique pour garantir le cache et le refCount
+            const container = await this.LoadAsset(path, scene);
+
+            const entries = container.instantiateModelsToScene(
+                (n) => `${n}_${Date.now()}`,
+                true,
+            );
+
+            return {
+                root: entries.rootNodes[0] as AbstractMesh,
+                anims: entries.animationGroups,
+            };
+        } catch (e) {
+            const mesh = MeshBuilder.CreateCapsule(
+                "placeholder",
+                { height: 2, radius: 0.5 },
+                scene,
+            );
+            mesh.position.y = 0;
+
+            const material = new StandardMaterial("mat_placeholder", scene);
+            material.diffuseColor = Color3.Blue();
+            mesh.material = material;
+
+            return { root: mesh, anims: [] };
         }
     }
 
-    private static _CreatePlaceholder(
-        type: string,
+    /**
+     * Charge l'asset et gère le cache/refCount
+     */
+    public static async LoadAsset(
+        path: string,
         scene: Scene,
-    ): AbstractMesh {
-        const mesh = MeshBuilder.CreateCapsule(
-            `placeholder_${type}`,
-            { height: 2, radius: 0.5 },
-            scene,
-        );
-        const mat = new StandardMaterial(`mat_${type}`, scene);
-        mat.diffuseColor = type === "effroi" ? Color3.Red() : Color3.Blue();
-        mesh.material = mat;
-        return mesh;
+    ): Promise<AssetContainer> {
+        let entry = this._containerCache.get(path);
+
+        if (!entry) {
+            const container = await LoadAssetContainerAsync(path, scene);
+            entry = { container, refCount: 0 };
+            this._containerCache.set(path, entry);
+        }
+
+        entry.refCount++;
+        return entry.container;
+    }
+
+    /**
+     * Décrémente le refCount et nettoie si nécessaire
+     */
+    public static UnloadAsset(path: string): void {
+        const entry = this._containerCache.get(path);
+        if (entry) {
+            entry.refCount--;
+            if (entry.refCount <= 0) {
+                entry.container.dispose();
+                this._containerCache.delete(path);
+                console.log(`[Factory] Asset libéré : ${path}`);
+            }
+        }
     }
 }

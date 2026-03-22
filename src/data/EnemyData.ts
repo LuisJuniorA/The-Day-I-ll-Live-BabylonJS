@@ -4,6 +4,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     effroi: {
         id: "effroi_standard",
         displayName: "Effroi",
+        assetPath: "assets/models/effroi.glb",
         stats: { hp: 200, maxHp: 200, speed: 5, damage: 10 },
         behavior: {
             detectionRange: 15,

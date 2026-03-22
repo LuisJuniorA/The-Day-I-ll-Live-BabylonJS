@@ -6,6 +6,7 @@ export abstract class Entity {
     public readonly name: string;
     public readonly id: string;
     protected readonly _scene: Scene;
+    public assetPath: string = "";
 
     constructor(name: string, scene: Scene) {
         this.id = crypto.randomUUID();

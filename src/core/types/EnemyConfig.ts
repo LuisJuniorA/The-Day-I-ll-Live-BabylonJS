@@ -20,6 +20,7 @@ export type EnemyBehaviorConfig = {
 export type EnemyConfig = {
     id: string;
     displayName: string;
+    assetPath: string;
     stats: CharacterStats;
     behavior: EnemyBehaviorConfig;
 };

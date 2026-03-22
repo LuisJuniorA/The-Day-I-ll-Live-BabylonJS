@@ -15,7 +15,6 @@ import { EntityManager } from "./managers/EntityManager";
 import { WorldZones } from "./scenes/WorldData";
 import { GameStateManager } from "./managers/GameStateManager";
 import { UIManager } from "./managers/UIManager";
-import { NPCInteractable } from "./core/abstracts/NPCInteractable";
 
 export class App {
     private readonly engine: Engine;
@@ -61,8 +60,6 @@ export class App {
         this.initWorld();
         this.initMenu();
         this.startRenderLoop();
-
-        this.spawnTest();
     }
 
     private spawnPlayer(): void {
@@ -82,18 +79,18 @@ export class App {
     }
 
     private async spawnTest(): Promise<void> {
-        const npc = new NPCInteractable(this.scene, new Vector3(0, 1, 0), {
-            name: "Bob le Bricoleur",
-            texts: [
-                "Salut ! Beau temps pour construire, non ?",
-                "Fais attention aux monstres la nuit.",
-                "Si tu as besoin d'une pelle, repasse demain.",
-            ],
-        });
-        this.entityManager.add(npc);
+        // On laisse l'EntityManager appeler la Factory qui ira chercher les data dans NPC_DATA
+        try {
+            await this.entityManager.spawn(
+                "VILLAGER_BOB",
+                new Vector3(0, 1, 0),
+            );
+            await this.entityManager.spawn("effroi", new Vector3(5, 1, 0)); // Un peu décalé pour ne pas être l'un sur l'autre
 
-        await this.entityManager.spawn("effroi", new Vector3(0, 1, 0));
-        console.log("Spawn de test terminé.");
+            console.log("Spawn de test terminé via Factory.");
+        } catch (e) {
+            console.error("Erreur lors du spawn de test :", e);
+        }
     }
 
     private setupInputs(): void {
@@ -106,9 +103,13 @@ export class App {
             }
         });
 
-        this.uiManager.mainMenuView.onResumeObservable.add(() => {
+        this.uiManager.mainMenuView.onResumeObservable.add(async () => {
             if (!this.player) {
                 this.spawnPlayer();
+
+                if (import.meta.env.DEV) {
+                    await this.spawnTest();
+                }
             }
             this.gameStateManager.setPlaying();
             this.pointerLock();
