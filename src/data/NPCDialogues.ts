@@ -8,7 +8,7 @@ export interface NPCConfig {
 export const NPC_DATA: Record<string, NPCConfig> = {
     VILLAGER_BOB: {
         name: "Bob le Bricoleur",
-        assetPath: "assets/models/villager.glb",
+        assetPath: "assets/models/characters/npcs/villager.glb",
         texts: [
             "Salut ! Beau temps pour construire, non ?",
             "Fais attention aux monstres la nuit.",
@@ -17,7 +17,7 @@ export const NPC_DATA: Record<string, NPCConfig> = {
     },
     VILLAGER_ANNA: {
         name: "Anna l'Herboriste",
-        assetPath: "assets/models/villager_female.glb",
+        assetPath: "assets/models/characters/npcs/villager_female.glb",
         texts: [
             "Mes potions sont les meilleures du royaume !",
             "Les fleurs de ce jardin ont des propriétés magiques.",

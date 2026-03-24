@@ -19,6 +19,7 @@ export function isInteractableEntity(entity: any): entity is Interactable {
 export interface DialogueRequest {
     speakerName: string;
     text: string;
+    portraitUrl?: string;
     onComplete: () => boolean;
 }
 

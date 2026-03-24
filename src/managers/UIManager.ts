@@ -72,6 +72,7 @@ export class UIManager {
                 break;
             case GameState.DIALOGUE:
                 this.hudView.hide();
+                this.hudView.interactionPrompt.hide();
                 this.mainMenuView.hide();
                 this.dialogueView.show();
                 break;
