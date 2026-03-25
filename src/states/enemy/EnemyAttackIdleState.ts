@@ -1,7 +1,7 @@
-import { BaseState } from "../../core/abstracts/BaseState";
 import type { Enemy } from "../../core/abstracts/Enemy";
+import { EnemyState } from "../../core/abstracts/EnemyState";
 
-export class EnemyAttackIdleState extends BaseState<Enemy> {
+export class EnemyAttackIdleState extends EnemyState {
     public readonly name = "AttackIdle";
     private _cooldownTimer: number = 0;
 

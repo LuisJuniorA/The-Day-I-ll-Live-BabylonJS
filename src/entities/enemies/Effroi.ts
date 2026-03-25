@@ -2,7 +2,7 @@ import { Scene, AbstractMesh, AnimationGroup, Vector3 } from "@babylonjs/core";
 import { Enemy } from "../../core/abstracts/Enemy";
 import { ProximitySystem } from "../../core/engines/ProximitySystem";
 import type { EnemyConfig } from "../../core/types/EnemyConfig";
-import type { AttackBehavior } from "../../core/interfaces/AttackBehavior";
+import type { ActionBehavior } from "../../core/interfaces/Behaviors";
 import { EffroiClaw, EffroiRoar } from "../../gameplay/attacks/EffroiAttacks";
 
 export class Effroi extends Enemy {
@@ -32,7 +32,7 @@ export class Effroi extends Enemy {
         });
     }
 
-    public getNextAttack(): AttackBehavior {
+    public getNextAttack(): ActionBehavior {
         const target = this.targetTransform;
 
         // Sécurité si pas de cible ou pas d'attaques

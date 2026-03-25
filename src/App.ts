@@ -87,6 +87,7 @@ export class App {
                 new Vector3(0, 1, 0),
             );
             await this.entityManager.spawn("effroi", new Vector3(5, 1, 0)); // Un peu décalé pour ne pas être l'un sur l'autre
+            await this.entityManager.spawn("slime", new Vector3(10, 1, 0)); // Un peu décalé pour ne pas être l'un sur l'autre
 
             console.log("Spawn de test terminé via Factory.");
         } catch (e) {

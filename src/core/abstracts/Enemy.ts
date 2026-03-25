@@ -3,20 +3,22 @@ import { FSM } from "../engines/FSM";
 import { ProximitySystem } from "../engines/ProximitySystem";
 import { AbstractMesh, Scene, TransformNode } from "@babylonjs/core";
 import { EnemyIdleState } from "../../states/enemy/EnemyIdleState";
-import type { EnemyConfig, EnemyBehaviorConfig } from "../types/EnemyConfig";
+import type { EnemyConfig } from "../types/EnemyConfig";
 import { CollisionLayers } from "../constants/CollisionLayers";
 import { EnemyAttackIdleState } from "../../states/enemy/EnemyAttackIdleState";
 import { Faction } from "../types/Faction";
-import type { AttackBehavior } from "../interfaces/AttackBehavior";
+import type { ActionBehavior } from "../interfaces/Behaviors";
+import { EnemyChaseState } from "../../states/enemy/EnemyChaseState";
+import type { EnemyState } from "./EnemyState";
 
 export abstract class Enemy extends Character {
     public readonly movementFSM: FSM<Enemy>;
     public readonly attackFSM: FSM<Enemy>;
-    public readonly config: EnemyBehaviorConfig;
+    public readonly config: EnemyConfig;
     private _proximitySystem: ProximitySystem;
 
     // Liste des attaques que ce monstre peut faire
-    protected abstract availableAttacks: AttackBehavior[];
+    protected abstract availableAttacks: ActionBehavior[];
 
     constructor(
         scene: Scene,
@@ -25,7 +27,7 @@ export abstract class Enemy extends Character {
         mesh: AbstractMesh,
     ) {
         super(data.displayName, scene, data.stats, Faction.ENEMY);
-        this.config = data.behavior;
+        this.config = data;
         this._proximitySystem = proximitySystem;
         this.movementFSM = new FSM<Enemy>(this);
         this.attackFSM = new FSM<Enemy>(this);
@@ -43,7 +45,7 @@ export abstract class Enemy extends Character {
     /**
      * Choisit l'attaque appropriée (IA de combat)
      */
-    public abstract getNextAttack(): AttackBehavior;
+    public abstract getNextAttack(): ActionBehavior;
 
     public get targetTransform(): TransformNode | undefined {
         return this._proximitySystem.target;
@@ -61,6 +63,10 @@ export abstract class Enemy extends Character {
             4,
             this.id,
         );
+    }
+
+    public getChaseState(): EnemyState {
+        return new EnemyChaseState();
     }
 
     // Méthodes pour que les States restent génériques

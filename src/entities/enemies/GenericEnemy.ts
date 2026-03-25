@@ -1,9 +1,9 @@
 import { Enemy } from "../../core/abstracts/Enemy";
-import type { AttackBehavior } from "../../core/interfaces/AttackBehavior";
+import type { ActionBehavior } from "../../core/interfaces/Behaviors";
 
 export class GenericEnemy extends Enemy {
-    protected availableAttacks: AttackBehavior[] = [];
-    public getNextAttack(): AttackBehavior {
+    protected availableAttacks: ActionBehavior[] = [];
+    public getNextAttack(): ActionBehavior {
         throw new Error("Method not implemented.");
     }
     public playIdle(): void {

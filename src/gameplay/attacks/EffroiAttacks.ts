@@ -1,4 +1,4 @@
-import type { AttackBehavior } from "../../core/interfaces/AttackBehavior";
+import type { ActionBehavior } from "../../core/interfaces/Behaviors";
 import { Enemy } from "../../core/abstracts/Enemy";
 import {
     OnEntityDamaged,
@@ -7,7 +7,7 @@ import {
 import { Faction } from "../../core/types/Faction";
 import { PlayerReactionAnim, StatusType } from "../../core/types/StatusEffects";
 
-export class EffroiClaw implements AttackBehavior {
+export class EffroiClaw implements ActionBehavior {
     public readonly animationName = "SWORD_SLASH";
     public readonly duration = 0.6;
     public readonly damageMoment = 0.3;
@@ -29,7 +29,7 @@ export class EffroiClaw implements AttackBehavior {
     }
 }
 
-export class EffroiRoar implements AttackBehavior {
+export class EffroiRoar implements ActionBehavior {
     public readonly animationName = "roar";
     public readonly duration = 2.0;
     public readonly damageMoment = 0.8;

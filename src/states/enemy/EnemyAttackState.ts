@@ -1,14 +1,14 @@
 import { Vector3 } from "@babylonjs/core";
-import { BaseState } from "../../core/abstracts/BaseState";
 import { Enemy } from "../../core/abstracts/Enemy";
 import { EnemyAttackIdleState } from "./EnemyAttackIdleState";
-import type { AttackBehavior } from "../../core/interfaces/AttackBehavior";
+import type { ActionBehavior } from "../../core/interfaces/Behaviors";
+import { EnemyState } from "../../core/abstracts/EnemyState";
 
-export class EnemyAttackState extends BaseState<Enemy> {
+export class EnemyAttackState extends EnemyState {
     public readonly name = "AttackState";
 
     private _hasDealtDamage: boolean = false;
-    private _currentAttack!: AttackBehavior;
+    private _currentAttack!: ActionBehavior;
 
     protected handleEnter(owner: Enemy): void {
         this._hasDealtDamage = false;

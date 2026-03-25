@@ -9,6 +9,8 @@ import {
     TransformNode,
     StandardMaterial,
     Color3,
+    PBRMaterial,
+    PointLight,
 } from "@babylonjs/core";
 
 import { Entity } from "../core/abstracts/Entity";
@@ -20,6 +22,7 @@ import { ProximitySystem } from "../core/engines/ProximitySystem";
 import { ENEMY_CONFIGS } from "../data/EnemyData";
 import { NPC_DATA } from "../data/NPCDialogues";
 import { GenericEnemy } from "../entities/enemies/GenericEnemy";
+import { Slime } from "../entities/enemies/Slime";
 
 interface VisualAssets {
     root: AbstractMesh;
@@ -72,6 +75,107 @@ export class EntityFactory {
                     new Vector3(6.4, Math.PI / 2, 0),
                 );
                 break;
+            case "SLIME": {
+                if (!enemyData)
+                    throw new Error(`Config pour le slime introuvable.`);
+
+                // 1. Corps réduit (Diamètre 2 au lieu de 6)
+                const slimeMesh = MeshBuilder.CreateSphere(
+                    `slime_body_${Date.now()}`,
+                    {
+                        diameter: 2,
+                        segments: 8,
+                        updatable: true,
+                    },
+                    scene,
+                );
+
+                const slimeMat = new PBRMaterial(
+                    `mat_slime_${Date.now()}`,
+                    scene,
+                );
+                slimeMat.albedoColor = new Color3(0, 0, 0);
+                slimeMat.metallic = 0.2;
+                slimeMat.roughness = 0.1;
+                slimeMat.alpha = 0.6;
+                slimeMat.transparencyMode = 2;
+
+                slimeMat.subSurface.isTranslucencyEnabled = true;
+                slimeMat.subSurface.translucencyIntensity = 1.0;
+                slimeMat.subSurface.minimumThickness = 0.3; // Réduit pour la petite taille
+                slimeMat.subSurface.maximumThickness = 1.5;
+                slimeMat.subSurface.isRefractionEnabled = true;
+                slimeMat.subSurface.indexOfRefraction = 1.05;
+                slimeMesh.material = slimeMat;
+                slimeMat.subSurface.tintColor = Color3.Black();
+
+                // 2. Les Yeux (Positions divisées par ~3)
+                const eyeMat = new StandardMaterial("eyeMat", scene);
+                eyeMat.emissiveColor = new Color3(0.5, 0.5, 0.5);
+                eyeMat.disableLighting = true;
+
+                const eyeL = MeshBuilder.CreateSphere(
+                    "eyeL",
+                    { diameter: 0.2 },
+                    scene,
+                );
+                eyeL.position = new Vector3(-0.3, 0.26, 0.73); // Ajusté
+                eyeL.material = eyeMat;
+                eyeL.parent = slimeMesh;
+
+                const eyeR = MeshBuilder.CreateSphere(
+                    "eyeR",
+                    { diameter: 0.2 },
+                    scene,
+                );
+                eyeR.position = new Vector3(0.3, 0.26, 0.73); // Ajusté
+                eyeR.material = eyeMat;
+                eyeR.parent = slimeMesh;
+
+                // 3. L'âme (Diamètre 0.6 au lieu de 1.8)
+                const soul = MeshBuilder.CreateSphere(
+                    "soul",
+                    { diameter: 0.6 },
+                    scene,
+                );
+                const soulMat = new StandardMaterial("soulMat", scene);
+                soulMat.emissiveColor = new Color3(0, 0, 0);
+                soulMat.disableLighting = true;
+                soul.material = soulMat;
+                soul.parent = slimeMesh;
+
+                const innerLight = new PointLight(
+                    "innerLight",
+                    Vector3.Zero(),
+                    scene,
+                );
+                innerLight.diffuse = new Color3(0.01, 0.01, 0.01);
+                innerLight.specular = new Color3(0, 0, 0);
+                innerLight.intensity = 5;
+                innerLight.range = 1; // Réduit la portée proportionnellement
+                innerLight.parent = soul;
+
+                // 4. Pivot Visuel
+                // On met un offset Y de 1 (rayon de la sphère) pour que le bas touche le sol
+                this._setupVisualPivot(
+                    slimeMesh,
+                    1,
+                    new Vector3(0, 0, 0),
+                    new Vector3(0, 1.5, 0),
+                );
+
+                const slimeEntity = new Slime(
+                    scene,
+                    enemyData,
+                    proximitySystem,
+                    slimeMesh,
+                );
+
+                slimeMesh.parent = slimeEntity.transform;
+                slimeMesh.checkCollisions = true;
+                entity = slimeEntity;
+                break;
+            }
 
             case "VILLAGER_BOB":
             case "VILLAGER_ANNA":

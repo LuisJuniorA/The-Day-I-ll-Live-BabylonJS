@@ -48,10 +48,15 @@ export class LevelManager {
 
             // Déplacer les meshes vers leur offset global
             for (const mesh of container.meshes) {
-                if (
-                    mesh.name.toLowerCase().includes("ground") ||
-                    mesh.name.toLowerCase().includes("floor")
-                ) {
+                const name = mesh.name.toLowerCase();
+                const isEnvironment =
+                    name.includes("ground") ||
+                    name.includes("floor") ||
+                    name.includes("wall") ||
+                    name.includes("architecture") ||
+                    name.includes("obstacle");
+
+                if (isEnvironment) {
                     mesh.checkCollisions = true;
                     mesh.collisionGroup = CollisionLayers.ENVIRONMENT;
                     mesh.collisionMask = CollisionLayers.ALL;

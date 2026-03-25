@@ -20,7 +20,7 @@ export abstract class BaseState<T> implements State<T> {
         this.handleExit(owner);
     }
 
-    protected handleEnter(_owner: T): void { }
+    protected handleEnter(_owner: T): void {}
     protected abstract handleUpdate(owner: T, dt: number): void;
-    protected handleExit(_owner: T): void { }
+    protected handleExit(_owner: T): void {}
 }
