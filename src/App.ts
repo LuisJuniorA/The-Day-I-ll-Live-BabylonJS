@@ -5,6 +5,8 @@ import {
     HemisphericLight,
     Color3,
     UniversalCamera,
+    MeshBuilder,
+    StandardMaterial,
 } from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
@@ -16,6 +18,8 @@ import { WorldZones } from "./scenes/WorldData";
 import { GameStateManager } from "./managers/GameStateManager";
 import { UIManager } from "./managers/UIManager";
 import { GameState } from "./core/types/GameState";
+import { CollisionLayers } from "./core/constants/CollisionLayers";
+import { EntityFactory } from "./factories/EntityFactory";
 
 export class App {
     private readonly engine: Engine;
@@ -36,6 +40,7 @@ export class App {
         this.canvas = this.createCanvas();
         this.engine = new Engine(this.canvas, true);
         this.scene = new Scene(this.engine);
+        EntityFactory.setScene(this.scene);
 
         // --- FIX DU SKIP D'ANIMATION ---
         // On dit à la scène de ne pas utiliser le temps système pour les animations
@@ -80,16 +85,47 @@ export class App {
     }
 
     private async spawnTest(): Promise<void> {
-        // On laisse l'EntityManager appeler la Factory qui ira chercher les data dans NPC_DATA
         try {
+            // --- CRÉATION DU GROUND DE TEST (PLATEFORME EN HAUTEUR) ---
+            const testPlatform = MeshBuilder.CreateBox(
+                "ground_test",
+                {
+                    width: 20,
+                    height: 0.5,
+                    depth: 20,
+                },
+                this.scene,
+            );
+
+            // Positionnement à (0, 10, 0) comme demandé
+            testPlatform.position.set(0, 10, 0);
+
+            // Configuration physique et collisions
+            testPlatform.checkCollisions = true;
+
+            // Application du layer ENVIRONMENT pour que le HookScanner le détecte
+            testPlatform.collisionGroup = CollisionLayers.ENVIRONMENT;
+
+            // Petit feedback visuel (matériau gris foncé)
+            const mat = new StandardMaterial("platformMat", this.scene);
+            mat.diffuseColor = new Color3(0.4, 0.4, 0.4);
+            testPlatform.material = mat;
+
+            // --- SPAWN DES ENTITÉS ---
+            // On spawn le slime un peu en dessous pour qu'il "voit" la plateforme au dessus
             await this.entityManager.spawn(
                 "VILLAGER_BOB",
                 new Vector3(0, 1, 0),
             );
-            await this.entityManager.spawn("effroi", new Vector3(5, 1, 0)); // Un peu décalé pour ne pas être l'un sur l'autre
-            await this.entityManager.spawn("slime", new Vector3(10, 1, 0)); // Un peu décalé pour ne pas être l'un sur l'autre
 
-            console.log("Spawn de test terminé via Factory.");
+            await this.entityManager.spawn("effroi", new Vector3(5, 1, 0));
+
+            // Le Slime spawn à (0, 1, 0), juste sous la plateforme qui est à 10
+            await this.entityManager.spawn("slime", new Vector3(0, 1, 0));
+
+            console.log(
+                "Spawn de test terminé. Plateforme de Hook créée à Y=10.",
+            );
         } catch (e) {
             console.error("Erreur lors du spawn de test :", e);
         }
@@ -122,9 +158,7 @@ export class App {
             if (!this.player) {
                 this.spawnPlayer();
 
-                if (import.meta.env.DEV) {
-                    await this.spawnTest();
-                }
+                await this.spawnTest();
             }
             this.gameStateManager.setPlaying();
         });

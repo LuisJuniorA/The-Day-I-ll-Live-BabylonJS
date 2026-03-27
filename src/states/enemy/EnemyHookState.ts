@@ -9,77 +9,86 @@ export class EnemyHookState extends EnemyState {
     public readonly name = "HookState";
 
     private _target: HookPoint;
-    private readonly HOOK_DURATION = 0.3; // Temps du trajet en secondes
+    private readonly TOTAL_DURATION = 0.5; // On rallonge un peu pour voir l'effet
+    private readonly STRETCH_TIME = 0.1; // Temps où seul le bras bouge
+
     private _isFinished = false;
     private _startRotation: Quaternion = new Quaternion();
+    private _startPosition: Vector3 = new Vector3();
 
     constructor(target: HookPoint) {
         super();
         this._target = target;
     }
 
-    protected handleEnter(owner: Enemy): void {
-        // 1. On stoppe l'inertie du steering précédent
-        owner.velocity.setAll(0);
+    public get targetPosition(): Vector3 {
+        return this._target.position;
+    }
 
-        // 2. Préparation obligatoire pour les rotations fluides (Slerp)
+    protected handleEnter(owner: Enemy): void {
+        owner.velocity.setAll(0);
+        this._startPosition.copyFrom(owner.position);
+
         if (!owner.transform.rotationQuaternion) {
             owner.transform.rotationQuaternion = Quaternion.FromEulerVector(
                 owner.transform.rotation,
             );
         }
         this._startRotation.copyFrom(owner.transform.rotationQuaternion);
-
-        console.log(
-            `[${this.name}] Propulsion vers le mur (Normale: ${this._target.normal})`,
-        );
     }
 
     protected handleUpdate(owner: Enemy, dt: number): void {
         if (this._isFinished) return;
 
+        const elapsed = this.timeInState;
+
+        // --- PHASE 1 : LE BRAS SE LANCE (Anticipation) ---
+        // On ne fait rien ici au niveau du mouvement du owner.position.
+        // C'est le Slime.ts qui va voir l'augmentation du temps et étirer les vertices.
+
+        if (elapsed < this.STRETCH_TIME) {
+            // On peut quand même commencer à pivoter doucement vers la cible
+            this._rotateTowardsTarget(owner, elapsed / this.STRETCH_TIME);
+            return;
+        }
+
+        // --- PHASE 2 : LE CORPS SUIT (Propulsion) ---
+        const travelElapsed = elapsed - this.STRETCH_TIME;
+        const travelDuration = this.TOTAL_DURATION - this.STRETCH_TIME;
+        const progress = Math.min(travelElapsed / travelDuration, 1);
+
         const toTarget = this._target.position.subtract(owner.position);
         const distance = toTarget.length();
 
-        // --- 1. CALCUL DE LA VÉLOCITÉ ---
-        // On calcule la vitesse nécessaire pour arriver exactement à HOOK_DURATION
-        const timeLeft = Math.max(this.HOOK_DURATION - this.timeInState, dt);
+        // Calcul de vitesse pour arriver à la fin du temps imparti
+        const timeLeft = Math.max(travelDuration - travelElapsed, dt);
         const speed = distance / timeLeft;
         const moveVelocity = toTarget.normalize().scale(speed);
 
-        // On utilise TA méthode move() pour respecter moveWithCollisions et les limites Z
         owner.move(moveVelocity, dt);
+        this._rotateTowardsTarget(owner, progress);
 
-        // --- 2. ROTATION (ALIGNEMENT MUR) ---
-        const progress = Math.min(this.timeInState / this.HOOK_DURATION, 1);
-
-        // On génère un vecteur "Forward" orthogonal à la normale du mur
-        // Si la normale est trop proche de Right, on utilise Forward pour le produit en croix
-        let forward = Vector3.Cross(this._target.normal, Vector3.Right());
-        if (forward.length() < 0.1) {
-            forward = Vector3.Cross(this._target.normal, Vector3.Forward());
+        if (distance < 0.2 || progress >= 1) {
+            this._isFinished = true;
+            this.finalizeHook(owner, owner.transform.rotationQuaternion!);
         }
+    }
 
-        // On crée la rotation : la normale du mur devient le "Haut" (Up) du slime
+    private _rotateTowardsTarget(owner: Enemy, ratio: number): void {
+        let forward = Vector3.Cross(this._target.normal, Vector3.Right());
+        if (forward.length() < 0.1)
+            forward = Vector3.Cross(this._target.normal, Vector3.Forward());
+
         const targetRot = Quaternion.FromLookDirectionLH(
             forward.normalize(),
             this._target.normal,
         );
-
-        // Interpolation sphérique (Slerp) pour pivoter pendant le vol
         Quaternion.SlerpToRef(
             this._startRotation,
             targetRot,
-            progress,
+            ratio,
             owner.transform.rotationQuaternion!,
         );
-
-        // --- 3. ARRIVÉE ---
-        // Si on est assez proche ou que le temps est écoulé
-        if (distance < 0.2 || progress >= 1) {
-            this._isFinished = true;
-            this.finalizeHook(owner, targetRot);
-        }
     }
 
     private finalizeHook(owner: Enemy, finalRot: Quaternion): void {

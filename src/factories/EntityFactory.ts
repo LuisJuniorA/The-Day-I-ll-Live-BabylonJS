@@ -30,6 +30,7 @@ interface VisualAssets {
 }
 
 export class EntityFactory {
+    private static _entitiesRoot: TransformNode;
     private static _containerCache: Map<
         string,
         { container: AssetContainer; refCount: number }
@@ -76,6 +77,7 @@ export class EntityFactory {
                 );
                 break;
             case "SLIME": {
+                assets.root.dispose();
                 if (!enemyData)
                     throw new Error(`Config pour le slime introuvable.`);
 
@@ -135,14 +137,13 @@ export class EntityFactory {
                 // 3. L'âme (Diamètre 0.6 au lieu de 1.8)
                 const soul = MeshBuilder.CreateSphere(
                     "soul",
-                    { diameter: 0.6 },
+                    { diameter: 0.6, updatable: true },
                     scene,
                 );
                 const soulMat = new StandardMaterial("soulMat", scene);
                 soulMat.emissiveColor = new Color3(0, 0, 0);
                 soulMat.disableLighting = true;
                 soul.material = soulMat;
-                soul.parent = slimeMesh;
 
                 const innerLight = new PointLight(
                     "innerLight",
@@ -169,11 +170,13 @@ export class EntityFactory {
                     enemyData,
                     proximitySystem,
                     slimeMesh,
+                    soul,
                 );
 
                 slimeMesh.parent = slimeEntity.transform;
                 slimeMesh.checkCollisions = true;
                 entity = slimeEntity;
+                soul.parent = slimeEntity.transform;
                 break;
             }
 
@@ -199,6 +202,7 @@ export class EntityFactory {
 
         entity.transform.position.copyFrom(position);
         entity.assetPath = assetPath;
+        entity.transform.parent = EntityFactory._entitiesRoot;
         return entity;
     }
 
@@ -291,5 +295,12 @@ export class EntityFactory {
                 console.log(`[Factory] Asset libéré : ${path}`);
             }
         }
+    }
+
+    public static setScene(scene: Scene): void {
+        EntityFactory._entitiesRoot = new TransformNode(
+            "ENTITIES_CONTAINER",
+            scene,
+        );
     }
 }

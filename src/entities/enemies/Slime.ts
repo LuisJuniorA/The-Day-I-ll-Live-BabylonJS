@@ -1,22 +1,37 @@
-import { Scene, AbstractMesh, VertexBuffer } from "@babylonjs/core";
+import {
+    Scene,
+    AbstractMesh,
+    VertexBuffer,
+    Vector3,
+    Scalar,
+} from "@babylonjs/core";
 import { Enemy } from "../../core/abstracts/Enemy";
 import type { ProximitySystem } from "../../core/engines/ProximitySystem";
 import type { ActionBehavior } from "../../core/interfaces/Behaviors";
 import type { EnemyConfig } from "../../core/types/EnemyConfig";
 import { EffroiClaw } from "../../gameplay/attacks/EffroiAttacks";
 import { NoiseUtils } from "../../utils/NoiseUtils";
-import { HookScannerBehavior } from "../../gameplay/behaviors/HookScannerBehavior"; // Ton nouveau behavior
+import { HookScannerBehavior } from "../../gameplay/behaviors/HookScannerBehavior";
 import { EnemyChaseState } from "../../states/enemy/EnemyChaseState";
+import { EnemyHookState } from "../../states/enemy/EnemyHookState";
 import type { EnemyState } from "../../core/abstracts/EnemyState";
 
 export class Slime extends Enemy {
-    private _initialPositions: Float32Array;
-    private _time: number = 0;
+    private _initialBodyPositions: Float32Array;
+    private _initialSoulPositions: Float32Array;
 
-    // Paramètres de l'animation
+    private _time: number = 0;
+    private _soulMesh: AbstractMesh | null = null;
+    private _hookProgress: number = 0;
+    private _lastValidHookDir: Vector3 = Vector3.Forward();
+
     private readonly WAVE_SPEED = 0.05;
-    private readonly WAVE_AMPLITUDE = 0.4;
-    private readonly WAVE_FREQUENCY = 4.0;
+    private readonly WAVE_AMPLITUDE = 0.5;
+
+    private readonly WAVE_FREQUENCY = 3.0;
+
+    private readonly BODY_STRETCH_FORCE = 6.0;
+    private readonly SOUL_STRETCH_FORCE = 5.0;
 
     protected availableAttacks: ActionBehavior[] = [new EffroiClaw()];
 
@@ -25,79 +40,139 @@ export class Slime extends Enemy {
         data: EnemyConfig,
         proximitySystem: ProximitySystem,
         mesh: AbstractMesh,
+        soulMesh: AbstractMesh,
     ) {
         super(scene, data, proximitySystem, mesh);
 
-        // --- 1. CONFIGURATION INITIALE DES ÉTATS ---
+        this._soulMesh = soulMesh;
         this._setupStates();
 
-        // --- 2. LOGIQUE DE VERTEX ANIMATION ---
-        const positions = this.mesh!.getVerticesData(VertexBuffer.PositionKind);
-        this._initialPositions = positions
-            ? new Float32Array(positions)
+        const bodyPositions = this.mesh!.getVerticesData(
+            VertexBuffer.PositionKind,
+        );
+        this._initialBodyPositions = bodyPositions
+            ? new Float32Array(bodyPositions)
             : new Float32Array();
 
+        if (this._soulMesh) {
+            const soulPositions = this._soulMesh.getVerticesData(
+                VertexBuffer.PositionKind,
+            );
+            this._initialSoulPositions = soulPositions
+                ? new Float32Array(soulPositions)
+                : new Float32Array();
+        } else {
+            this._initialSoulPositions = new Float32Array();
+        }
+
         scene.onBeforeRenderObservable.add(() => {
-            this._animateSlimeBody();
+            this._animateSlime();
         });
     }
 
-    /**
-     * Configure les états spécifiques du Slime avec leurs comportements
-     */
     private _setupStates(): void {
         const chase = new EnemyChaseState();
-
-        // On injecte le comportement de Hook uniquement pour le Slime !
-        // Ce behavior sera mis à jour automatiquement par EnemyState.onUpdate
         chase.addBehavior(new HookScannerBehavior());
-
-        // On force le démarrage en Chase pour le test (ou Idle selon ton besoin)
         this.movementFSM.transitionTo(chase);
     }
 
-    private _animateSlimeBody(): void {
-        if (!this.mesh || this._initialPositions.length === 0) return;
+    private _animateSlime(): void {
+        if (!this.mesh || this._initialBodyPositions.length === 0) return;
 
         this._time += this.WAVE_SPEED;
-        const positions = this.mesh.getVerticesData(VertexBuffer.PositionKind);
+        const isHooking =
+            this.movementFSM.currentState instanceof EnemyHookState;
+
+        this._hookProgress = Scalar.Lerp(
+            this._hookProgress,
+            isHooking ? 1 : 0,
+            isHooking ? 0.5 : 0.3,
+        );
+
+        let localHookDir = this._lastValidHookDir;
+
+        if (isHooking) {
+            const hookState = this.movementFSM.currentState as EnemyHookState;
+            const targetWorldPos = hookState.targetPosition;
+
+            const worldDir = targetWorldPos
+                .subtract(this.transform.absolutePosition)
+                .normalize();
+
+            this.transform.computeWorldMatrix(true);
+            const invMatrix = this.transform.getWorldMatrix().clone().invert();
+
+            localHookDir = Vector3.TransformNormal(
+                worldDir,
+                invMatrix,
+            ).normalize();
+            this._lastValidHookDir.copyFrom(localHookDir);
+        }
+
+        this._applyVertexDeformation(
+            this.mesh,
+            this._initialBodyPositions,
+            localHookDir,
+            this.BODY_STRETCH_FORCE,
+            this.WAVE_AMPLITUDE,
+            true,
+        );
+
+        if (this._soulMesh && this._initialSoulPositions.length > 0) {
+            this._applyVertexDeformation(
+                this._soulMesh,
+                this._initialSoulPositions,
+                localHookDir,
+                this.SOUL_STRETCH_FORCE,
+                0.05,
+
+                false,
+            );
+        }
+    }
+
+    private _applyVertexDeformation(
+        mesh: AbstractMesh,
+        initialPositions: Float32Array,
+        localDirection: Vector3,
+        stretchForce: number,
+        noiseAmplitude: number,
+        applyFloorSquash: boolean,
+    ): void {
+        const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
         if (!positions) return;
 
         for (let i = 0; i < positions.length; i += 3) {
-            const vx = this._initialPositions[i];
-            const vy = this._initialPositions[i + 1];
-            const vz = this._initialPositions[i + 2];
+            const vx = initialPositions[i];
+            const vy = initialPositions[i + 1];
+            const vz = initialPositions[i + 2];
 
-            const input1 = (vx + vy + vz) * this.WAVE_FREQUENCY + this._time;
-            const input2 =
-                (vx - vy + vz) * (this.WAVE_FREQUENCY * 2.5) + this._time * 1.5;
-            let noise = NoiseUtils.perlin1D(input1) * 1.0;
-            noise += NoiseUtils.perlin1D(input2) * 0.5;
+            const vPos = new Vector3(vx, vy, vz);
+            const vDir = vPos.normalizeToNew();
 
-            let displacement =
-                Math.pow(noise - 0.5, 2) *
-                Math.sign(noise - 0.5) *
-                this.WAVE_AMPLITUDE;
+            const dot = Vector3.Dot(vDir, localDirection);
+            const stretchInfluence = Math.pow(Math.max(0, dot), 10);
 
-            const baseSquash = 0.65;
+            const noiseInput =
+                (vx + vy + vz) * this.WAVE_FREQUENCY + this._time;
+            const noise =
+                (NoiseUtils.perlin1D(noiseInput) - 0.5) * noiseAmplitude;
 
-            if (vy < 0) {
-                const ratio = -vy;
-                const floorContact = Math.max(
-                    -0.95,
-                    -ratio + (noise - 0.5) * 0.1,
-                );
-                positions[i + 1] = floorContact * baseSquash;
-                positions[i] = vx + vx * displacement;
-                positions[i + 2] = vz + vz * displacement;
-            } else {
-                positions[i] = vx + vx * displacement;
-                positions[i + 1] = (vy + vy * displacement) * baseSquash;
-                positions[i + 2] = vz + vz * displacement;
+            const stretchDistance =
+                stretchForce * this._hookProgress * stretchInfluence;
+
+            positions[i] = vx + localDirection.x * stretchDistance + vx * noise;
+            positions[i + 1] =
+                vy + localDirection.y * stretchDistance + vy * noise;
+            positions[i + 2] =
+                vz + localDirection.z * stretchDistance + vz * noise;
+
+            if (applyFloorSquash && vy < 0.1 && this._hookProgress < 0.1) {
+                positions[i + 1] *= 0.6;
             }
         }
 
-        this.mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
+        mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
     }
 
     public getNextAttack(): ActionBehavior {
@@ -110,8 +185,6 @@ export class Slime extends Enemy {
         return state;
     }
 
-    // Le slime n'a pas forcément besoin de mixer ces animations avec les siennes,
-    // mais on laisse les signatures pour la FSM.
     public playIdle(): void {}
     public playMove(): void {}
 }
