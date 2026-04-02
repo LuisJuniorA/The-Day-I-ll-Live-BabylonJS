@@ -27,11 +27,10 @@ export class Slime extends Enemy {
 
     private readonly WAVE_SPEED = 0.05;
     private readonly WAVE_AMPLITUDE = 0.5;
-
     private readonly WAVE_FREQUENCY = 3.0;
 
-    private readonly BODY_STRETCH_FORCE = 6.0;
-    private readonly SOUL_STRETCH_FORCE = 5.0;
+    // On réduit la force de base, elle sera écrasée par la distance réelle durant le hook
+    private readonly BODY_STRETCH_FORCE = 0.5;
 
     protected availableAttacks: ActionBehavior[] = [new EffroiClaw()];
 
@@ -43,7 +42,6 @@ export class Slime extends Enemy {
         soulMesh: AbstractMesh,
     ) {
         super(scene, data, proximitySystem, mesh);
-
         this._soulMesh = soulMesh;
         this._setupStates();
 
@@ -80,20 +78,27 @@ export class Slime extends Enemy {
         if (!this.mesh || this._initialBodyPositions.length === 0) return;
 
         this._time += this.WAVE_SPEED;
-        const isHooking =
-            this.movementFSM.currentState instanceof EnemyHookState;
+        const currentState = this.movementFSM.currentState;
+        const isHooking = currentState instanceof EnemyHookState;
 
         this._hookProgress = Scalar.Lerp(
             this._hookProgress,
             isHooking ? 1 : 0,
-            isHooking ? 0.5 : 0.3,
+            isHooking ? 0.4 : 0.2,
         );
 
         let localHookDir = this._lastValidHookDir;
+        let currentDynamicForce = this.BODY_STRETCH_FORCE;
 
-        if (isHooking) {
-            const hookState = this.movementFSM.currentState as EnemyHookState;
-            const targetWorldPos = hookState.targetPosition;
+        if (isHooking && currentState instanceof EnemyHookState) {
+            const targetWorldPos = currentState.targetPosition;
+
+            // --- CORRECTION 1 : DISTANCE DYNAMIQUE ---
+            // On calcule la distance réelle. Le bras ne pourra PAS aller plus loin.
+            const distToTarget = Vector3.Distance(
+                this.transform.absolutePosition,
+                targetWorldPos,
+            );
 
             const worldDir = targetWorldPos
                 .subtract(this.transform.absolutePosition)
@@ -107,13 +112,18 @@ export class Slime extends Enemy {
                 invMatrix,
             ).normalize();
             this._lastValidHookDir.copyFrom(localHookDir);
+
+            // On retire une marge (rayon du slime) pour que le bras s'arrête à la surface
+            currentDynamicForce = Math.max(0, distToTarget - 0.5);
+        } else {
+            localHookDir = Vector3.Up(); // Respiration verticale en idle
         }
 
         this._applyVertexDeformation(
             this.mesh,
             this._initialBodyPositions,
             localHookDir,
-            this.BODY_STRETCH_FORCE,
+            currentDynamicForce,
             this.WAVE_AMPLITUDE,
             true,
         );
@@ -123,9 +133,8 @@ export class Slime extends Enemy {
                 this._soulMesh,
                 this._initialSoulPositions,
                 localHookDir,
-                this.SOUL_STRETCH_FORCE,
+                currentDynamicForce * 0.8,
                 0.05,
-
                 false,
             );
         }
@@ -150,14 +159,17 @@ export class Slime extends Enemy {
             const vPos = new Vector3(vx, vy, vz);
             const vDir = vPos.normalizeToNew();
 
+            // --- CORRECTION 2 : INFLUENCE PLUS FINE ---
             const dot = Vector3.Dot(vDir, localDirection);
-            const stretchInfluence = Math.pow(Math.max(0, dot), 10);
+            // On augmente la puissance (16 au lieu de 10) pour rendre le bras plus "pointu"
+            const stretchInfluence = Math.pow(Math.max(0, dot), 16);
 
             const noiseInput =
                 (vx + vy + vz) * this.WAVE_FREQUENCY + this._time;
             const noise =
                 (NoiseUtils.perlin1D(noiseInput) - 0.5) * noiseAmplitude;
 
+            // Le bras s'arrête pile au mur car stretchForce = distance
             const stretchDistance =
                 stretchForce * this._hookProgress * stretchInfluence;
 
@@ -178,13 +190,11 @@ export class Slime extends Enemy {
     public getNextAttack(): ActionBehavior {
         return this.availableAttacks[0];
     }
-
     public override getChaseState(): EnemyState {
         const state = new EnemyChaseState();
         state.addBehavior(new HookScannerBehavior());
         return state;
     }
-
     public playIdle(): void {}
     public playMove(): void {}
 }

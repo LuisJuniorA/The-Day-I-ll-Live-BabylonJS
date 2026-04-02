@@ -7,6 +7,7 @@ import {
     UniversalCamera,
     MeshBuilder,
     StandardMaterial,
+    TransformNode,
 } from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
@@ -86,30 +87,60 @@ export class App {
 
     private async spawnTest(): Promise<void> {
         try {
-            // --- CRÉATION DU GROUND DE TEST (PLATEFORME EN HAUTEUR) ---
-            const testPlatform = MeshBuilder.CreateBox(
-                "ground_test",
-                {
-                    width: 20,
-                    height: 0.5,
-                    depth: 20,
-                },
-                this.scene,
-            );
+            /// --- CONFIGURATION ---
+            const tileSize = 4;
+            const depth = 2; // Épaisseur des blocs sur l'axe Z (pour que les rayons touchent bien)
 
-            // Positionnement à (0, 10, 0) comme demandé
-            testPlatform.position.set(0, 10, 0);
+            // 1 = Mur, 0 = Passage
+            // On le lit de haut en bas
+            const mapData = [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+                [1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
+                [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
+                [1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+                [1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1],
+                [1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1],
+                [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            ];
+            const laby = new TransformNode("laby", this.scene);
+            laby.position = new Vector3(-5, -5, 0);
+            const wallMat = new StandardMaterial("wallMat", this.scene);
+            wallMat.diffuseColor = new Color3(0.3, 0.5, 0.8);
 
-            // Configuration physique et collisions
-            testPlatform.checkCollisions = true;
+            // Inversion pour que l'index 0 du tableau soit en HAUT (Y positif)
+            const heightOffset = (mapData.length - 1) * tileSize;
 
-            // Application du layer ENVIRONMENT pour que le HookScanner le détecte
-            testPlatform.collisionGroup = CollisionLayers.ENVIRONMENT;
+            mapData.forEach((row, rowIndex) => {
+                row.forEach((cell, x) => {
+                    if (cell === 1) {
+                        const posX = x * tileSize;
+                        const posY = heightOffset - rowIndex * tileSize; // On descend en Y
 
-            // Petit feedback visuel (matériau gris foncé)
-            const mat = new StandardMaterial("platformMat", this.scene);
-            mat.diffuseColor = new Color3(0.4, 0.4, 0.4);
-            testPlatform.material = mat;
+                        const wall = MeshBuilder.CreateBox(
+                            `wall_${x}_${rowIndex}`,
+                            {
+                                width: tileSize,
+                                height: tileSize,
+                                depth: depth,
+                            },
+                            this.scene,
+                        );
+
+                        wall.position = new Vector3(posX, posY, 0); // Tout sur Z = 0
+                        wall.material = wallMat;
+
+                        // Physique / Scan
+                        wall.checkCollisions = true;
+                        wall.collisionGroup = CollisionLayers.ENVIRONMENT;
+                        wall.parent = laby;
+                    }
+                });
+            });
 
             // --- SPAWN DES ENTITÉS ---
             // On spawn le slime un peu en dessous pour qu'il "voit" la plateforme au dessus

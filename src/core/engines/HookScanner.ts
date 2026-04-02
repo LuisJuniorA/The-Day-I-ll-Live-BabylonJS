@@ -9,28 +9,37 @@ export interface HookPoint {
 }
 
 export class HookScanner {
-    // --- CONFIGURATION FACILE ---
-    private static readonly RAY_LENGTH = 15; // Taille du raycast
-    private static readonly RAY_OFFSET_Y = 0.5; // Décalage pour ne pas partir du sol
-    private static readonly MIN_DISTANCE = 1.5; // Distance min pour valider un hit
+    private static readonly RAY_LENGTH = 15;
+    private static readonly RAY_OFFSET_Y = 0.5;
+    private static readonly MIN_DISTANCE = 1.5;
+    private static readonly SLIME_RADIUS = 0.6; // Distance pour ne pas entrer dans le mur
 
-    private static readonly _scanDirections: Vector3[] = [
-        new Vector3(0, 1, 0), // 0: Plein Haut (Plafond)
-        new Vector3(0, -1, 0), // 1: Plein Bas (Sol)
-        new Vector3(1, 0, 0), // 2: Devant (ou Droite)
-        new Vector3(-1, 0, 0), // 3: Derrière (ou Gauche)
+    private static getDynamicDirections(dirToTarget: Vector3): Vector3[] {
+        const dirs: Vector3[] = [];
+        dirs.push(dirToTarget.clone());
 
-        // Diagonales (45°)
-        new Vector3(1, 1, 0).normalize(), // 4: Devant-Haut
-        new Vector3(-1, 1, 0).normalize(), // 5: Derrière-Haut
-        new Vector3(2, -1, 0).normalize(), // 6: Devant-Bas
-        new Vector3(-2, -1, 0).normalize(), // 7: Derrière-Bas
+        let up =
+            Math.abs(dirToTarget.y) > 0.99 ? Vector3.Right() : Vector3.Up();
+        const right = Vector3.Cross(dirToTarget, up).normalize();
+        up = Vector3.Cross(right, dirToTarget).normalize();
 
-        // Angles allongés (Les "Bras" qui cherchent loin devant)
-        new Vector3(1, 0.5, 0).normalize(), // 8: Devant-Haut léger
-        new Vector3(1, 0.2, 0).normalize(), // 9: Presque tout droit (Bras long)
-        new Vector3(-1, 0.5, 0).normalize(), // 10: Derrière-Haut léger
-    ];
+        const rings = [0.3, 0.7, 1.1];
+        const counts = [6, 10, 12];
+
+        rings.forEach((radius, ringIdx) => {
+            const count = counts[ringIdx];
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const offset = right
+                    .scale(Math.cos(angle) * radius)
+                    .add(up.scale(Math.sin(angle) * radius));
+                dirs.push(dirToTarget.add(offset).normalize());
+            }
+        });
+
+        dirs.push(new Vector3(0, -1, 0)); // Sécurité sol
+        return dirs;
+    }
 
     public static getBestPoint(
         scene: Scene,
@@ -40,109 +49,106 @@ export class HookScanner {
         id: string,
     ): HookPoint | null {
         let best: HookPoint | null = null;
-        let hiScore = -1;
+        let hiScore = -Infinity;
 
-        const dirToTarget = targetPos.subtract(origin).normalize();
         const rayOrigin = origin.add(new Vector3(0, this.RAY_OFFSET_Y, 0));
+        const dirToTarget = targetPos.subtract(rayOrigin).normalize();
+        const scanDirs = this.getDynamicDirections(dirToTarget);
 
-        let index = 0;
-        for (const dir of this._scanDirections) {
+        scanDirs.forEach((dir, index) => {
             const ray = new Ray(rayOrigin, dir, this.RAY_LENGTH);
-            const debugId = `${id}_scan_${index}`;
-            index++;
+            const hit = scene.pickWithRay(
+                ray,
+                (m) =>
+                    m.checkCollisions &&
+                    m.collisionGroup === CollisionLayers.ENVIRONMENT,
+            );
 
-            // On tente le hit
-            const hit = scene.pickWithRay(ray, (mesh) => {
-                return (
-                    mesh.checkCollisions &&
-                    mesh.collisionGroup === CollisionLayers.ENVIRONMENT
+            if (hit && hit.pickedPoint && hit.getNormal()) {
+                const norm = hit.getNormal(true)!;
+                const distToWall = hit.distance;
+
+                if (distToWall < this.MIN_DISTANCE) return;
+
+                // 1. Calcul de la position de destination (OFFSET pour éviter de rentrer dans le mur)
+                const potentialPos = hit.pickedPoint.add(
+                    norm.scale(this.SLIME_RADIUS),
                 );
-            });
 
-            if (hit && hit.pickedPoint) {
-                const pos = hit.pickedPoint;
-                const distFromMe = Vector3.Distance(pos, rayOrigin);
+                let score = 0;
 
-                // Même si c'est trop proche, on l'affiche en gris pour savoir que c'est ignoré
-                if (distFromMe < this.MIN_DISTANCE) {
-                    DebugService.getInstance().drawRay(
-                        debugId,
-                        scene,
-                        rayOrigin,
-                        dir,
-                        distFromMe,
-                        new Color3(0.3, 0.3, 0.3),
-                    );
-                    continue;
+                // 2. DOUBLE SCAN : Visibilité du joueur depuis le point d'arrivée
+                const toPlayer = targetPos.subtract(potentialPos);
+                const distToPlayer = toPlayer.length();
+                const dirToPlayer = toPlayer.normalize();
+
+                const visibilityRay = new Ray(
+                    potentialPos,
+                    dirToPlayer,
+                    distToPlayer,
+                );
+                const vHit = scene.pickWithRay(
+                    visibilityRay,
+                    (m) =>
+                        m.checkCollisions &&
+                        m.collisionGroup === CollisionLayers.ENVIRONMENT,
+                );
+
+                const hasLineOfSight =
+                    !vHit || !vHit.hit || vHit.distance > distToPlayer - 0.5;
+
+                if (hasLineOfSight) {
+                    score += 25.0; // Bonus massif si on voit le joueur
+                } else {
+                    // Si on ne voit pas le joueur, on score selon si on se rapproche de lui
+                    const distGain =
+                        Vector3.Distance(origin, targetPos) - distToPlayer;
+                    score += distGain * 2.0;
                 }
 
-                const alignment = Vector3.Dot(dir, dirToTarget);
-                const norm = hit.getNormal(true);
+                // 3. PONDÉRATION ENVIRONNEMENT
+                const isFloor = Vector3.Dot(norm, currentUp) > 0.8;
+                score += isFloor ? -5.0 : 5.0; // Préfère les murs/plafonds
 
-                if (!norm) {
-                    DebugService.getInstance().drawRay(
-                        debugId,
-                        scene,
-                        rayOrigin,
-                        dir,
-                        distFromMe,
-                        Color3.Magenta(),
-                    );
-                    continue;
-                }
-
-                // --- CALCUL SCORE ---
-                const opposition = 1 - Vector3.Dot(currentUp, norm);
-                const score =
-                    alignment * 6.0 + distFromMe * 0.8 + opposition * 1.5;
-
-                // --- DEBUG : IMPACT RÉUSSI ---
-                const col = Color3.Lerp(
-                    Color3.Red(),
-                    Color3.Green(),
-                    (alignment + 1) / 2,
-                );
-                DebugService.getInstance().drawRay(
-                    debugId,
-                    scene,
-                    rayOrigin,
-                    dir,
-                    distFromMe,
-                    col,
-                );
+                // 4. ALIGNEMENT
+                score += Vector3.Dot(dir, dirToTarget) * 10.0;
 
                 if (score > hiScore) {
                     hiScore = score;
                     best = {
-                        position: pos.clone(),
-                        normal: norm.clone(),
+                        position: potentialPos,
+                        normal: norm,
                         score: score,
                     };
                 }
-            } else {
-                // --- DEBUG : RIEN TOUCHÉ ---
-                // On affiche le rayon en rouge translucide ou sombre sur toute sa longueur
-                DebugService.getInstance().drawRay(
-                    debugId,
-                    scene,
-                    rayOrigin,
-                    dir,
-                    this.RAY_LENGTH,
-                    new Color3(0.5, 0, 0),
-                );
-            }
-        }
 
-        // Point final
-        if (best) {
-            DebugService.getInstance().drawPoint(
-                id + "_best",
-                scene,
-                best.position,
-                Color3.Yellow(),
-                0.4,
-            );
-        }
+                if (score > 10) {
+                    DebugService.getInstance().drawRay(
+                        `${id}_${index}`,
+                        scene,
+                        rayOrigin,
+                        dir,
+                        1,
+                        Color3.Green(),
+                    );
+                }
+                if (best) {
+                    // On dessine le point choisi en vert
+                    DebugService.getInstance().drawPoint(
+                        `${id}_best_hook`,
+                        scene,
+                        best.position,
+                        Color3.Green(),
+                        0.3, // Taille de la sphère
+                    );
+                } else {
+                    // Si aucun point n'est trouvé, on nettoie le debug précédent
+                    DebugService.getInstance().clear(`${id}_best_hook`);
+                }
+
+                return best;
+            }
+        });
 
         return best;
     }

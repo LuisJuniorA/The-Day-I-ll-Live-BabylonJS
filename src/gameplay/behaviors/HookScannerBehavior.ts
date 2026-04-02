@@ -6,11 +6,14 @@ import { EnemyHookState } from "../../states/enemy/EnemyHookState";
 
 export class HookScannerBehavior implements Behavior {
     private _scanTimer = 0;
-    private readonly SCAN_INTERVAL = 0.15;
+    private readonly SCAN_INTERVAL = 0.25; // On scanne moins souvent pour la stabilité
     private readonly HOOK_MAX_DISTANCE = 15;
-    private readonly MIN_SCORE = 4.0;
+    private readonly MIN_SCORE = 15.0; // Score haut pour éviter les petits sauts ridicules
 
     public update(owner: Enemy, dt: number): void {
+        // SÉCURITÉ : Si on est déjà en HookState, on ne fait rien
+        if (owner.movementFSM.currentState instanceof EnemyHookState) return;
+
         const target = owner.targetTransform;
         if (!target) return;
 
@@ -30,10 +33,12 @@ export class HookScannerBehavior implements Behavior {
             );
 
             if (bestHook && bestHook.score > this.MIN_SCORE) {
-                // On délègue l'action à un état spécifique
-                // Tu pourras passer le nom de l'état dans le constructeur
-                // si tu veux que différents monstres utilisent des types de "saut/hook" différents
-                owner.movementFSM.transitionTo(new EnemyHookState(bestHook));
+                // On vérifie qu'on ne saute pas sur place (distance mini)
+                if (Vector3.Distance(owner.position, bestHook.position) > 2) {
+                    owner.movementFSM.transitionTo(
+                        new EnemyHookState(bestHook),
+                    );
+                }
             }
         }
     }

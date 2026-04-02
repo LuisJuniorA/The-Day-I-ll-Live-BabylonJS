@@ -7,10 +7,9 @@ import { HookScannerBehavior } from "../../gameplay/behaviors/HookScannerBehavio
 
 export class EnemyHookState extends EnemyState {
     public readonly name = "HookState";
-
     private _target: HookPoint;
-    private readonly TOTAL_DURATION = 0.5; // On rallonge un peu pour voir l'effet
-    private readonly STRETCH_TIME = 0.1; // Temps où seul le bras bouge
+    private readonly TOTAL_DURATION = 0.5;
+    private readonly STRETCH_TIME = 0.1;
 
     private _isFinished = false;
     private _startRotation: Quaternion = new Quaternion();
@@ -21,13 +20,17 @@ export class EnemyHookState extends EnemyState {
         this._target = target;
     }
 
+    // Le getter indispensable pour Slime.ts
     public get targetPosition(): Vector3 {
         return this._target.position;
     }
 
     protected handleEnter(owner: Enemy): void {
-        owner.velocity.setAll(0);
+        this._isFinished = false;
         this._startPosition.copyFrom(owner.position);
+
+        // Stop immédiat des forces physiques pour éviter les TP
+        owner.velocity.setAll(0);
 
         if (!owner.transform.rotationQuaternion) {
             owner.transform.rotationQuaternion = Quaternion.FromEulerVector(
@@ -37,40 +40,36 @@ export class EnemyHookState extends EnemyState {
         this._startRotation.copyFrom(owner.transform.rotationQuaternion);
     }
 
-    protected handleUpdate(owner: Enemy, dt: number): void {
+    protected handleUpdate(owner: Enemy, _dt: number): void {
         if (this._isFinished) return;
 
         const elapsed = this.timeInState;
 
-        // --- PHASE 1 : LE BRAS SE LANCE (Anticipation) ---
-        // On ne fait rien ici au niveau du mouvement du owner.position.
-        // C'est le Slime.ts qui va voir l'augmentation du temps et étirer les vertices.
-
+        // Phase 1 : Préparation / Stretch (Immobile)
         if (elapsed < this.STRETCH_TIME) {
-            // On peut quand même commencer à pivoter doucement vers la cible
             this._rotateTowardsTarget(owner, elapsed / this.STRETCH_TIME);
             return;
         }
 
-        // --- PHASE 2 : LE CORPS SUIT (Propulsion) ---
+        // Phase 2 : Vol
         const travelElapsed = elapsed - this.STRETCH_TIME;
         const travelDuration = this.TOTAL_DURATION - this.STRETCH_TIME;
         const progress = Math.min(travelElapsed / travelDuration, 1);
 
-        const toTarget = this._target.position.subtract(owner.position);
-        const distance = toTarget.length();
+        // Interpolation directe pour éviter les saccades du moteur physique
+        // On utilise Lerp pour la position car on connaît l'arrivée exacte
+        const newPos = Vector3.Lerp(
+            this._startPosition,
+            this._target.position,
+            progress,
+        );
+        owner.position.copyFrom(newPos);
 
-        // Calcul de vitesse pour arriver à la fin du temps imparti
-        const timeLeft = Math.max(travelDuration - travelElapsed, dt);
-        const speed = distance / timeLeft;
-        const moveVelocity = toTarget.normalize().scale(speed);
-
-        owner.move(moveVelocity, dt);
         this._rotateTowardsTarget(owner, progress);
 
-        if (distance < 0.2 || progress >= 1) {
+        if (progress >= 1) {
             this._isFinished = true;
-            this.finalizeHook(owner, owner.transform.rotationQuaternion!);
+            this.finalizeHook(owner);
         }
     }
 
@@ -91,17 +90,10 @@ export class EnemyHookState extends EnemyState {
         );
     }
 
-    private finalizeHook(owner: Enemy, finalRot: Quaternion): void {
-        // On sature la rotation à la valeur cible exacte
-        owner.transform.rotationQuaternion!.copyFrom(finalRot);
-
-        // On repasse en ChaseState
+    private finalizeHook(owner: Enemy): void {
         const nextState = new EnemyChaseState();
-
-        // CRUCIAL : On ré-attache le scanner pour que le slime puisse
-        // scanner un nouveau mur une fois arrivé sur celui-ci
+        // IMPORTANT : On ne rajoute le scanner QUE quand on a fini le saut
         nextState.addBehavior(new HookScannerBehavior());
-
         owner.movementFSM.transitionTo(nextState);
     }
 }
