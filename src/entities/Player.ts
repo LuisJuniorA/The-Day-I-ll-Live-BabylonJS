@@ -1,10 +1,4 @@
-import {
-    Scene,
-    Vector3,
-    MeshBuilder,
-    UniversalCamera,
-    Ray,
-} from "@babylonjs/core";
+import { Scene, Vector3, MeshBuilder, UniversalCamera } from "@babylonjs/core";
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
 import { InputHandler } from "../core/engines/InputHandler";
@@ -143,23 +137,6 @@ export class Player extends Character {
                 0,
             ),
         );
-    }
-
-    public checkGrounded(): void {
-        // Raycast à partir du pivot logique
-        const rayOrigin = this.transform.position.clone();
-        rayOrigin.y -= 0.9;
-        const ray = new Ray(rayOrigin, new Vector3(0, -1, 0), 0.3); // Rayon légèrement plus long (0.3)
-
-        const pick = this._scene.pickWithRay(ray, (m) => {
-            // CONDITION : Le mesh doit avoir les collisions ET faire partie de l'environnement (Mask 1)
-            return m.checkCollisions && m.collisionGroup === 1;
-        });
-
-        this.isGrounded = !!(pick && pick.hit);
-        if (this.isGrounded && this.velocity.y < 0) {
-            this.velocity.y = 0;
-        }
     }
 
     public getCamera(): UniversalCamera {

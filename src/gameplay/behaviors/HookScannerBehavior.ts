@@ -6,35 +6,51 @@ import { EnemyHookState } from "../../states/enemy/EnemyHookState";
 
 export class HookScannerBehavior implements Behavior {
     private _scanTimer = 0;
-    private readonly SCAN_INTERVAL = 0.25; // On scanne moins souvent pour la stabilité
-    private readonly HOOK_MAX_DISTANCE = 15;
-    private readonly MIN_SCORE = 15.0; // Score haut pour éviter les petits sauts ridicules
+    private _lastHookPos: Vector3 | null = null; // Mémoire du dernier saut
+    private readonly SCAN_INTERVAL = 0.25;
+    private readonly MIN_HOOK_DISTANCE = 4.0; // Distance mini entre deux sauts
 
     public update(owner: Enemy, dt: number): void {
-        // SÉCURITÉ : Si on est déjà en HookState, on ne fait rien
         if (owner.movementFSM.currentState instanceof EnemyHookState) return;
-
-        const target = owner.targetTransform;
-        if (!target) return;
-
-        const dist = Vector3.Distance(owner.position, target.position);
-        if (dist > this.HOOK_MAX_DISTANCE) return;
 
         this._scanTimer += dt;
         if (this._scanTimer >= this.SCAN_INTERVAL) {
             this._scanTimer = 0;
 
+            const target = owner.targetTransform;
+            if (!target) return;
+
             const bestHook = HookScanner.getBestPoint(
                 owner.transform.getScene(),
-                owner.position,
-                target.position,
+                owner.transform.absolutePosition,
+                target.absolutePosition,
                 owner.transform.up,
                 owner.id,
             );
 
-            if (bestHook && bestHook.score > this.MIN_SCORE) {
-                // On vérifie qu'on ne saute pas sur place (distance mini)
-                if (Vector3.Distance(owner.position, bestHook.position) > 2) {
+            if (bestHook && bestHook.score > 15) {
+                // --- LOGIQUE ANTI-SPAM ---
+                // 1. On vérifie qu'on ne saute pas là où on est déjà
+                const distFromCurrent = Vector3.Distance(
+                    owner.position,
+                    bestHook.position,
+                );
+
+                // 2. On vérifie qu'on ne saute pas sur notre ancien point
+                let distFromLast = 100;
+                if (this._lastHookPos) {
+                    distFromLast = Vector3.Distance(
+                        this._lastHookPos,
+                        bestHook.position,
+                    );
+                }
+
+                if (
+                    distFromCurrent > 2.0 &&
+                    distFromLast > this.MIN_HOOK_DISTANCE
+                ) {
+                    bestHook.position.z = 0;
+                    this._lastHookPos = bestHook.position.clone();
                     owner.movementFSM.transitionTo(
                         new EnemyHookState(bestHook),
                     );

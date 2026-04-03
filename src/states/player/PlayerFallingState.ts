@@ -13,6 +13,9 @@ export class PlayerFallingState extends BaseState<Player> {
     }
 
     protected handleUpdate(owner: Player, dt: number): void {
+        if (import.meta.env.DEV && owner.buffer.isActive("jump")) {
+            owner.movementFSM.transitionTo(new PlayerJumpState());
+        }
         // 1. Détection du sol
         owner.checkGrounded();
 

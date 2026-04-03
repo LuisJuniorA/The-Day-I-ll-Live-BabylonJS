@@ -37,6 +37,7 @@ export class EnemyHookState extends EnemyState {
                 owner.transform.rotation,
             );
         }
+        if (owner.mesh) owner.mesh.alwaysSelectAsActiveMesh = true;
         this._startRotation.copyFrom(owner.transform.rotationQuaternion);
     }
 
@@ -95,5 +96,6 @@ export class EnemyHookState extends EnemyState {
         // IMPORTANT : On ne rajoute le scanner QUE quand on a fini le saut
         nextState.addBehavior(new HookScannerBehavior());
         owner.movementFSM.transitionTo(nextState);
+        if (owner.mesh) owner.mesh.alwaysSelectAsActiveMesh = false;
     }
 }

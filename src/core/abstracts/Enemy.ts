@@ -53,6 +53,16 @@ export abstract class Enemy extends Character {
 
     public update(dt: number): void {
         if (this.isDead) return;
+        this.checkGrounded();
+
+        // 2. Si on est PAS grounded (hors-screen bug, pente, etc.)
+        if (!this.isGrounded) {
+            // Soit tu mets une petite gravité corrective :
+            this.velocity.y += -0.5;
+        } else {
+            // Soit tu forces le Y à rester stable
+            this.velocity.y = 0;
+        }
         this.movementFSM.update(dt);
         this.attackFSM.update(dt);
     }

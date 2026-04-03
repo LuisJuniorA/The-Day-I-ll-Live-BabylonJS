@@ -1,4 +1,4 @@
-import { AnimationGroup, Scene, Vector3 } from "@babylonjs/core";
+import { AnimationGroup, Ray, Scene, Vector3 } from "@babylonjs/core";
 import { Entity } from "./Entity";
 import type { CharacterStats } from "../types/CharacterStats";
 import { OnEntityDamaged } from "../interfaces/CombatEvent";
@@ -37,6 +37,23 @@ export abstract class Character extends Entity {
         if (this.isDead) return;
         this.stats.hp -= amount;
         if (this.stats.hp <= 0) this.die();
+    }
+
+    public checkGrounded(): void {
+        // Raycast à partir du pivot logique
+        const rayOrigin = this.transform.position.clone();
+        rayOrigin.y -= 0.9;
+        const ray = new Ray(rayOrigin, new Vector3(0, -1, 0), 0.3); // Rayon légèrement plus long (0.3)
+
+        const pick = this._scene.pickWithRay(ray, (m) => {
+            // CONDITION : Le mesh doit avoir les collisions ET faire partie de l'environnement (Mask 1)
+            return m.checkCollisions && m.collisionGroup === 1;
+        });
+
+        this.isGrounded = !!(pick && pick.hit);
+        if (this.isGrounded && this.velocity.y < 0) {
+            this.velocity.y = 0;
+        }
     }
 
     protected die(): void {
