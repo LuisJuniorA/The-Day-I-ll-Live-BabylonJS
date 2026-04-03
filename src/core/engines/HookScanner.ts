@@ -1,4 +1,4 @@
-import { Vector3, Scene, Color3, Ray } from "@babylonjs/core";
+import { Vector3, Scene, Color3, Ray, AbstractMesh } from "@babylonjs/core";
 import { DebugService } from "./DebugService";
 import { CollisionLayers } from "../constants/CollisionLayers";
 
@@ -12,7 +12,7 @@ export class HookScanner {
     private static readonly RAY_LENGTH = 18;
     private static readonly RAY_OFFSET_Y = 0.5;
     private static readonly MIN_DISTANCE = 1.5;
-    private static readonly SLIME_SAFETY_OFFSET = 0.5;
+    private static readonly SLIME_SAFETY_OFFSET = 0.8;
 
     public static getBestPoint(
         scene: Scene,
@@ -27,16 +27,15 @@ export class HookScanner {
         DebugService.getInstance().clear(`${id}_best_hook`);
 
         // --- SÉCURITÉ ORIGINE ---
-        // On monte un peu l'origine pour éviter de raser le sol
         const rayOrigin = origin.add(new Vector3(0, this.RAY_OFFSET_Y, 0));
-
         const dirToTarget = targetPos.subtract(rayOrigin).normalize();
         const scanDirs = this.getDynamicDirections(dirToTarget);
 
+        // On récupère le collider du joueur une seule fois pour la boucle
+        const playerCollider = scene.getMeshByName("player_collider");
+
         for (const [index, dir] of scanDirs.entries()) {
-            // --- ANTI-CORNER HACK ---
-            // On fait partir le rayon un tout petit peu AVANT l'origine réelle
-            // pour être sûr de percuter le mur même si on est collé dessus.
+            // ANTI-CORNER : On recule un peu l'origine pour ne pas rater les murs proches
             const backOffOrigin = rayOrigin.subtract(dir.scale(0.1));
             const ray = new Ray(backOffOrigin, dir, this.RAY_LENGTH);
 
@@ -55,13 +54,12 @@ export class HookScanner {
                 let norm = hit.getNormal(true)!;
                 if (Vector3.Dot(norm, dir) > 0) norm.scaleInPlace(-1);
 
-                // 1. Calcul du point cible
+                // 1. Calcul du point cible (décalé de la surface)
                 const potentialPos = hit.pickedPoint.add(
                     norm.scale(this.SLIME_SAFETY_OFFSET),
                 );
 
-                // --- 2. TRAJECTORY CHECK (LE JUGE DE PAIX) ---
-                // On vérifie le chemin entre le VRAI centre du slime et le point bleu.
+                // --- 2. TRAJECTORY CHECK ---
                 const toPot = potentialPos.subtract(rayOrigin);
                 const distToPot = toPot.length();
                 const pathCheck = scene.pickWithRay(
@@ -71,24 +69,15 @@ export class HookScanner {
                         m.collisionGroup === CollisionLayers.ENVIRONMENT,
                 );
 
-                // Si le chemin tape un mur avant d'arriver au point bleu (même à 0.1m), c'est mort.
                 if (
                     pathCheck &&
                     pathCheck.hit &&
                     pathCheck.distance < distToPot - 0.1
                 ) {
-                    DebugService.getInstance().drawPoint(
-                        impactId,
-                        scene,
-                        hit.pickedPoint,
-                        Color3.Black(),
-                        0.1,
-                    );
                     continue;
                 }
 
                 // --- 3. EPAISSEUR CHECK ---
-                // On vérifie que potentialPos n'est pas DANS un mur
                 const insideCheck = scene.pickWithRay(
                     new Ray(
                         potentialPos,
@@ -99,6 +88,7 @@ export class HookScanner {
                         m.checkCollisions &&
                         m.collisionGroup === CollisionLayers.ENVIRONMENT,
                 );
+
                 if (
                     insideCheck &&
                     insideCheck.hit &&
@@ -109,7 +99,46 @@ export class HookScanner {
 
                 if (hit.distance < this.MIN_DISTANCE) continue;
 
-                // Debug
+                // --- 4. CHECK TRAVERSÉE JOUEUR ---
+                // Même si le joueur est isPickable = false, intersectsMesh fonctionne.
+                let intersectsPlayer = false;
+                if (playerCollider) {
+                    const intersectInfo = ray.intersectsMesh(
+                        playerCollider as AbstractMesh,
+                        false,
+                    );
+                    if (
+                        intersectInfo.hit &&
+                        intersectInfo.distance < hit.distance
+                    ) {
+                        intersectsPlayer = true;
+
+                        // Debug visuel pour les trajectoires "agressives"
+                        DebugService.getInstance().drawPoint(
+                            `${id}_pierce_${index}`,
+                            scene,
+                            playerCollider.absolutePosition.add(
+                                new Vector3(0, 1, 0),
+                            ),
+                            Color3.Yellow(),
+                            0.2,
+                        );
+                    }
+                }
+
+                // --- 5. CALCUL DU SCORE ---
+                let score = this.calculateScore(
+                    potentialPos,
+                    targetPos,
+                    origin,
+                    norm,
+                    currentUp,
+                    dir,
+                    dirToTarget,
+                    intersectsPlayer,
+                );
+
+                // Debug points validés
                 DebugService.getInstance().drawPoint(
                     impactId,
                     scene,
@@ -123,17 +152,6 @@ export class HookScanner {
                     potentialPos,
                     Color3.Blue(),
                     0.1,
-                );
-
-                // --- 4. SCORE ---
-                let score = this.calculateScore(
-                    potentialPos,
-                    targetPos,
-                    origin,
-                    norm,
-                    currentUp,
-                    dir,
-                    dirToTarget,
                 );
 
                 if (score > hiScore) {
@@ -167,21 +185,29 @@ export class HookScanner {
         up: Vector3,
         dir: Vector3,
         targetDir: Vector3,
+        intersectsPlayer: boolean,
     ): number {
         let score = 0;
         const distToPlayer = Vector3.Distance(pos, target);
 
-        // Bonus alignement et distance
+        // Bonus alignement avec la direction du joueur
         score += Vector3.Dot(dir, targetDir) * 10;
+
+        // Bonus si le point rapproche le slime du joueur
         score += (Vector3.Distance(origin, target) - distToPlayer) * 5;
 
-        // Bonus surface (Up dot)
+        // --- GROS BONUS SI TRAVERSE LE JOUEUR ---
+        if (intersectsPlayer) {
+            score += 60;
+        }
+
+        // Bonus type de surface
         const dot = Vector3.Dot(norm, up);
         if (dot > 0.8)
-            score -= 15; // Sol
+            score -= 15; // Sol (Moins intéressant pour un slime)
         else if (dot < -0.5)
-            score += 10; // Plafond
-        else score += 5; // Mur
+            score += 10; // Plafond (Styleé)
+        else score += 5; // Murs
 
         return score;
     }
@@ -203,7 +229,7 @@ export class HookScanner {
                 dirs.push(dirToTarget.add(offset).normalize());
             }
         });
-        dirs.push(new Vector3(0, -1, 0));
+        dirs.push(new Vector3(0, -1, 0)); // Ajout systématique du bas
         return dirs;
     }
 }

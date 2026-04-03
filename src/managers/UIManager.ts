@@ -10,6 +10,7 @@ import {
     OnInteractionAvailable,
     type DialogueRequest,
 } from "../core/interfaces/Interactable";
+import { OnHealthChanged } from "../core/interfaces/CombatEvent";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
@@ -42,6 +43,10 @@ export class UIManager {
             const isNear = !!(event.isNear && event.interactable);
             const mesh = event.interactable?.transform as AbstractMesh;
             this.hudView.setInteractionAvailable(isNear, mesh);
+        });
+
+        OnHealthChanged.add((event) => {
+            this.hudView.updatePlayerHealth(event.currentHp, event.maxHp);
         });
 
         // Requête de dialogue (vient du monde 3D)

@@ -9,12 +9,12 @@ import { Enemy } from "../../core/abstracts/Enemy";
 import type { ProximitySystem } from "../../core/engines/ProximitySystem";
 import type { ActionBehavior } from "../../core/interfaces/Behaviors";
 import type { EnemyConfig } from "../../core/types/EnemyConfig";
-import { EffroiClaw } from "../../gameplay/attacks/EffroiAttacks";
 import { NoiseUtils } from "../../utils/NoiseUtils";
 import { HookScannerBehavior } from "../../gameplay/behaviors/HookScannerBehavior";
 import { EnemyChaseState } from "../../states/enemy/EnemyChaseState";
 import { EnemyHookState } from "../../states/enemy/EnemyHookState";
 import type { EnemyState } from "../../core/abstracts/EnemyState";
+import { NoAttack } from "../../gameplay/attacks/NoAttack";
 
 export class Slime extends Enemy {
     private _initialBodyPositions: Float32Array;
@@ -29,10 +29,7 @@ export class Slime extends Enemy {
     private readonly WAVE_AMPLITUDE = 0.5;
     private readonly WAVE_FREQUENCY = 3.0;
 
-    // On réduit la force de base, elle sera écrasée par la distance réelle durant le hook
     private readonly BODY_STRETCH_FORCE = 0.5;
-
-    protected availableAttacks: ActionBehavior[] = [new EffroiClaw()];
 
     constructor(
         scene: Scene,
@@ -41,10 +38,19 @@ export class Slime extends Enemy {
         mesh: AbstractMesh,
         soulMesh: AbstractMesh,
     ) {
+        // Le super configure le mesh principal (body) pour les collisions environnementales
         super(scene, data, proximitySystem, mesh);
+
         this._soulMesh = soulMesh;
+
+        if (this._soulMesh) {
+            this._soulMesh.parent = this.transform;
+            this._soulMesh.position.setAll(0);
+        }
+
         this._setupStates();
 
+        // Récupération des données de vertices pour la déformation
         const bodyPositions = this.mesh!.getVerticesData(
             VertexBuffer.PositionKind,
         );
@@ -63,6 +69,7 @@ export class Slime extends Enemy {
             this._initialSoulPositions = new Float32Array();
         }
 
+        // Animation de déformation (Procédural)
         scene.onBeforeRenderObservable.add(() => {
             this._animateSlime();
         });
@@ -81,6 +88,7 @@ export class Slime extends Enemy {
         const currentState = this.movementFSM.currentState;
         const isHooking = currentState instanceof EnemyHookState;
 
+        // Transition fluide du déploiement du "bras"
         this._hookProgress = Scalar.Lerp(
             this._hookProgress,
             isHooking ? 1 : 0,
@@ -93,8 +101,6 @@ export class Slime extends Enemy {
         if (isHooking && currentState instanceof EnemyHookState) {
             const targetWorldPos = currentState.targetPosition;
 
-            // --- CORRECTION 1 : DISTANCE DYNAMIQUE ---
-            // On calcule la distance réelle. Le bras ne pourra PAS aller plus loin.
             const distToTarget = Vector3.Distance(
                 this.transform.absolutePosition,
                 targetWorldPos,
@@ -113,12 +119,13 @@ export class Slime extends Enemy {
             ).normalize();
             this._lastValidHookDir.copyFrom(localHookDir);
 
-            // On retire une marge (rayon du slime) pour que le bras s'arrête à la surface
+            // Force de stretch basée sur la distance à la cible
             currentDynamicForce = Math.max(0, distToTarget - 0.5);
         } else {
-            localHookDir = Vector3.Up(); // Respiration verticale en idle
+            localHookDir = Vector3.Up(); // Respiration simple quand immobile
         }
 
+        // Appliquer la déformation sur le corps extérieur
         this._applyVertexDeformation(
             this.mesh,
             this._initialBodyPositions,
@@ -128,6 +135,7 @@ export class Slime extends Enemy {
             true,
         );
 
+        // Appliquer la déformation sur le noyau intérieur (Soul)
         if (this._soulMesh && this._initialSoulPositions.length > 0) {
             this._applyVertexDeformation(
                 this._soulMesh,
@@ -159,9 +167,7 @@ export class Slime extends Enemy {
             const vPos = new Vector3(vx, vy, vz);
             const vDir = vPos.normalizeToNew();
 
-            // --- CORRECTION 2 : INFLUENCE PLUS FINE ---
             const dot = Vector3.Dot(vDir, localDirection);
-            // On augmente la puissance (16 au lieu de 10) pour rendre le bras plus "pointu"
             const stretchInfluence = Math.pow(Math.max(0, dot), 16);
 
             const noiseInput =
@@ -169,7 +175,6 @@ export class Slime extends Enemy {
             const noise =
                 (NoiseUtils.perlin1D(noiseInput) - 0.5) * noiseAmplitude;
 
-            // Le bras s'arrête pile au mur car stretchForce = distance
             const stretchDistance =
                 stretchForce * this._hookProgress * stretchInfluence;
 
@@ -179,6 +184,7 @@ export class Slime extends Enemy {
             positions[i + 2] =
                 vz + localDirection.z * stretchDistance + vz * noise;
 
+            // Écrasement au sol si le slime est au repos
             if (applyFloorSquash && vy < 0.1 && this._hookProgress < 0.1) {
                 positions[i + 1] *= 0.6;
             }
@@ -188,13 +194,15 @@ export class Slime extends Enemy {
     }
 
     public getNextAttack(): ActionBehavior {
-        return this.availableAttacks[0];
+        return new NoAttack();
     }
+
     public override getChaseState(): EnemyState {
         const state = new EnemyChaseState();
         state.addBehavior(new HookScannerBehavior());
         return state;
     }
+
     public playIdle(): void {}
     public playMove(): void {}
 }

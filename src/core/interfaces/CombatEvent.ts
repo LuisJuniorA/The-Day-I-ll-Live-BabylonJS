@@ -18,5 +18,12 @@ export interface StatusEvent {
     originId: string;
 }
 
+export interface HealthChangedEvent {
+    currentHp: number;
+    maxHp: number;
+    entityId: string;
+}
+
+export const OnHealthChanged = new Observable<HealthChangedEvent>();
 export const OnEntityDamaged = new Observable<DamageEvent>();
 export const OnStatusApplied = new Observable<StatusEvent>();

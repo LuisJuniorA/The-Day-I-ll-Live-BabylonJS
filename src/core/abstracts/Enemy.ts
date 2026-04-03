@@ -10,6 +10,7 @@ import { Faction } from "../types/Faction";
 import type { ActionBehavior } from "../interfaces/Behaviors";
 import { EnemyChaseState } from "../../states/enemy/EnemyChaseState";
 import type { EnemyState } from "./EnemyState";
+import { OnEntityDamaged } from "../interfaces/CombatEvent";
 
 export abstract class Enemy extends Character {
     public readonly movementFSM: FSM<Enemy>;
@@ -17,8 +18,11 @@ export abstract class Enemy extends Character {
     public readonly config: EnemyConfig;
     private _proximitySystem: ProximitySystem;
 
-    // Liste des attaques que ce monstre peut faire
-    protected abstract availableAttacks: ActionBehavior[];
+    // Liste des attaques
+    protected availableAttacks: ActionBehavior[] = [];
+
+    // Dégâts de contact passifs
+    protected contactDamage: number = 5;
 
     constructor(
         scene: Scene,
@@ -27,6 +31,7 @@ export abstract class Enemy extends Character {
         mesh: AbstractMesh,
     ) {
         super(data.displayName, scene, data.stats, Faction.ENEMY);
+
         this.config = data;
         this._proximitySystem = proximitySystem;
         this.movementFSM = new FSM<Enemy>(this);
@@ -35,6 +40,7 @@ export abstract class Enemy extends Character {
         this.mesh = mesh;
         this.mesh.parent = this.transform;
         this.mesh.checkCollisions = true;
+
         this.mesh.collisionMask = CollisionLayers.ENVIRONMENT;
         this.mesh.collisionGroup = CollisionLayers.ENEMY;
 
@@ -42,9 +48,6 @@ export abstract class Enemy extends Character {
         this.attackFSM.transitionTo(new EnemyAttackIdleState());
     }
 
-    /**
-     * Choisit l'attaque appropriée (IA de combat)
-     */
     public abstract getNextAttack(): ActionBehavior;
 
     public get targetTransform(): TransformNode | undefined {
@@ -55,16 +58,39 @@ export abstract class Enemy extends Character {
         if (this.isDead) return;
         this.checkGrounded();
 
-        // 2. Si on est PAS grounded (hors-screen bug, pente, etc.)
         if (!this.isGrounded) {
-            // Soit tu mets une petite gravité corrective :
             this.velocity.y += -0.5;
         } else {
-            // Soit tu forces le Y à rester stable
             this.velocity.y = 0;
         }
+
+        // Vérification des dégâts de contact
+        this._checkContactDamage();
+
         this.movementFSM.update(dt);
         this.attackFSM.update(dt);
+    }
+
+    /**
+     * Vérifie si le joueur touche le monstre.
+     * C'est le Player qui gère son propre cooldown (i-frames).
+     */
+    private _checkContactDamage(): void {
+        const playerMesh = this._scene.getMeshByName("player_collider");
+
+        if (
+            playerMesh &&
+            this.mesh &&
+            this.mesh.intersectsMesh(playerMesh, false)
+        ) {
+            OnEntityDamaged.notifyObservers({
+                targetId: "Player",
+                attackerId: this.id,
+                amount: this.contactDamage,
+                position: this.transform.position.clone(),
+                attackerFaction: Faction.ENEMY,
+            });
+        }
     }
 
     public getNearbyNeighbors(): Enemy[] {
@@ -79,7 +105,6 @@ export abstract class Enemy extends Character {
         return new EnemyChaseState();
     }
 
-    // Méthodes pour que les States restent génériques
     public abstract playIdle(): void;
     public abstract playMove(): void;
 }

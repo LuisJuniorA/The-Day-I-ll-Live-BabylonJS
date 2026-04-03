@@ -10,8 +10,6 @@ export class Effroi extends Enemy {
     private _claw = new EffroiClaw();
     private _roar = new EffroiRoar();
 
-    protected availableAttacks = [this._claw, this._roar];
-
     constructor(
         scene: Scene,
         data: EnemyConfig,
@@ -20,7 +18,7 @@ export class Effroi extends Enemy {
         animations: AnimationGroup[],
     ) {
         super(scene, data, proximitySystem, rootMesh);
-
+        this.availableAttacks.push(this._claw, this._roar);
         animations.forEach((ag) => {
             ag.stop();
             // Active le mélange fluide
