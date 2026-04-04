@@ -1,31 +1,26 @@
 import { AbstractMesh, Scene } from "@babylonjs/core";
-import type { WeaponStats } from "../types/WeaponStats";
+import type { WeaponData } from "../types/WeaponStats";
 import { Character } from "./Character";
 
 export abstract class Weapon {
     public mesh?: AbstractMesh;
-    public stats: WeaponStats;
+    public readonly data: WeaponData; // Stockage centralisé des données
     public name: string;
     protected scene: Scene;
 
-    constructor(
-        name: string,
-        stats: WeaponStats,
-        scene: Scene
-    ) {
-        this.name = name
-        this.scene = scene;
-        this.stats = { ...stats };
+    // Getter pour un accès rapide aux stats de combat
+    public get stats() {
+        return this.data.stats;
     }
 
-    /**
-     * Charge le modèle 3D (ou le clone depuis un manager)
-     */
+    constructor(scene: Scene, data: WeaponData) {
+        this.scene = scene;
+        this.data = data;
+        this.name = data.name;
+    }
+
     public abstract loadVisuals(): Promise<void>;
 
-    /**
-     * Attache l'arme à un os (ex: "RightHand") du squelette d'un personnage
-     */
     public attachToCharacter(character: Character, boneName: string): void {
         if (!this.mesh || !character.mesh) return;
 
@@ -36,15 +31,14 @@ export abstract class Weapon {
 
             if (bone) {
                 this.mesh.attachToBone(bone, character.mesh);
-                // On reset la position locale pour qu'elle s'aligne sur la main
                 this.mesh.position.setAll(0);
                 this.mesh.rotation.setAll(0);
+                this.mesh.isPickable = false;
             }
+        } else {
+            this.mesh.parent = character.transform;
         }
     }
 
-    /**
-     * Logique de l'attaque (à override pour chaque arme)
-     */
     public abstract attack(owner: Character): void;
 }

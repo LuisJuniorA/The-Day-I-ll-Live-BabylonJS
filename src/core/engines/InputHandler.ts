@@ -31,15 +31,16 @@ export class InputHandler {
 
     public update(): void {
         // --- Mouvements (Continus) ---
-        const right = (this._keys.has("d") || this._keys.has("arrowright")) ? 1 : 0;
-        const left = (this._keys.has("q") || this._keys.has("arrowleft")) ? 1 : 0;
+        const right =
+            this._keys.has("d") || this._keys.has("arrowright") ? 1 : 0;
+        const left = this._keys.has("q") || this._keys.has("arrowleft") ? 1 : 0;
         this.horizontal = right - left;
 
         // --- Actions "One-shot" (Déclenchées une seule fois) ---
         // On utilise _isJustPressed au lieu de .has()
         this.isJumping = this._isJustPressed(" ");
         this.isInteracting = this._isJustPressed("e");
-        this.isAttacking = this._isJustPressed("f");
+        this.isAttacking = this._isJustPressed("k");
 
         // --- FIN DE UPDATE : On synchronise les states ---
         // On copie les touches actuelles dans lastKeys pour la prochaine frame

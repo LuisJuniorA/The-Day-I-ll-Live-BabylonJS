@@ -3,7 +3,10 @@ export class InputBufferManager {
     private readonly _defaultDuration: number = 0.2; // 200ms par défaut
 
     /** Enregistre une intention d'action */
-    public trigger(action: string, duration: number = this._defaultDuration): void {
+    public trigger(
+        action: string,
+        duration: number = this._defaultDuration,
+    ): void {
         this._buffers.set(action, duration);
     }
 

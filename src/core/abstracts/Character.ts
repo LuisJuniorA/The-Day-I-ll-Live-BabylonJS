@@ -10,7 +10,7 @@ export abstract class Character extends Entity {
     public isDead: boolean = false;
     public isGrounded: boolean = false;
     public animations: Map<string, AnimationGroup> = new Map();
-    protected faction: FactionType;
+    public faction: FactionType;
 
     private _isPriorityAnimActive: boolean = false;
 
