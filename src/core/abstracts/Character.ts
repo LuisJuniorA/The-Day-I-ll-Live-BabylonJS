@@ -27,7 +27,7 @@ export abstract class Character extends Entity {
         this.faction = faction;
 
         OnEntityDamaged.add((event) => {
-            if (event.targetId !== this.id) return;
+            if (event.attackerId === this.id) return;
             if (event.attackerFaction === this.faction) return;
             this.takeDamage(event.amount);
         });
@@ -36,6 +36,7 @@ export abstract class Character extends Entity {
     public takeDamage(amount: number): void {
         if (this.isDead) return;
         this.stats.hp -= amount;
+        console.log(this.stats.hp);
         if (this.stats.hp <= 0) this.die();
     }
 

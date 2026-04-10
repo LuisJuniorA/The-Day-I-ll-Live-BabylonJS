@@ -1,4 +1,11 @@
-import { Scene, Vector3, MeshBuilder, UniversalCamera } from "@babylonjs/core";
+import {
+    Scene,
+    Vector3,
+    MeshBuilder,
+    UniversalCamera,
+    Skeleton,
+    Bone,
+} from "@babylonjs/core";
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
 import { InputHandler } from "../core/engines/InputHandler";
@@ -13,6 +20,7 @@ import { CollisionLayers } from "../core/constants/CollisionLayers";
 import {
     OnEntityDamaged,
     OnHealthChanged,
+    OnWeaponChanged,
 } from "../core/interfaces/CombatEvent";
 import { Faction } from "../core/types/Faction";
 import { Weapon } from "../core/abstracts/Weapon";
@@ -69,10 +77,14 @@ export class Player extends Character {
         // Initialisation des états par défaut
         this.movementFSM.transitionTo(new PlayerMoveState());
         this.attackFSM.transitionTo(new PlayerCombatIdleState());
+
+        OnWeaponChanged.add((event) => (this.currentWeapon = event.weapon));
     }
 
     private _setupPhysics(startPosition: Vector3): void {
         this.transform.position.copyFrom(startPosition);
+
+        // 1. Le corps (Capsule)
         this.mesh = MeshBuilder.CreateCapsule(
             "player_collider",
             { height: 2, radius: 0.5 },
@@ -85,6 +97,32 @@ export class Player extends Character {
         this.mesh.collisionMask = CollisionLayers.ENVIRONMENT;
         this.mesh.collisionGroup = CollisionLayers.PLAYER;
         this.mesh.ellipsoid = new Vector3(0.45, 0.9, 0.45);
+
+        // 2. Création d'un squelette factice pour le "AttachToBone"
+        // On crée un squelette nommé "player_skeleton"
+        const skeleton = new Skeleton(
+            "player_skeleton",
+            "skeleton_id_01",
+            this._scene,
+        );
+
+        // On crée un os pour la main droite (là où l'arme s'attachera)
+        // Positionné à environ 0.6 sur le côté et 0.2 en hauteur
+        const boneHandR = new Bone("RightHand", skeleton, null);
+        boneHandR.setPosition(new Vector3(0.6, 0.2, 0));
+
+        // On lie le squelette au mesh principal
+        this.mesh.skeleton = skeleton;
+
+        // 3. Visualisation du bras (Optionnel, juste pour voir où est l'arme)
+        const armVisual = MeshBuilder.CreateBox(
+            "arm_visual",
+            { size: 0.2, width: 0.5 },
+            this._scene,
+        );
+        armVisual.parent = this.mesh;
+        armVisual.position.set(0.4, 0.2, 0); // Aligné avec l'os
+        armVisual.isPickable = false;
     }
 
     /**
@@ -112,12 +150,6 @@ export class Player extends Character {
             else if (this._targetInteractable === event.interactable)
                 this._targetInteractable = null;
         });
-
-        OnEntityDamaged.add((event) => {
-            if (event.targetId === "Player" || event.targetId === this.id) {
-                this.takeDamage(event.amount);
-            }
-        });
     }
 
     public takeDamage(amount: number): void {
@@ -133,22 +165,23 @@ export class Player extends Character {
         });
     }
 
-    public update(dt: number): void {
-        if (this.isDead) return;
-
-        this._updateIFrames(dt);
-
-        // Input & Buffer
+    public updateInput(dt: number) {
         this.input.update();
         this.buffer.update(dt);
+
         if (this.input.isJumping) this.buffer.trigger("jump");
         if (this.input.isAttacking) this.buffer.trigger("attack");
 
-        // Interaction
         if (this.input.isInteracting && this._targetInteractable) {
             this._targetInteractable.onInteract();
             this.input.isInteracting = false;
         }
+    }
+
+    public update(dt: number): void {
+        if (this.isDead) return;
+        this._updateIFrames(dt);
+        this.updateInput(dt);
 
         this.checkGrounded();
         this.coyoteTimeCounter = this.isGrounded

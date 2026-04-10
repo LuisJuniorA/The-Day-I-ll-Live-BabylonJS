@@ -191,6 +191,7 @@ export class Slime extends Enemy {
         }
 
         mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
+        mesh.refreshBoundingInfo({});
     }
 
     public getNextAttack(): ActionBehavior {

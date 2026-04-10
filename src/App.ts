@@ -21,6 +21,7 @@ import { UIManager } from "./managers/UIManager";
 import { GameState } from "./core/types/GameState";
 import { CollisionLayers } from "./core/constants/CollisionLayers";
 import { EntityFactory } from "./factories/EntityFactory";
+import { WeaponManager } from "./managers/WeaponManager";
 
 export class App {
     private readonly engine: Engine;
@@ -35,6 +36,7 @@ export class App {
 
     private menuCamera!: UniversalCamera;
     private player!: Player;
+    private weaponManager: WeaponManager;
 
     constructor() {
         // 1. Initialisation de base
@@ -53,6 +55,7 @@ export class App {
         this.uiManager = new UIManager(this.scene, this.gameStateManager);
         this.entityManager = new EntityManager(this.scene);
         this.levelManager = new LevelManager(this.scene);
+        this.weaponManager = new WeaponManager(this.scene);
 
         // 3. Configuration du Monde et Physique
         this.scene.collisionsEnabled = true;
@@ -188,6 +191,11 @@ export class App {
         this.uiManager.mainMenuView.onResumeObservable.add(async () => {
             if (!this.player) {
                 this.spawnPlayer();
+                await this.weaponManager.equipWeapon(
+                    this.player,
+                    "knight_sword",
+                    "hand.R",
+                );
 
                 await this.spawnTest();
             }

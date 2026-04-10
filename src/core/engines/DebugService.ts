@@ -7,6 +7,8 @@ import {
     StandardMaterial,
     LinesMesh,
     TransformNode,
+    Quaternion,
+    type Nullable,
 } from "@babylonjs/core";
 
 export class DebugService {
@@ -92,6 +94,34 @@ export class DebugService {
             if (mat) mat.emissiveColor = color;
         }
         sphere.position.copyFrom(position);
+    }
+
+    /** Affiche une boîte de debug */
+    public drawBox(
+        id: string,
+        scene: Scene,
+        position: Vector3,
+        size: { width: number; height: number; depth: number },
+        rotation: Nullable<Quaternion>,
+        color: Color3,
+    ): void {
+        if (!this._isDevMode) return;
+        const root = this._getDebugRoot(scene);
+        let box = this._points.get(id); // On réutilise la map des points ou on en crée une _boxes
+
+        if (!box) {
+            box = MeshBuilder.CreateBox(id, size, scene);
+            box.parent = root;
+            const mat = new StandardMaterial(id + "_mat", scene);
+            mat.emissiveColor = color;
+            mat.alpha = 0.4;
+            mat.disableLighting = true;
+            box.material = mat;
+            this._points.set(id, box);
+        }
+
+        box.position.copyFrom(position);
+        box.rotationQuaternion = rotation?.clone() ?? null;
     }
 
     /** Nettoyage propre */
