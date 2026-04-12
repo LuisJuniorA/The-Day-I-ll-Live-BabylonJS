@@ -18,7 +18,6 @@ import {
 } from "../core/interfaces/Interactable";
 import { CollisionLayers } from "../core/constants/CollisionLayers";
 import {
-    OnEntityDamaged,
     OnHealthChanged,
     OnWeaponChanged,
 } from "../core/interfaces/CombatEvent";
