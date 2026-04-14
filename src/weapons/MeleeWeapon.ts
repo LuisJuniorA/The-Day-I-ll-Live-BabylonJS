@@ -1,4 +1,10 @@
-import { Color3, MeshBuilder, Scene, Vector3 } from "@babylonjs/core";
+import {
+    Color3,
+    MeshBuilder,
+    Quaternion,
+    Scene,
+    Vector3,
+} from "@babylonjs/core";
 import { Weapon } from "../core/abstracts/Weapon";
 import { Character } from "../core/abstracts/Character";
 import { OnEntityDamaged } from "../core/interfaces/CombatEvent";
@@ -44,10 +50,9 @@ export abstract class MeleeWeapon extends Weapon {
 
     private findTargetsInHitbox(owner: Character): Character[] {
         const range = this.stats.range;
-        const hitTargets: any[] = []; // Stocke les entités touchées pour éviter les doublons
+        const hitTargets: any[] = [];
         const debug = DebugService.getInstance();
 
-        // 1. Récupération du container d'entités
         const container =
             this.scene.getTransformNodeByName("ENTITIES_CONTAINER");
         if (!container) {
@@ -55,27 +60,39 @@ export abstract class MeleeWeapon extends Weapon {
             return [];
         }
 
-        // 2. Calcul du positionnement de la hitbox (Devant le joueur)
+        // 1. Récupération de la matrice monde pour une précision absolue
+        const worldMatrix = owner.transform.getWorldMatrix();
         const forward = Vector3.TransformNormal(
-            new Vector3(0, 0, 1),
-            owner.transform.getWorldMatrix(),
-        );
-        const boxPos = owner.transform.position.add(forward.scale(range / 2));
-        const boxRot = owner.transform.rotationQuaternion?.clone() ?? null;
+            new Vector3(1, 0, 0),
+            worldMatrix,
+        ).normalize();
 
-        // 3. Création du volume de détection (Mesh invisible)
+        // 2. Calcul du positionnement (La correction de l'offset est ici)
+        // On repousse le centre pour que le bord arrière démarre 0.5 unité derrière le joueur
+        const permissiveOffset = 0.5;
+        const centerOffset = range / 2 + permissiveOffset;
+        const boxPos = owner.transform.position.add(
+            forward.scale(centerOffset),
+        );
+
+        // 3. Extraction de la rotation 100% fiable depuis la matrice
+        const boxRot = Quaternion.FromRotationMatrix(
+            worldMatrix.getRotationMatrix(),
+        );
+
+        // 4. Création du volume de détection
         const hitbox = MeshBuilder.CreateBox(
             "temp_hitbox",
             {
                 width: range,
-                height: 2,
+                height: 3,
                 depth: range,
             },
             this.scene,
         );
 
         hitbox.position.copyFrom(boxPos);
-        hitbox.rotationQuaternion = boxRot;
+        hitbox.rotationQuaternion = boxRot; // On applique le quaternion parfait
         hitbox.isVisible = false;
         hitbox.isPickable = false;
         hitbox.computeWorldMatrix(true);
@@ -85,35 +102,28 @@ export abstract class MeleeWeapon extends Weapon {
             "player_attack",
             this.scene,
             boxPos,
-            { width: range, height: 2, depth: range },
-            boxRot,
+            { width: range, height: 3, depth: range },
+            boxRot, // Le debug tournera correctement avec le perso
             Color3.Red(),
         );
         setTimeout(() => debug.clear("player_attack"), 400);
 
-        // 4. Scan des meshes dans le container
-        // On récupère TOUS les meshes enfants (les morceaux des GLB, les corps des Slimes, etc.)
+        // 5. Scan des cibles
         const potentialMeshes = container.getChildMeshes(false);
 
         for (const mesh of potentialMeshes) {
-            // Ignorer le joueur et ses propres accessoires
             if (mesh === owner.mesh || mesh.isDescendantOf(owner.transform))
                 continue;
 
-            // Forcer la mise à jour des données physiques (crucial pour les Slimes et les anims GLB)
             mesh.computeWorldMatrix(true);
             mesh.refreshBoundingInfo({});
 
             if (hitbox.intersectsMesh(mesh, false)) {
-                // --- REMONTÉE HIÉRARCHIQUE ---
-                // On cherche le nœud parent qui est un enfant direct du ENTITIES_CONTAINER
-                // C'est ce nœud qui représente l'ID unique de l'ennemi.
                 let entityNode: any = mesh;
                 while (entityNode.parent && entityNode.parent !== container) {
                     entityNode = entityNode.parent;
                 }
 
-                // Si on a trouvé un nœud et qu'on ne l'a pas déjà frappé durant cette frame
                 if (
                     entityNode &&
                     entityNode !== container &&
@@ -123,15 +133,6 @@ export abstract class MeleeWeapon extends Weapon {
                         `💥 Impact confirmé sur: ${entityNode.id} (via mesh: ${mesh.name})`,
                     );
                     hitTargets.push(entityNode);
-
-                    // 5. Notification du système de combat
-                    OnEntityDamaged.notifyObservers({
-                        targetId: entityNode.id,
-                        attackerId: owner.id,
-                        amount: owner.stats.damage || 10,
-                        position: mesh.getAbsolutePosition().clone(),
-                        attackerFaction: owner.faction,
-                    });
 
                     // --- DEBUG IMPACT ---
                     debug.drawPoint(
@@ -148,7 +149,6 @@ export abstract class MeleeWeapon extends Weapon {
         // 6. Nettoyage
         hitbox.dispose();
 
-        // On retourne les instances de Character si tu en as besoin dans ton State
         return hitTargets;
     }
 }
