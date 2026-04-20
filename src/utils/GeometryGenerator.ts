@@ -1,130 +1,75 @@
 import {
-    MeshBuilder,
     Scene,
-    Vector3,
-    AssetContainer,
+    MeshBuilder,
     StandardMaterial,
     Color3,
+    AssetContainer,
+    Mesh,
 } from "@babylonjs/core";
+import { type Cell, CellType } from "./RandomUtils";
 import { CollisionLayers } from "../core/constants/CollisionLayers";
-import { RoomType } from "../core/types/RoomType";
-import type { RoomData } from "../core/interfaces/RoomData";
 
 export class GeometryGenerator {
-    public static CreateRoomContainer(
+    public static CreateWorldContainer(
         scene: Scene,
-        data: RoomData,
+        grid: Cell[][],
+        blockSize: number,
     ): AssetContainer {
         const container = new AssetContainer(scene);
-        const pos = new Vector3(
-            data.position.x,
-            data.position.y,
-            data.position.z,
-        );
-        const size = new Vector3(data.size.x, data.size.y, data.size.z);
+        const meshesToMerge: Mesh[] = [];
 
-        // 1. Coquille
-        this._buildShell(scene, size, container);
+        // 1. Créer le matériau
+        const wallMat = new StandardMaterial("wallMat", scene);
+        wallMat.diffuseColor = new Color3(0.3, 0.3, 0.3);
+        wallMat.freeze(); // Optimisation : empêche le recalcul du matériau
 
-        // 2. Parkour Dynamique
-        if (size.y > 20) {
-            this._buildVerticalTower(scene, size, container);
-        } else {
-            this._buildHorizontalParkour(scene, size, container);
+        // 2. Créer chaque bloc comme une mesh simple (pas une instance ici)
+        for (let x = 0; x < grid.length; x++) {
+            for (let y = 0; y < grid[x].length; y++) {
+                if (grid[x][y].type === CellType.WALL) {
+                    const box = MeshBuilder.CreateBox(
+                        `w${x}_${y}`,
+                        { size: blockSize },
+                        scene,
+                    );
+                    box.position.set(
+                        x * blockSize,
+                        y * blockSize,
+                        blockSize / 2,
+                    );
+                    meshesToMerge.push(box);
+                }
+            }
         }
 
-        // 3. Décorations
-        this._buildDecorations(scene, data.type, size, container);
+        // 3. LA MAGIE : Fusionner toutes les meshes en une seule
+        if (meshesToMerge.length > 0) {
+            // MergeMeshes(tableau de meshes, disposeSource, allowMaterialOverlap, useOctree, useVertexData)
+            const worldMesh = Mesh.MergeMeshes(
+                meshesToMerge,
+                true,
+                true,
+                undefined,
+                false,
+                true,
+            );
 
-        // 4. Matériaux & Collisions
-        const mat = new StandardMaterial(`mat_${data.id}`, scene);
-        mat.diffuseColor = this._getRoomColor(data.type);
-        mat.specularColor = Color3.Black();
+            if (worldMesh) {
+                worldMesh.name = "WorldCollisionMesh";
+                worldMesh.material = wallMat;
 
-        container.meshes.forEach((m) => {
-            m.material = mat;
-            m.checkCollisions = true;
-            m.collisionGroup = CollisionLayers.ENVIRONMENT;
-            m.collisionMask = CollisionLayers.ALL;
-            if (!m.parent) m.position.addInPlace(pos);
-        });
+                // On active la collision SEULEMENT sur cette grosse mesh fusionnée
+                worldMesh.checkCollisions = true;
+                worldMesh.collisionGroup = CollisionLayers.ENVIRONMENT;
+                worldMesh.collisionMask = CollisionLayers.ALL;
+
+                // Optimisation ultime : geler la mesh car elle ne bougera jamais
+                worldMesh.freezeWorldMatrix();
+
+                container.meshes.push(worldMesh);
+            }
+        }
 
         return container;
-    }
-
-    private static _buildShell(
-        scene: Scene,
-        size: Vector3,
-        container: AssetContainer,
-    ): void {
-        const ground = MeshBuilder.CreateBox(
-            "ground",
-            { width: size.x, height: 4, depth: size.z },
-            scene,
-        );
-        ground.position.y = -2;
-        const wall = MeshBuilder.CreateBox(
-            "back",
-            { width: size.x, height: size.y + 20, depth: 1 },
-            scene,
-        );
-        wall.position.z = size.z / 2 + 1;
-        wall.position.y = size.y / 2;
-        container.meshes.push(ground, wall);
-    }
-
-    private static _buildVerticalTower(
-        scene: Scene,
-        size: Vector3,
-        container: AssetContainer,
-    ): void {
-        for (let i = 1; i < size.y / 6; i++) {
-            const side = i % 2 === 0 ? 1 : -1;
-            const p = MeshBuilder.CreateBox(
-                "plat",
-                { width: 15, height: 1, depth: 6 },
-                scene,
-            );
-            p.position.set((size.x / 4) * side, i * 6, 0);
-            container.meshes.push(p);
-        }
-    }
-
-    private static _buildHorizontalParkour(
-        scene: Scene,
-        _size: Vector3,
-        container: AssetContainer,
-    ): void {
-        for (let i = 0; i < 2; i++) {
-            const p = MeshBuilder.CreateBox(
-                "plat",
-                { width: 6, height: 0.8, depth: 6 },
-                scene,
-            );
-            p.position.set((Math.random() - 0.5) * 20, 5, 0);
-            container.meshes.push(p);
-        }
-    }
-
-    private static _buildDecorations(
-        scene: Scene,
-        type: RoomType,
-        _size: Vector3,
-        container: AssetContainer,
-    ): void {
-        if (type === RoomType.VILLAGE) {
-            const house = MeshBuilder.CreateBox("house", { size: 6 }, scene);
-            house.position.set(0, 3, 2);
-            container.meshes.push(house);
-        }
-    }
-
-    private static _getRoomColor(type: RoomType): Color3 {
-        const colors = {
-            [RoomType.START]: new Color3(0.2, 0.2, 0.4),
-            [RoomType.BOSS]: new Color3(0.5, 0.1, 0.1),
-            [RoomType.VILLAGE]: new Color3(0.1, 0.4, 0.1),
-        };
-        return (colors as any)[type] || new Color3(0.2, 0.2, 0.2);
     }
 }
