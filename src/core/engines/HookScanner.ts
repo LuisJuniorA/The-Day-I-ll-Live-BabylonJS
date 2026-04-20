@@ -14,8 +14,6 @@ export class HookScanner {
     private static readonly MIN_DISTANCE = 1.5;
     private static readonly SLIME_SAFETY_OFFSET = 0.8;
 
-    // Références réutilisées pour limiter le Garbage Collector
-    private static readonly _TempVec = new Vector3();
     private static readonly _RayOrigin = new Vector3();
 
     public static getBestPoint(
