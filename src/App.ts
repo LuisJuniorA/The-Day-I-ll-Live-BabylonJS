@@ -5,9 +5,6 @@ import {
     HemisphericLight,
     Color3,
     UniversalCamera,
-    MeshBuilder,
-    StandardMaterial,
-    TransformNode,
 } from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
@@ -15,13 +12,13 @@ import "@babylonjs/loaders/glTF";
 import { Player } from "./entities/Player";
 import { LevelManager } from "./managers/LevelManager";
 import { EntityManager } from "./managers/EntityManager";
-import { WorldZones } from "./scenes/WorldData";
 import { GameStateManager } from "./managers/GameStateManager";
 import { UIManager } from "./managers/UIManager";
-import { GameState } from "./core/types/GameState";
-import { CollisionLayers } from "./core/constants/CollisionLayers";
-import { EntityFactory } from "./factories/EntityFactory";
 import { WeaponManager } from "./managers/WeaponManager";
+import { WorldEngine } from "./core/engines/WorldEngine"; // Ton nouveau moteur
+import { GameState } from "./core/types/GameState";
+import { WeaponSlot } from "./core/types/WeaponTypes";
+import { EntityFactory } from "./factories/EntityFactory";
 
 export class App {
     private readonly engine: Engine;
@@ -33,10 +30,13 @@ export class App {
     private readonly uiManager: UIManager;
     private readonly levelManager: LevelManager;
     private readonly entityManager: EntityManager;
+    private readonly weaponManager: WeaponManager;
+
+    // Core Engine
+    private worldEngine!: WorldEngine;
 
     private menuCamera!: UniversalCamera;
     private player!: Player;
-    private weaponManager: WeaponManager;
 
     constructor() {
         // 1. Initialisation de base
@@ -45,38 +45,68 @@ export class App {
         this.scene = new Scene(this.engine);
         EntityFactory.setScene(this.scene);
 
-        // --- FIX DU SKIP D'ANIMATION ---
-        // On dit à la scène de ne pas utiliser le temps système pour les animations
-        // mais d'attendre qu'on lui donne manuellement le delta (via render)
         this.scene.useConstantAnimationDeltaTime = true;
 
-        // 2. Gestionnaires de logique
+        // 2. Initialisation des gestionnaires
         this.gameStateManager = new GameStateManager();
         this.uiManager = new UIManager(this.scene, this.gameStateManager);
         this.entityManager = new EntityManager(this.scene);
         this.levelManager = new LevelManager(this.scene);
         this.weaponManager = new WeaponManager(this.scene);
 
-        // 3. Configuration du Monde et Physique
+        // 3. Configuration du Moteur du Monde (Le lien Core <-> App)
+        this.setupWorldEngine();
+
+        // 4. Physique et Monde
         this.scene.collisionsEnabled = true;
         this.scene.gravity = new Vector3(0, -9.81, 0);
 
-        // 4. Initialisation du Joueur et des Entrées
         this.setupInputs();
-
-        // 5. Environnement et Lancement
         this.createDefaultLight();
         this.setupInspectorToggle();
-        this.initWorld();
+
         this.initMenu();
         this.startRenderLoop();
+    }
+
+    /**
+     * Configure le WorldEngine avec les délégués pour piloter les managers
+     * sans que le Core ne dépende d'eux.
+     */
+    private setupWorldEngine(): void {
+        this.worldEngine = new WorldEngine({
+            onRoomVisible: (room) => {
+                // 1. Affichage du décor
+                this.levelManager.showProceduralRoom(room);
+
+                // 2. Spawn des ennemis
+                room.enemies.forEach((spawn) => {
+                    const roomPos = new Vector3(
+                        room.position.x,
+                        room.position.y,
+                        room.position.z,
+                    );
+                    const spawnOffset = new Vector3(
+                        spawn.position.x,
+                        spawn.position.y,
+                        spawn.position.z,
+                    );
+
+                    const absolutePos = roomPos.add(spawnOffset);
+
+                    this.entityManager.spawn(spawn.type, absolutePos);
+                });
+            },
+            onRoomHidden: (roomId) => {
+                this.levelManager.hideZone(roomId);
+            },
+        });
     }
 
     private spawnPlayer(): void {
         this.player = new Player(this.scene, new Vector3(0, 5, 0));
 
         this.player.onDeath = () => {
-            console.log("GAME OVER");
             this.gameStateManager.setGameOver();
         };
 
@@ -86,83 +116,6 @@ export class App {
 
         this.entityManager.setPlayerTarget(this.player.transform);
         this.entityManager.add(this.player);
-    }
-
-    private async spawnTest(): Promise<void> {
-        try {
-            /// --- CONFIGURATION ---
-            const tileSize = 4;
-            const depth = 2; // Épaisseur des blocs sur l'axe Z (pour que les rayons touchent bien)
-
-            // 1 = Mur, 0 = Passage
-            // On le lit de haut en bas
-            const mapData = [
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-                [1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
-                [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-                [1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
-                [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-                [1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1],
-                [1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-                [1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1],
-                [1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1],
-                [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            ];
-            const laby = new TransformNode("laby", this.scene);
-            laby.position = new Vector3(-5, -5, 0);
-            const wallMat = new StandardMaterial("wallMat", this.scene);
-            wallMat.diffuseColor = new Color3(0.3, 0.5, 0.8);
-
-            // Inversion pour que l'index 0 du tableau soit en HAUT (Y positif)
-            const heightOffset = (mapData.length - 1) * tileSize;
-
-            mapData.forEach((row, rowIndex) => {
-                row.forEach((cell, x) => {
-                    if (cell === 1) {
-                        const posX = x * tileSize;
-                        const posY = heightOffset - rowIndex * tileSize; // On descend en Y
-
-                        const wall = MeshBuilder.CreateBox(
-                            `wall_${x}_${rowIndex}`,
-                            {
-                                width: tileSize,
-                                height: tileSize,
-                                depth: depth,
-                            },
-                            this.scene,
-                        );
-
-                        wall.position = new Vector3(posX, posY, 0); // Tout sur Z = 0
-                        wall.material = wallMat;
-
-                        // Physique / Scan
-                        wall.checkCollisions = true;
-                        wall.collisionGroup = CollisionLayers.ENVIRONMENT;
-                        wall.parent = laby;
-                    }
-                });
-            });
-
-            // --- SPAWN DES ENTITÉS ---
-            // On spawn le slime un peu en dessous pour qu'il "voit" la plateforme au dessus
-            await this.entityManager.spawn(
-                "VILLAGER_BOB",
-                new Vector3(0, 1, 0),
-            );
-
-            await this.entityManager.spawn("effroi", new Vector3(5, 1, 0));
-
-            // Le Slime spawn à (0, 1, 0), juste sous la plateforme qui est à 10
-            await this.entityManager.spawn("slime", new Vector3(0, 1, 0));
-
-            console.log(
-                "Spawn de test terminé. Plateforme de Hook créée à Y=10.",
-            );
-        } catch (e) {
-            console.error("Erreur lors du spawn de test :", e);
-        }
     }
 
     private setupInputs(): void {
@@ -176,28 +129,21 @@ export class App {
         });
 
         this.gameStateManager.onStateChangedObservable.add((state) => {
-            const canvas = this.canvas;
-
             if (state === GameState.PLAYING) {
-                canvas.requestPointerLock();
-            } else {
-                // On libère le curseur pour le MENU, PAUSE et DIALOGUE
-                if (document.pointerLockElement === canvas) {
-                    document.exitPointerLock();
-                }
+                this.canvas.requestPointerLock();
+            } else if (document.pointerLockElement === this.canvas) {
+                document.exitPointerLock();
             }
         });
 
         this.uiManager.mainMenuView.onResumeObservable.add(async () => {
             if (!this.player) {
+                // Initialisation du joueur et de ses armes
                 this.spawnPlayer();
-                await this.weaponManager.equipWeapon(
-                    this.player,
-                    "knight_sword",
-                    "hand.R",
-                );
+                await this.setupInitialWeapons();
 
-                await this.spawnTest();
+                // Initialisation du monde via le WorldEngine
+                await this.worldEngine.init();
             }
             this.gameStateManager.setPlaying();
         });
@@ -207,19 +153,18 @@ export class App {
         });
     }
 
-    private initMenu(): void {
-        this.menuCamera = new UniversalCamera(
-            "menuCam",
-            new Vector3(0, 10, -20),
-            this.scene,
-        );
-        this.menuCamera.setTarget(new Vector3(0, 5, 0));
-        this.scene.activeCamera = this.menuCamera;
+    private async setupInitialWeapons(): Promise<void> {
+        const weapons = [
+            { slot: WeaponSlot.SWORD, id: "knight_sword" },
+            { slot: WeaponSlot.DAGGER, id: "butcher_dagger" },
+            { slot: WeaponSlot.GREATSWORD, id: "great_imperial_sword" },
+        ];
+
+        for (const w of weapons) {
+            await this.weaponManager.setSlotWeapon(this.player, w.slot, w.id);
+        }
     }
 
-    /**
-     * Boucle de rendu principale avec gestion du temps figé
-     */
     private startRenderLoop(): void {
         this.engine.runRenderLoop(() => {
             const dt = this.engine.getDeltaTime() / 1000;
@@ -233,23 +178,14 @@ export class App {
                 case GameState.PLAYING:
                     this.scene.animationsEnabled = true;
                     this.entityManager.update(dt);
+
                     if (this.player) {
                         if (this.player.stats.hp <= 0 || this.player.isDead) {
                             this.gameStateManager.setGameOver();
                         }
-                        this.levelManager.update(this.player.position, 100);
+                        // Mise à jour du WorldEngine (Streaming de la map + IA)
+                        this.worldEngine.update(this.player.position, 60);
                     }
-                    this.scene.render();
-                    break;
-
-                case GameState.DIALOGUE:
-                    // Logique UI
-                    this.uiManager.update(dt);
-                    // On permet au joueur de tourner la caméra ou d'interagir
-                    if (this.player) this.player.updateInput(dt);
-
-                    // PLUS DE CHECK "isVisible" ICI.
-                    // L'UIManager s'en occupe via l'observable.
 
                     this.scene.render();
                     break;
@@ -258,19 +194,28 @@ export class App {
                     this.scene.animationsEnabled = false;
                     this.scene.render(true);
                     break;
+
+                case GameState.DIALOGUE:
+                    this.uiManager.update(dt);
+                    if (this.player) this.player.updateInput(dt);
+                    this.scene.render();
+                    break;
             }
         });
 
         window.addEventListener("resize", () => this.engine.resize());
     }
 
-    private async initWorld(): Promise<void> {
-        try {
-            await this.levelManager.loadWorld(WorldZones);
-            console.log("Monde chargé !");
-        } catch (error) {
-            console.error("Erreur de chargement :", error);
-        }
+    // --- Helpers de setup ---
+
+    private initMenu(): void {
+        this.menuCamera = new UniversalCamera(
+            "menuCam",
+            new Vector3(0, 10, -20),
+            this.scene,
+        );
+        this.menuCamera.setTarget(new Vector3(0, 5, 0));
+        this.scene.activeCamera = this.menuCamera;
     }
 
     private createCanvas(): HTMLCanvasElement {
@@ -280,7 +225,6 @@ export class App {
             width: "100vw",
             height: "100vh",
             display: "block",
-            outline: "none",
             position: "fixed",
             top: "0",
             left: "0",

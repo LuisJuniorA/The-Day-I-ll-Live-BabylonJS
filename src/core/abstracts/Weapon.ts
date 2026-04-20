@@ -1,4 +1,5 @@
 import { AbstractMesh, Scene } from "@babylonjs/core";
+import type { WeaponSlot } from "../types/WeaponStats";
 import type { WeaponData } from "../types/WeaponStats";
 import { Character } from "./Character";
 
@@ -6,6 +7,7 @@ export abstract class Weapon {
     public mesh?: AbstractMesh;
     public readonly data: WeaponData; // Stockage centralisé des données
     public name: string;
+    public slot: WeaponSlot | null = null; // Quel slot cette arme occupe
     protected scene: Scene;
 
     // Getter pour un accès rapide aux stats de combat

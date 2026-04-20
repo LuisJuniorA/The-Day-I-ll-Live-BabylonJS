@@ -4,6 +4,7 @@ import { ProximitySystem } from "../core/engines/ProximitySystem";
 import { isInteractableEntity } from "../core/interfaces/Interactable";
 import { EntityFactory } from "../factories/EntityFactory";
 import { isPerceivableEntity } from "../core/interfaces/Perceivable";
+import type { Character } from "../core/abstracts/Character";
 
 export class EntityManager {
     private _entities: Map<string, Entity> = new Map();
@@ -101,8 +102,11 @@ export class EntityManager {
         this._proximitySystem.update(dt);
 
         // 2. Mise à jour de la logique interne (FSM, etc.)
-        for (const entity of this._entities.values()) {
+        for (const [id, entity] of this._entities.entries()) {
             entity.update(dt);
+            if ((entity as Character).isDead) {
+                this._toRemove.add(id);
+            }
         }
 
         // 3. Nettoyage des entités supprimées

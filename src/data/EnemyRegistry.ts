@@ -1,7 +1,7 @@
-import { Enemy } from "../core/abstracts/Enemy";
 import { Effroi } from "../entities/enemies/Effroi";
+import { Slime } from "../entities/enemies/Slime";
 
 export const ENEMY_REGISTRY: Record<string, any> = {
-    enemy: Enemy,
+    slime: Slime,
     effroi: Effroi,
 };

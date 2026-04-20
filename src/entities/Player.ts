@@ -5,12 +5,18 @@ import {
     UniversalCamera,
     Skeleton,
     Bone,
+    PointLight,
+    AbstractMesh,
+    ParticleSystem,
+    Texture,
+    Color3,
+    Color4,
 } from "@babylonjs/core";
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
 import { InputHandler } from "../core/engines/InputHandler";
 import { PlayerMoveState } from "../states/player/PlayerMoveState";
-import { PlayerCombatIdleState } from "../states/player/PlayerCombatIdleState"; // Nouvel état
+import { PlayerCombatIdleState } from "../states/player/PlayerCombatIdleState";
 import { InputBufferManager } from "../managers/InputBufferManager";
 import {
     OnInteractionAvailable,
@@ -19,32 +25,42 @@ import {
 import { CollisionLayers } from "../core/constants/CollisionLayers";
 import {
     OnHealthChanged,
+    OnRequestWeaponEquip,
     OnWeaponChanged,
 } from "../core/interfaces/CombatEvent";
 import { Faction } from "../core/types/Faction";
 import { Weapon } from "../core/abstracts/Weapon";
-import { WeaponFactory } from "../factories/WeaponFactory"; // Ta nouvelle factory
+import { WeaponSlot } from "../core/types/WeaponTypes";
 
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
     public readonly input: InputHandler;
     public readonly movementFSM: FSM<Player>;
     public readonly attackFSM: FSM<Player>;
+    public readonly buffer: InputBufferManager = new InputBufferManager();
 
     private _targetInteractable: Interactable | null = null;
     public currentWeapon: Weapon | null = null;
-
-    // --- Stats & Combat ---
     private _invulnerabilityTimer: number = 0;
     private readonly I_FRAME_DURATION: number = 0.6;
 
-    // --- Paramètres de mouvement ---
+    private _visualPivot: AbstractMesh | null = null;
+    private _soulParticles: ParticleSystem | null = null;
+    private _pointLight: PointLight | null = null;
+    private _timeCounter: number = 0;
+    private readonly FLOAT_AMPLITUDE: number = 0.1;
+    private readonly FLOAT_SPEED: number = 2.5;
+
+    private _currentSlots: Record<WeaponSlot, string | null> = {
+        [WeaponSlot.DAGGER]: null,
+        [WeaponSlot.SWORD]: null,
+        [WeaponSlot.GREATSWORD]: null,
+    };
+    private _nextSlotIndex: number = 0;
+
     public readonly speed: number = 12;
     public readonly gravity: number = -0.9;
     public readonly jumpForce: number = 21;
-
-    // --- Coyote & Buffer ---
-    public readonly buffer: InputBufferManager = new InputBufferManager();
     public coyoteTimeCounter: number = 0;
     private readonly coyoteTimeDuration: number = 0.2;
 
@@ -55,35 +71,25 @@ export class Player extends Character {
             { hp: 100, maxHp: 100, speed: 12, damage: 10 },
             Faction.PLAYER,
         );
-
-        this._setupPhysics(startPosition);
-
-        // Caméra
+        this._initPlayer(startPosition);
         this._camera = new UniversalCamera(
             "playerCamera",
             new Vector3(0, 0, -15),
             scene,
         );
         this._scene.activeCamera = this._camera;
-
-        // Systèmes
         this.input = new InputHandler(scene);
         this.movementFSM = new FSM<Player>(this);
         this.attackFSM = new FSM<Player>(this);
-
         this._initObservers();
-
-        // Initialisation des états par défaut
         this.movementFSM.transitionTo(new PlayerMoveState());
         this.attackFSM.transitionTo(new PlayerCombatIdleState());
-
-        OnWeaponChanged.add((event) => (this.currentWeapon = event.weapon));
     }
 
-    private _setupPhysics(startPosition: Vector3): void {
+    private _initPlayer(startPosition: Vector3): void {
         this.transform.position.copyFrom(startPosition);
 
-        // 1. Le corps (Capsule)
+        // 1. Collider
         this.mesh = MeshBuilder.CreateCapsule(
             "player_collider",
             { height: 2, radius: 0.5 },
@@ -92,55 +98,137 @@ export class Player extends Character {
         this.mesh.parent = this.transform;
         this.mesh.position.setAll(0);
         this.mesh.checkCollisions = true;
-        this.mesh.isPickable = false;
+        this.mesh.visibility = 0;
         this.mesh.collisionMask = CollisionLayers.ENVIRONMENT;
         this.mesh.collisionGroup = CollisionLayers.PLAYER;
         this.mesh.ellipsoid = new Vector3(0.45, 0.9, 0.45);
 
-        // 2. Création d'un squelette factice pour le "AttachToBone"
-        // On crée un squelette nommé "player_skeleton"
+        // 2. Pivot Visuel (L'âme)
+        this._visualPivot = MeshBuilder.CreateBox(
+            "visual_pivot",
+            { size: 0.1 },
+            this._scene,
+        );
+        this._visualPivot.parent = this.mesh;
+        this._visualPivot.position.y = 0.5;
+        this._visualPivot.isVisible = false;
+
+        // 3. Système d'Âme
+        const ps = new ParticleSystem("soulParticles", 400, this._scene);
+        this._soulParticles = ps;
+        ps.particleTexture = new Texture(
+            "https://www.babylonjs-live.com/assets/flare.png",
+            this._scene,
+        );
+        ps.emitter = this._visualPivot;
+        ps.isLocal = true;
+        ps.minSize = 1;
+        ps.maxSize = 1;
+        ps.minScaleX = 1.0;
+        ps.maxScaleX = 1.0;
+        ps.minScaleY = 1.0;
+        ps.maxScaleY = 1.0;
+        ps.minEmitBox = new Vector3(-0.01, -0.01, -0.01);
+        ps.maxEmitBox = new Vector3(0.01, 0.01, 0.01);
+        ps.color1 = new Color4(0, 1, 0, 1);
+        ps.color2 = new Color4(0.1, 1, 0.1, 0.8);
+        ps.minInitialRotation = -Math.PI;
+        ps.maxInitialRotation = Math.PI;
+        ps.minAngularSpeed = -0.5;
+        ps.maxAngularSpeed = 0.5;
+        ps.minLifeTime = 0.5;
+        ps.maxLifeTime = 1;
+        ps.emitRate = 150;
+        ps.updateSpeed = 0.01;
+        ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+        ps.start();
+
+        // 4. Lumière décalée (Z = -4 pour éclairer la map de face)
+        // On la parente au Transform (racine) pour qu'elle ne subisse pas les rotations du Mesh/Pivot
+        this._pointLight = new PointLight(
+            "player_light",
+            new Vector3(0, 0.5, -4),
+            this._scene,
+        );
+        this._pointLight.parent = this.transform;
+        this._pointLight.diffuse = new Color3(1.0, 0.95, 0.4);
+        this._pointLight.intensity = 0.7;
+        this._pointLight.range = 15;
+
+        // 5. Squelette
         const skeleton = new Skeleton(
             "player_skeleton",
-            "skeleton_id_01",
+            "skel_01",
             this._scene,
         );
-
-        // On crée un os pour la main droite (là où l'arme s'attachera)
-        // Positionné à environ 0.6 sur le côté et 0.2 en hauteur
         const boneHandR = new Bone("RightHand", skeleton, null);
-        boneHandR.setPosition(new Vector3(0.6, 0.2, 0));
-
-        // On lie le squelette au mesh principal
+        boneHandR.setPosition(new Vector3(0.5, 0, 0));
         this.mesh.skeleton = skeleton;
-
-        // 3. Visualisation du bras (Optionnel, juste pour voir où est l'arme)
-        const armVisual = MeshBuilder.CreateBox(
-            "arm_visual",
-            { size: 0.2, width: 0.5 },
-            this._scene,
-        );
-        armVisual.parent = this.mesh;
-        armVisual.position.set(0.4, 0.2, 0); // Aligné avec l'os
-        armVisual.isPickable = false;
     }
 
-    /**
-     * Change l'arme du joueur dynamiquement
-     * @param weaponId L'ID provenant de ton JSON (ex: "iron_dagger")
-     */
-    public async equipWeapon(weaponId: string): Promise<void> {
-        // 1. Nettoyage de l'ancienne arme
-        if (this.currentWeapon) {
-            this.currentWeapon.mesh?.dispose();
+    public update(dt: number): void {
+        if (this.isDead) return;
+        this._timeCounter += dt;
+        this._updateIFrames(dt);
+        this.updateInput(dt);
+        this.checkGrounded();
+        this.coyoteTimeCounter = this.isGrounded
+            ? this.coyoteTimeDuration
+            : this.coyoteTimeCounter - dt;
+        this.movementFSM.update(dt);
+        this.attackFSM.update(dt);
+
+        // Oscillation de l'âme
+        if (this._visualPivot) {
+            const oscillation = Math.sin(this._timeCounter * this.FLOAT_SPEED);
+            this._visualPivot.position.y =
+                0.5 + oscillation * this.FLOAT_AMPLITUDE;
+
+            if (this._pointLight) {
+                const oscillation = Math.sin(
+                    this._timeCounter * this.FLOAT_SPEED,
+                );
+                const yOffset = 0.5 + oscillation * this.FLOAT_AMPLITUDE;
+                const isFacingLeft =
+                    Math.abs(this.transform.rotation.y) > Math.PI / 2;
+                this._pointLight.position.set(
+                    0,
+                    0 + yOffset,
+                    isFacingLeft ? 4 : -12,
+                );
+            }
         }
 
-        // 2. Création via Factory (Data-Driven)
-        const newWeapon = WeaponFactory.createWeapon(weaponId, this._scene);
-        if (newWeapon) {
-            this.currentWeapon = newWeapon;
-            await this.currentWeapon.loadVisuals();
-            this.currentWeapon.attachToCharacter(this, "RightHand"); // Nom de l'os du squelette
+        this._updateCamera();
+        this.transform.position.z = 0;
+        this.velocity.z = 0;
+    }
+
+    // ... (reste des méthodes switchWeapon, takeDamage, etc. inchangées)
+
+    public setWeaponSlot(slot: WeaponSlot, weaponId: string | null): void {
+        this._currentSlots[slot] = weaponId;
+        if (this.currentWeapon?.slot === slot) {
+            if (weaponId) this.requestVisualWeapon(weaponId);
+            else {
+                this.currentWeapon?.mesh?.dispose();
+                this.currentWeapon = null;
+            }
         }
+    }
+
+    public switchWeapon(): void {
+        const equippedSlots = Object.values(WeaponSlot).filter(
+            (s): s is WeaponSlot => this._currentSlots[s] !== null,
+        );
+        if (equippedSlots.length < 2) return;
+        this._nextSlotIndex = (this._nextSlotIndex + 1) % equippedSlots.length;
+        const nextId = this._currentSlots[equippedSlots[this._nextSlotIndex]];
+        if (nextId) this.requestVisualWeapon(nextId);
+    }
+
+    private requestVisualWeapon(weaponId: string): void {
+        OnRequestWeaponEquip.notifyObservers({ character: this, weaponId });
     }
 
     private _initObservers(): void {
@@ -149,14 +237,31 @@ export class Player extends Character {
             else if (this._targetInteractable === event.interactable)
                 this._targetInteractable = null;
         });
+        OnWeaponChanged.add((event) => {
+            this.currentWeapon = event.weapon;
+        });
+    }
+
+    public updateInput(dt: number): void {
+        this.input.update();
+        this.buffer.update(dt);
+        if (this.input.isJumping) this.buffer.trigger("jump");
+        if (this.input.isAttacking) this.buffer.trigger("attack");
+        if (this.input.isSwitchingWeapon) {
+            this.switchWeapon();
+            this.input.isSwitchingWeapon = false;
+        }
+        if (this.input.isInteracting && this._targetInteractable) {
+            this._targetInteractable.onInteract();
+            this.input.isInteracting = false;
+        }
     }
 
     public takeDamage(amount: number): void {
         if (this._invulnerabilityTimer > 0 || this.isDead) return;
         super.takeDamage(amount);
         this._invulnerabilityTimer = this.I_FRAME_DURATION;
-        if (this.mesh) this.mesh.visibility = 0.5;
-
+        if (this._pointLight) this._pointLight.intensity = 0.2;
         OnHealthChanged.notifyObservers({
             currentHp: this.stats.hp,
             maxHp: this.stats.maxHp,
@@ -164,45 +269,11 @@ export class Player extends Character {
         });
     }
 
-    public updateInput(dt: number) {
-        this.input.update();
-        this.buffer.update(dt);
-
-        if (this.input.isJumping) this.buffer.trigger("jump");
-        if (this.input.isAttacking) this.buffer.trigger("attack");
-
-        if (this.input.isInteracting && this._targetInteractable) {
-            this._targetInteractable.onInteract();
-            this.input.isInteracting = false;
-        }
-    }
-
-    public update(dt: number): void {
-        if (this.isDead) return;
-        this._updateIFrames(dt);
-        this.updateInput(dt);
-
-        this.checkGrounded();
-        this.coyoteTimeCounter = this.isGrounded
-            ? this.coyoteTimeDuration
-            : this.coyoteTimeCounter - dt;
-
-        // Updates des deux FSM
-        this.movementFSM.update(dt);
-        this.attackFSM.update(dt);
-
-        this._updateCamera();
-
-        // Lock sur l'axe Z pour un gameplay 2.5D
-        this.transform.position.z = 0;
-        this.velocity.z = 0;
-    }
-
     private _updateIFrames(dt: number): void {
         if (this._invulnerabilityTimer > 0) {
             this._invulnerabilityTimer -= dt;
-            if (this._invulnerabilityTimer <= 0 && this.mesh) {
-                this.mesh.visibility = 1.0;
+            if (this._invulnerabilityTimer <= 0 && this._pointLight) {
+                this._pointLight.intensity = 0.7;
             }
         }
     }
@@ -221,9 +292,16 @@ export class Player extends Character {
         this._camera.setTarget(
             new Vector3(
                 this.transform.position.x,
-                this.transform.position.y + 2,
+                this.transform.position.y + 1,
                 0,
             ),
         );
+    }
+
+    public dispose(): void {
+        if (this._soulParticles) this._soulParticles.dispose();
+        if (this._pointLight) this._pointLight.dispose();
+        if (this._visualPivot) this._visualPivot.dispose();
+        super.dispose();
     }
 }

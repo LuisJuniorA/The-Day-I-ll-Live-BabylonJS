@@ -2,6 +2,7 @@ import { Observable, Vector3 } from "@babylonjs/core";
 import type { FactionType } from "../types/Faction";
 import type { PlayerReactionAnim, StatusType } from "../types/StatusEffects";
 import type { Weapon } from "../abstracts/Weapon";
+import type { Character } from "../abstracts/Character";
 
 export interface DamageEvent {
     targetId: string; // Qui on touche
@@ -28,6 +29,13 @@ export interface HealthChangedEvent {
 export interface WeaponChangedEvent {
     weapon: Weapon;
 }
+
+export interface WeaponRequestEvent {
+    character: Character;
+    weaponId: string;
+}
+
+export const OnRequestWeaponEquip = new Observable<WeaponRequestEvent>();
 
 export const OnHealthChanged = new Observable<HealthChangedEvent>();
 export const OnEntityDamaged = new Observable<DamageEvent>();
