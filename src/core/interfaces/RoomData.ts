@@ -1,15 +1,20 @@
-import { Vector3 } from "@babylonjs/core";
 import { RoomType } from "../types/RoomType";
 
-export interface RoomData {
-    id: string;
-    type: RoomType;
-    position: Vector3;
-    size: Vector3;
-    enemies: EnemySpawnData[];
+export interface IVector3 {
+    x: number;
+    y: number;
+    z: number;
 }
 
 export interface EnemySpawnData {
     type: string;
-    position: { x: number; y: number; z: number };
+    position: IVector3;
+}
+
+export interface RoomData {
+    id: string;
+    type: RoomType;
+    position: IVector3;
+    size: IVector3;
+    enemies: EnemySpawnData[];
 }
