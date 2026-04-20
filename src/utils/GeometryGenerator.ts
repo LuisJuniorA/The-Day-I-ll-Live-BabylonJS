@@ -92,7 +92,7 @@ export class GeometryGenerator {
 
     private static _buildHorizontalParkour(
         scene: Scene,
-        size: Vector3,
+        _size: Vector3,
         container: AssetContainer,
     ): void {
         for (let i = 0; i < 2; i++) {
@@ -109,7 +109,7 @@ export class GeometryGenerator {
     private static _buildDecorations(
         scene: Scene,
         type: RoomType,
-        size: Vector3,
+        _size: Vector3,
         container: AssetContainer,
     ): void {
         if (type === RoomType.VILLAGE) {

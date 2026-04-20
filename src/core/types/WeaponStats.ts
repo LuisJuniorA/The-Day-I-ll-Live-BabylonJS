@@ -1,4 +1,4 @@
-import { WeaponSlot } from "./WeaponTypes";
+import type { WeaponSlot } from "./WeaponTypes";
 
 export type WeaponOwnerModifiers = {
     readonly speedBoost?: number; // Valeur ajoutée à la vitesse (ex: -2)
