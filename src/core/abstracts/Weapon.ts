@@ -1,5 +1,5 @@
 import { AbstractMesh, Scene } from "@babylonjs/core";
-import type { WeaponSlot } from "../types/WeaponStats";
+import type { WeaponSlot } from "../types/WeaponTypes";
 import type { WeaponData } from "../types/WeaponStats";
 import { Character } from "./Character";
 

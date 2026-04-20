@@ -1,4 +1,4 @@
-import { Vector3, Scalar, TransformNode, Color3 } from "@babylonjs/core";
+import { Vector3, Scalar, TransformNode, Color3, Ray } from "@babylonjs/core";
 import { Enemy } from "../../core/abstracts/Enemy";
 import { EnemyIdleState } from "./EnemyIdleState";
 import { EnemyAttackState } from "./EnemyAttackState";
@@ -6,9 +6,14 @@ import { EnemyAttackIdleState } from "./EnemyAttackIdleState";
 import { SteeringSystem } from "../../core/engines/SteeringSystem";
 import { DebugService } from "../../core/engines/DebugService";
 import { EnemyState } from "../../core/abstracts/EnemyState";
+import { CollisionLayers } from "../../core/constants/CollisionLayers";
 
 export class EnemyChaseState extends EnemyState {
     public readonly name = "ChaseState";
+
+    // Paramètres d'évitement
+    private readonly AVOIDANCE_RAY_LENGTH = 3.0;
+    private readonly AVOIDANCE_FORCE = 15.0;
 
     protected handleUpdate(owner: Enemy, dt: number): void {
         const target = owner.targetTransform;
@@ -23,25 +28,35 @@ export class EnemyChaseState extends EnemyState {
 
         const dist = Vector3.Distance(owner.position, target.position);
 
-        // --- 1. MOUVEMENT STEERING ---
+        // --- 1. CALCUL DES FORCES ---
         if (dist > owner.config.behavior.interactionRange) {
+            // Force pour aller vers le joueur
             const seekForce = SteeringSystem.seek(owner, target.position);
+
+            // Force pour éviter les autres ennemis
             const neighbors = owner.getNearbyNeighbors();
             const sepForce = SteeringSystem.separate(owner, neighbors, 10.0);
 
+            // --- NOUVEAU : Force d'évitement de murs ---
+            const avoidanceForce = this.calculateWallAvoidance(owner, scene);
+
+            // Combinaison des forces avec poids
             const steering = seekForce
                 .scale(owner.config.behavior.weights.seek)
-                .add(sepForce.scale(owner.config.behavior.weights.separation));
+                .add(sepForce.scale(owner.config.behavior.weights.separation))
+                .add(avoidanceForce); // Ajout de l'évitement
 
+            // Application à la vélocité
             owner.velocity.addInPlace(steering.scale(dt * 10));
 
+            // Limitation de vitesse
             if (owner.velocity.length() > owner.config.behavior.maxSpeed) {
                 owner.velocity
                     .normalize()
                     .scaleInPlace(owner.config.behavior.maxSpeed);
             }
 
-            // Debug visuel de la vélocité
+            // Debug de la trajectoire finale
             debug.drawRay(
                 owner.id + "_vel",
                 scene,
@@ -59,6 +74,7 @@ export class EnemyChaseState extends EnemyState {
             owner.playIdle();
         }
 
+        // Déplacement physique
         owner.move(owner.velocity, dt);
 
         // --- 2. ORIENTATION & ATTAQUE ---
@@ -71,6 +87,58 @@ export class EnemyChaseState extends EnemyState {
             owner.movementFSM.transitionTo(new EnemyIdleState());
         }
     }
+
+    /**
+     * Scanne devant l'ennemi pour détecter un mur et générer une force de répulsion
+     */
+    private calculateWallAvoidance(owner: Enemy, scene: any): Vector3 {
+        const force = new Vector3(0, 0, 0);
+        if (owner.velocity.length() < 0.1) return force;
+
+        // On lance un rayon dans la direction actuelle du mouvement
+        const moveDir = owner.velocity.clone().normalize();
+        const ray = new Ray(
+            owner.position.add(new Vector3(0, 0.5, 0)),
+            moveDir,
+            this.AVOIDANCE_RAY_LENGTH,
+        );
+
+        // On ne check que l'environnement
+        const hit = scene.pickWithRay(
+            ray,
+            (m: any) =>
+                m.checkCollisions &&
+                m.collisionGroup === CollisionLayers.ENVIRONMENT,
+        );
+
+        if (hit && hit.hit && hit.pickedPoint) {
+            // On calcule une force de répulsion basée sur la normale du mur
+            const normal = hit.getNormal(true)!;
+
+            // La force est plus forte si on est proche du mur
+            const distanceFactor =
+                1.0 - hit.distance / this.AVOIDANCE_RAY_LENGTH;
+            force
+                .copyFrom(normal)
+                .scaleInPlace(this.AVOIDANCE_FORCE * distanceFactor);
+
+            // Debug du rayon d'évitement (Rouge si collision imminente)
+            DebugService.getInstance().drawRay(
+                owner.id + "_avoid",
+                scene,
+                ray.origin,
+                moveDir.scale(this.AVOIDANCE_RAY_LENGTH),
+                1,
+                Color3.Red(),
+            );
+        } else {
+            DebugService.getInstance().clear(owner.id + "_avoid");
+        }
+
+        return force;
+    }
+
+    // ... (updateOrientation, handleAttackTransition et clear methods inchangées)
 
     private handleAttackTransition(owner: Enemy, dist: number): void {
         if (dist <= owner.config.behavior.interactionRange) {
@@ -90,6 +158,7 @@ export class EnemyChaseState extends EnemyState {
         debug.clear(owner.id + "_seek");
         debug.clear(owner.id + "_sep");
         debug.clear(owner.id + "_vel");
+        debug.clear(owner.id + "_avoid");
     }
 
     private clearAllDebug(owner: Enemy): void {

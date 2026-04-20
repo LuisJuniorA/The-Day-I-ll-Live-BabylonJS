@@ -75,36 +75,36 @@ export class App {
      */
     private setupWorldEngine(): void {
         this.worldEngine = new WorldEngine({
-            onRoomVisible: (room) => {
-                // 1. Affichage du décor
-                this.levelManager.showProceduralRoom(room);
-
-                // 2. Spawn des ennemis
-                room.enemies.forEach((spawn) => {
-                    const roomPos = new Vector3(
-                        room.position.x,
-                        room.position.y,
-                        room.position.z,
-                    );
-                    const spawnOffset = new Vector3(
-                        spawn.position.x,
-                        spawn.position.y,
-                        spawn.position.z,
-                    );
-
-                    const absolutePos = roomPos.add(spawnOffset);
-
-                    this.entityManager.spawn(spawn.type, absolutePos);
-                });
+            onWorldGenerated: (grid, blockSize) => {
+                // C'est maintenant le LevelManager qui s'occupe de la 3D
+                this.levelManager.generateProceduralWorld(
+                    "main_map",
+                    grid,
+                    blockSize,
+                );
             },
-            onRoomHidden: (roomId) => {
-                this.levelManager.hideZone(roomId);
+            onEnemiesReady: (enemies) => {
+                enemies.forEach((spawn) => {
+                    const pos = new Vector3(
+                        spawn.position.x * 2,
+                        spawn.position.y * 2,
+                        0,
+                    );
+                    this.entityManager.spawn(spawn.type, pos);
+                });
             },
         });
     }
 
     private spawnPlayer(): void {
-        this.player = new Player(this.scene, new Vector3(0, 5, 0));
+        // 1. On récupère la position sécurisée
+        const startPos = this.worldEngine.getStartPosition();
+
+        // 2. On force le Z à 0 (le plan de jeu)
+        // startPos est déjà un Vector3(x * blockSize, y * blockSize, 0)
+        const finalSpawnPos = new Vector3(startPos.x, startPos.y, 0);
+
+        this.player = new Player(this.scene, finalSpawnPos);
 
         this.player.onDeath = () => {
             this.gameStateManager.setGameOver();
@@ -114,8 +114,11 @@ export class App {
             this.menuCamera.dispose();
         }
 
+        // Important pour que l'IA sache où aller
         this.entityManager.setPlayerTarget(this.player.transform);
         this.entityManager.add(this.player);
+
+        console.log(`[App] Player spawned at: ${finalSpawnPos.toString()}`);
     }
 
     private setupInputs(): void {
@@ -138,12 +141,12 @@ export class App {
 
         this.uiManager.mainMenuView.onResumeObservable.add(async () => {
             if (!this.player) {
+                // Initialisation du monde
+                await this.worldEngine.init();
+
                 // Initialisation du joueur et de ses armes
                 this.spawnPlayer();
                 await this.setupInitialWeapons();
-
-                // Initialisation du monde via le WorldEngine
-                await this.worldEngine.init();
             }
             this.gameStateManager.setPlaying();
         });
@@ -183,8 +186,6 @@ export class App {
                         if (this.player.stats.hp <= 0 || this.player.isDead) {
                             this.gameStateManager.setGameOver();
                         }
-                        // Mise à jour du WorldEngine (Streaming de la map + IA)
-                        this.worldEngine.update(this.player.position, 60);
                     }
 
                     this.scene.render();

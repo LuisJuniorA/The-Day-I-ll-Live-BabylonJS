@@ -10,14 +10,13 @@ import { WEAPONS_DB } from "../data/WeaponsDb";
 import type { Weapon } from "../core/abstracts/Weapon";
 import type { WeaponData } from "../core/types/WeaponStats";
 
-// Import des classes concrètes
 import { Dagger } from "../weapons/Dagger";
 import { Sword } from "../weapons/Sword";
 import { GreatSword } from "../weapons/GreatSword";
 import {
     OnWeaponChanged,
     OnRequestWeaponEquip,
-} from "../core/interfaces/CombatEvent"; // Ajout de OnRequestWeaponEquip
+} from "../core/interfaces/CombatEvent";
 import type { WeaponSlot } from "../core/types/WeaponTypes";
 import type { Player } from "../entities/Player";
 
@@ -26,6 +25,9 @@ type WeaponConstructor = new (scene: Scene, data: WeaponData) => Weapon;
 export class WeaponManager {
     private _scene: Scene;
     private _assetCache: Map<string, AssetContainer> = new Map();
+
+    // NOUVEAU : Cache des instances déjà créées (on ne dispose plus, on stocke ici)
+    private _instanceCache: Map<string, Weapon> = new Map();
     private _activeWeapons: Set<Weapon> = new Set();
 
     private _weaponClasses: Record<string, WeaponConstructor> = {
@@ -37,8 +39,6 @@ export class WeaponManager {
     constructor(scene: Scene) {
         this._scene = scene;
 
-        // --- C'est ici que la magie opère ---
-        // On écoute les requêtes du Player (ou de n'importe quel Character)
         OnRequestWeaponEquip.add(async (event) => {
             console.log(
                 `[WeaponManager] Request received for ${event.weaponId}`,
@@ -59,51 +59,58 @@ export class WeaponManager {
                 this._scene,
             );
             this._assetCache.set(weaponId, container);
+
+            // OPTIMISATION : On instancie l'arme immédiatement dans le cache
+            // pour qu'elle soit prête avant même que le joueur ne clique dessus
+            await this.getOrCreateWeapon(weaponId);
         } catch (err) {
             console.error(`[WeaponManager] Error preloading ${weaponId}:`, err);
         }
     }
 
-    public async createWeapon(weaponId: string): Promise<Weapon> {
+    /**
+     * Récupère une arme du cache ou en crée une nouvelle
+     */
+    private async getOrCreateWeapon(weaponId: string): Promise<Weapon> {
+        // Si l'instance existe déjà dans le cache, on la rend juste invisible et on la rend
+        if (this._instanceCache.has(weaponId)) {
+            return this._instanceCache.get(weaponId)!;
+        }
+
         const data = WEAPONS_DB[weaponId];
-        if (!data) throw new Error(`Weapon ${weaponId} not found in DB`);
-
         const Constructor = this._weaponClasses[data.type];
-        if (!Constructor)
-            throw new Error(
-                `No class registered for weapon type: ${data.type}`,
-            );
-
         const weapon = new Constructor(this._scene, data);
 
         if (!this._assetCache.has(weaponId)) {
-            await this.preloadWeapon(weaponId);
+            const container = await LoadAssetContainerAsync(
+                data.meshPath,
+                this._scene,
+            );
+            this._assetCache.set(weaponId, container);
         }
 
         const container = this._assetCache.get(weaponId)!;
-
         const instance = container.instantiateModelsToScene(
             (name) => `${name}_${Math.random().toString(36).substr(2, 4)}`,
+            false, // ne pas l'ajouter aux nodes de rendu immédiatement si possible
         );
 
         const weaponMesh = instance.rootNodes[0] as AbstractMesh;
-        weaponMesh.name = `weapon_${weaponId}_${Date.now()}`;
-
-        weaponMesh.setParent(null);
-        weaponMesh.position.setAll(0);
-        weaponMesh.rotationQuaternion = null;
-        weaponMesh.rotation.setAll(0);
-        weaponMesh.scaling.setAll(1);
+        weaponMesh.name = `cached_weapon_${weaponId}`;
+        weaponMesh.setEnabled(false); // Cachée par défaut
 
         weapon.mesh = weaponMesh;
+        weapon.slot = data.type;
 
         await weapon.loadVisuals();
-        this._activeWeapons.add(weapon);
+
+        // On stocke dans le cache d'instances
+        this._instanceCache.set(weaponId, weapon);
         return weapon;
     }
 
     /**
-     * Assigne une arme à un slot et force l'équipement visuel si c'est le slot actif
+     * Assigne une arme à un slot et la pré-charge en mémoire
      */
     public async setSlotWeapon(
         player: Player,
@@ -112,45 +119,62 @@ export class WeaponManager {
     ): Promise<void> {
         player.setWeaponSlot(slot, weaponId);
 
-        // Si le joueur tient ce slot, l'équipement visuel est déclenché par setWeaponSlot
-        // via l'émetteur, donc pas forcément besoin de ré-appeler equipWeapon ici
-        // sauf si tu veux bypasser l'event.
+        // CRUCIAL : On force la création de l'instance dès qu'elle est mise dans un slot
+        await this.getOrCreateWeapon(weaponId);
+        console.log(`[WeaponManager] Slot ${slot} ready with ${weaponId}`);
     }
 
-    /**
-     * Équipe une arme : gère la destruction de l'ancienne arme AVANT d'attacher la nouvelle
-     */
     public async equipWeapon(
         character: Player,
         weaponId: string,
         boneName: string = "hand.R",
     ) {
-        // 1. Nettoyage de l'arme actuelle du personnage s'il en a une
+        // 1. Désactiver l'arme actuelle (SANS LA DISPOSER)
         if (character.currentWeapon) {
-            this.removeWeapon(character.currentWeapon);
+            this.deactivateWeapon(character.currentWeapon);
         }
 
-        // 2. Création et attachement
-        const weapon = await this.createWeapon(weaponId);
+        // 2. Récupérer l'instance (instantané si déjà en cache)
+        const weapon = await this.getOrCreateWeapon(weaponId);
 
-        // On récupère le slot via la DB pour le stocker sur l'instance d'arme
-        weapon.slot = WEAPONS_DB[weaponId].type;
+        // 3. Activer et attacher
+        if (weapon.mesh) {
+            weapon.mesh.setEnabled(true);
+            weapon.attachToCharacter(character, boneName);
+        }
 
-        weapon.attachToCharacter(character, boneName);
-
-        // 3. On prévient tout le monde (dont le Player lui-même)
+        this._activeWeapons.add(weapon);
         OnWeaponChanged.notifyObservers({ weapon: weapon });
     }
 
-    public removeWeapon(weapon: Weapon): void {
+    /**
+     * Cache l'arme au lieu de la détruire
+     */
+    public deactivateWeapon(weapon: Weapon): void {
         if (weapon.mesh) {
-            weapon.mesh.dispose();
+            weapon.mesh.setEnabled(false);
+            weapon.mesh.setParent(null); // On la détache du squelette
         }
         this._activeWeapons.delete(weapon);
     }
 
+    /**
+     * Cette méthode ne doit être appelée que si on veut vraiment supprimer l'arme (ex: fin de niveau)
+     */
+    public removeWeapon(weapon: Weapon): void {
+        if (weapon.mesh) {
+            weapon.mesh.dispose();
+        }
+        this._instanceCache.delete(weapon.data.id); // On l'enlève du cache aussi
+        this._activeWeapons.delete(weapon);
+    }
+
     public dispose(): void {
-        this._activeWeapons.forEach((w) => this.removeWeapon(w));
+        // Ici on nettoie tout proprement
+        this._instanceCache.forEach((w) => {
+            if (w.mesh) w.mesh.dispose();
+        });
+        this._instanceCache.clear();
         this._assetCache.forEach((c) => c.dispose());
         this._assetCache.clear();
     }
