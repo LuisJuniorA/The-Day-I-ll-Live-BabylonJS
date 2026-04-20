@@ -1,4 +1,5 @@
 import type { WeaponData } from "../core/types/WeaponStats";
+import { WeaponSlot } from "../core/types/WeaponTypes";
 
 export const WEAPONS_DB: Record<string, WeaponData> = {
     // ==========================================
@@ -7,7 +8,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     butcher_dagger: {
         id: "butcher_dagger",
         name: "Butcher's Dagger",
-        type: "Dagger",
+        type: WeaponSlot.DAGGER,
         meshPath: "assets/models/weapons/daggers/butcher_dagger.glb",
         stats: {
             damage: 7,
@@ -22,7 +23,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     crow_dagger: {
         id: "crow_dagger",
         name: "Crow Dagger",
-        type: "Dagger",
+        type: WeaponSlot.DAGGER,
         meshPath: "assets/models/weapons/daggers/crow_dagger.glb",
         stats: {
             damage: 9,
@@ -38,7 +39,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     fish_knife: {
         id: "fish_knife",
         name: "Fish Knife",
-        type: "Dagger",
+        type: WeaponSlot.DAGGER,
         meshPath: "assets/models/weapons/daggers/fish_knife.glb",
         stats: {
             damage: 4,
@@ -53,7 +54,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     hunter_knife: {
         id: "hunter_knife",
         name: "Hunter's Knife",
-        type: "Dagger",
+        type: WeaponSlot.DAGGER,
         meshPath: "assets/models/weapons/daggers/hunter_knife.glb",
         stats: {
             damage: 8,
@@ -69,7 +70,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     knife: {
         id: "knife",
         name: "Basic Knife",
-        type: "Dagger",
+        type: WeaponSlot.DAGGER,
         meshPath: "assets/models/weapons/daggers/knife.glb",
         stats: {
             damage: 3,
@@ -84,7 +85,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     noble_dagger: {
         id: "noble_dagger",
         name: "Noble Dagger",
-        type: "Dagger",
+        type: WeaponSlot.DAGGER,
         meshPath: "assets/models/weapons/daggers/noble_dagger.glb",
         stats: {
             damage: 6,
@@ -104,7 +105,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     great_imperial_sword: {
         id: "great_imperial_sword",
         name: "Great Imperial Sword",
-        type: "GreatSword",
+        type: WeaponSlot.GREATSWORD,
         meshPath: "assets/models/weapons/great_swords/Great_Imperial_Sword.glb",
         stats: {
             damage: 45,
@@ -121,7 +122,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     great_jade_sword: {
         id: "great_jade_sword",
         name: "Great Jade Sword",
-        type: "GreatSword",
+        type: WeaponSlot.GREATSWORD,
         meshPath: "assets/models/weapons/great_swords/Great_Jade_Sword.glb",
         stats: {
             damage: 38,
@@ -138,7 +139,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     great_steel_sword: {
         id: "great_steel_sword",
         name: "Great Steel Sword",
-        type: "GreatSword",
+        type: WeaponSlot.GREATSWORD,
         meshPath: "assets/models/weapons/great_swords/Great_Steel_Sword.glb",
         stats: {
             damage: 35,
@@ -157,7 +158,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     knight_sword: {
         id: "knight_sword",
         name: "Knight's Sword",
-        type: "Sword",
+        type: WeaponSlot.SWORD,
         meshPath: "assets/models/weapons/swords/knight_sword.glb",
         stats: {
             damage: 15,
@@ -173,7 +174,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     oath_sword: {
         id: "oath_sword",
         name: "Oathkeeper Sword",
-        type: "Sword",
+        type: WeaponSlot.SWORD,
         meshPath: "assets/models/weapons/swords/oath_sword.glb",
         stats: {
             damage: 18,
@@ -190,7 +191,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     sashimi_sword: {
         id: "sashimi_sword",
         name: "Sashimi Sword",
-        type: "Sword",
+        type: WeaponSlot.SWORD,
         meshPath: "assets/models/weapons/swords/sashimi_sword.glb",
         stats: {
             damage: 20,
@@ -205,7 +206,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
     scale_sword: {
         id: "scale_sword",
         name: "Scale Sword",
-        type: "Sword",
+        type: WeaponSlot.SWORD,
         meshPath: "assets/models/weapons/swords/Scale_Sword.glb",
         stats: {
             damage: 16,

@@ -1,13 +1,15 @@
+import { WeaponSlot } from "./WeaponTypes";
+
 export type WeaponOwnerModifiers = {
-    speedBoost?: number; // Valeur ajoutée à la vitesse (ex: -2)
-    healthBoost?: number; // PV max supplémentaires (ex: 20)
-    damageMultiplier?: number; // Multiplicateur de dégâts globaux (ex: 1.1)
+    readonly speedBoost?: number; // Valeur ajoutée à la vitesse (ex: -2)
+    readonly healthBoost?: number; // PV max supplémentaires (ex: 20)
+    readonly damageMultiplier?: number; // Multiplicateur de dégâts globaux (ex: 1.1)
 };
 
 export type WeaponData = {
     readonly id: string;
     readonly name: string;
-    readonly type: "Sword" | "Dagger" | "GreatSword";
+    readonly type: WeaponSlot;
     readonly meshPath: string;
 
     // Stats de combat

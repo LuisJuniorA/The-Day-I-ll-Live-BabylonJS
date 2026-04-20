@@ -10,6 +10,7 @@ export class InputHandler {
     public isJumping: boolean = false;
     public isAttacking: boolean = false;
     public isInteracting: boolean = false;
+    public isSwitchingWeapon: boolean = false;
 
     constructor(scene: Scene) {
         scene.onKeyboardObservable.add((kbInfo) => {
@@ -41,6 +42,7 @@ export class InputHandler {
         this.isJumping = this._isJustPressed(" ");
         this.isInteracting = this._isJustPressed("e");
         this.isAttacking = this._isJustPressed("k");
+        this.isSwitchingWeapon = this._isJustPressed("r");
 
         // --- FIN DE UPDATE : On synchronise les states ---
         // On copie les touches actuelles dans lastKeys pour la prochaine frame
@@ -56,5 +58,7 @@ export class InputHandler {
         this.vertical = 0;
         this.isJumping = false;
         this.isAttacking = false;
+        this.isInteracting = false;
+        this.isSwitchingWeapon = false;
     }
 }

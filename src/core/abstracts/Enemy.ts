@@ -107,4 +107,33 @@ export abstract class Enemy extends Character {
 
     public abstract playIdle(): void;
     public abstract playMove(): void;
+
+    public dispose(): void {
+        if (this.movementFSM) {
+            (this.movementFSM as any) = null;
+        }
+        if (this.attackFSM) {
+            (this.attackFSM as any) = null;
+        }
+
+        if (this._proximitySystem) {
+            this._proximitySystem.unregisterPerceivable(this);
+        }
+
+        if (this.mesh) {
+            this.mesh.dispose(false, true);
+            this.mesh = null!;
+        }
+
+        if (this.transform) {
+            this.transform.dispose();
+        }
+
+        this.availableAttacks = [];
+        super.dispose();
+
+        console.log(
+            `[Enemy] Entity ${this.id} (${this.config.displayName}) fully disposed.`,
+        );
+    }
 }
