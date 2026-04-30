@@ -1,39 +1,69 @@
-import { Button, TextBlock } from "@babylonjs/gui";
+import { Button, TextBlock, Control } from "@babylonjs/gui";
 
 export class MenuButton extends Button {
-    constructor(name: string, text: string) {
+    private _textBlockButton: TextBlock;
+
+    constructor(
+        name: string,
+        text: string,
+        alignment: number = Control.HORIZONTAL_ALIGNMENT_RIGHT,
+    ) {
         super(name);
 
-        // Configuration de base
-        this.width = "100%";
-        this.height = "60px";
-        this.color = "white";
-        this.background = "#333333";
-        this.cornerRadius = 10;
-        this.thickness = 2;
+        // Disparition totale de la "boîte" du bouton
+        this.width = "450px";
+        this.height = "50px";
+        this.color = "transparent";
+        this.background = "transparent";
+        this.thickness = 0;
+        this.clipContent = false;
 
-        // Ajout du texte (puisqu'on n'utilise pas le factory statique)
-        const textBlock = new TextBlock(`${name}_text`, text);
-        this.addControl(textBlock);
+        // Typographie élégante
+        this._textBlockButton = new TextBlock(`${name}_text`, text);
+        this._textBlockButton.color = "#aaaaaa"; // Gris pâle, presque éteint
+        this._textBlockButton.fontSize = 24;
+        this._textBlockButton.fontFamily = "Georgia, serif"; // Accentue le côté conte/sombre
+        this._textBlockButton.textHorizontalAlignment = alignment;
+
+        // Initialisation du glow (éteint par défaut)
+        this._textBlockButton.shadowColor = "white";
+        this._textBlockButton.shadowBlur = 0;
+
+        this.addControl(this._textBlockButton);
 
         this._setupAnimations();
     }
 
     private _setupAnimations(): void {
+        // L'âme commence à briller (Hover)
         this.onPointerEnterObservable.add(() => {
-            this.background = "#555555";
-            this.scaleX = 1.05; // Petit effet de zoom
-            this.scaleY = 1.05;
+            this._textBlockButton.color = "#ffffff"; // Éclatant
+            this._textBlockButton.shadowBlur = 15; // Effet de halo / lueur
+            this._textBlockButton.scaleX = 1.05;
+            this._textBlockButton.scaleY = 1.05;
         });
 
+        // La lumière faiblit (Out)
         this.onPointerOutObservable.add(() => {
-            this.background = "#333333";
-            this.scaleX = 1.0;
-            this.scaleY = 1.0;
+            this._textBlockButton.color = "#aaaaaa";
+            this._textBlockButton.shadowBlur = 0;
+            this._textBlockButton.scaleX = 1.0;
+            this._textBlockButton.scaleY = 1.0;
         });
 
+        // L'effort / l'action (Click)
         this.onPointerDownObservable.add(() => {
-            this.scaleX = 0.95; // Effet d'écrasement au clic
+            this._textBlockButton.scaleX = 0.95;
+            this._textBlockButton.scaleY = 0.95;
         });
+
+        this.onPointerUpObservable.add(() => {
+            this._textBlockButton.scaleX = 1.05;
+            this._textBlockButton.scaleY = 1.05;
+        });
+    }
+
+    public get textBlock(): TextBlock {
+        return this._textBlockButton;
     }
 }

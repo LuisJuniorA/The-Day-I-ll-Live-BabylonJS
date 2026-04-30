@@ -41,19 +41,49 @@ export abstract class Character extends Entity {
     }
 
     public checkGrounded(): void {
-        // Raycast à partir du pivot logique
-        const rayOrigin = this.transform.position.clone();
-        rayOrigin.y -= 0.9;
-        const ray = new Ray(rayOrigin, new Vector3(0, -1, 0), 0.3); // Rayon légèrement plus long (0.3)
+        const rayLength = 0.8; // On augmente un peu
+        const bodyRadius = 0.25; // On réduit un peu l'écartement pour être plus précis sur les bords
 
-        const pick = this._scene.pickWithRay(ray, (m) => {
-            // CONDITION : Le mesh doit avoir les collisions ET faire partie de l'environnement (Mask 1)
-            return m.checkCollisions && m.collisionGroup === 1;
-        });
+        const positions = [
+            new Vector3(0, 0, 0),
+            new Vector3(bodyRadius, 0, 0),
+            new Vector3(-bodyRadius, 0, 0),
+            new Vector3(0, 0, bodyRadius),
+            new Vector3(0, 0, -bodyRadius),
+        ];
 
-        this.isGrounded = !!(pick && pick.hit);
-        if (this.isGrounded && this.velocity.y < 0) {
-            this.velocity.y = 0;
+        let hasHit = false;
+        const halfHeight = this.mesh!.ellipsoid.y;
+        for (const posOffset of positions) {
+            // Comme ça, le rayon "descend" vers le sol.
+            const feetOffset = -(halfHeight * 0.9);
+
+            const origin = this.transform.position
+                .add(posOffset)
+                .add(new Vector3(0, feetOffset, 0));
+
+            const ray = new Ray(origin, new Vector3(0, -1, 0), rayLength);
+
+            // Debug : décommente la ligne suivante pour voir les rayons en jeu si besoin
+            // RayHelper.CreateAndShow(ray, this._scene, Color3.Red());
+
+            const pick = this._scene.pickWithRay(ray, (m) => {
+                return m.checkCollisions && m.collisionGroup === 1;
+            });
+
+            if (pick && pick.hit) {
+                hasHit = true;
+                break;
+            }
+        }
+
+        this.isGrounded = hasHit;
+
+        if (this.isGrounded) {
+            // Si on touche le sol, on stoppe net la chute
+            if (this.velocity.y < 0) {
+                this.velocity.y = 0;
+            }
         }
     }
 

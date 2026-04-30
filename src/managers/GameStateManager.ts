@@ -27,6 +27,10 @@ export class GameStateManager {
         this._setState(GameState.PAUSED);
     }
 
+    public setMenu(): void {
+        this._setState(GameState.MENU);
+    }
+
     public setGameOver(): void {
         this._setState(GameState.GAME_OVER);
     }

@@ -23,7 +23,7 @@ export class PlayerIdleState extends BaseState<Player> {
         // On applique une petite force constante vers le bas pour
         // rester "collé" au sol et détecter les pentes/marches.
         if (owner.isGrounded) {
-            owner.velocity.y = -1;
+            owner.velocity.y = -0.1; // Force de maintien légère
         } else {
             owner.velocity.y += owner.gravity * dt;
         }

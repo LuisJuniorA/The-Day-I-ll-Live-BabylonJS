@@ -53,9 +53,16 @@ export class HUDView extends BaseView {
 
     public show(): void {
         super.show();
+        this.healthBar.isVisible = true;
+
         if (this._shouldShowPrompt) {
             this._interactionPrompt.show();
         }
+    }
+
+    public hide(): void {
+        super.hide();
+        this.healthBar.isVisible = false;
     }
 
     public get healthBar(): HealthBarComponent {

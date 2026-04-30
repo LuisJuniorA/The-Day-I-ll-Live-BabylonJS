@@ -139,7 +139,7 @@ export class App {
             }
         });
 
-        this.uiManager.mainMenuView.onResumeObservable.add(async () => {
+        this.uiManager.mainMenuView.onPlayObservable.add(async () => {
             if (!this.player) {
                 // Initialisation du monde
                 await this.worldEngine.init();
