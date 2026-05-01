@@ -9,34 +9,20 @@ export class PlayerIdleState extends BaseState<Player> {
     public readonly name = "IdleState";
 
     protected handleEnter(owner: Player): void {
-        //owner.playAnim("idle", true);
-        owner.velocity.y = 0;
+        // On ne remet pas Y à 0 ici pour laisser la gravité de maintien faire son job
     }
 
     protected handleUpdate(owner: Player, dt: number): void {
-        owner.checkGrounded();
-
-        // 1. Friction : On freine doucement sur X
+        // Friction horizontale
         owner.velocity.x = Scalar.Lerp(owner.velocity.x, 0, 0.2);
 
-        // 2. Gravité de maintien :
-        // On applique une petite force constante vers le bas pour
-        // rester "collé" au sol et détecter les pentes/marches.
-        if (owner.isGrounded) {
-            owner.velocity.y = -0.1; // Force de maintien légère
-        } else {
-            owner.velocity.y += owner.gravity * dt;
-        }
-
-        // 3. APPLICATION DU MOUVEMENT (Le bridge Transform/Mesh)
-        // C'est CA qui règle ton problème de TP
+        // Application du mouvement
         owner.move(owner.velocity, dt);
 
-        // 4. Transitions
-        if (!owner.isGrounded) {
+        // Transitions
+        if (!owner.isGrounded && owner.velocity.y < -0.5) {
             owner.movementFSM.transitionTo(new PlayerFallingState());
         } else if (owner.buffer.isActive("jump")) {
-            // Utilise le buffer pour plus de réactivité
             owner.buffer.consume("jump");
             owner.movementFSM.transitionTo(new PlayerJumpState());
         } else if (Math.abs(owner.input.horizontal) > 0.1) {

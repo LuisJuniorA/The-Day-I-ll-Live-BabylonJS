@@ -1,6 +1,8 @@
 export type PlayerAction =
     | "left"
     | "right"
+    | "up"
+    | "down"
     | "jump"
     | "attack"
     | "interact"
@@ -14,6 +16,8 @@ export class InputConfig {
         attack: ["k"],
         interact: ["e"],
         switch: ["r"],
+        up: ["z", "arrowup"],
+        down: ["s", "arrowdown"],
     };
 
     public static QWERTY: Record<PlayerAction, string[]> = {
@@ -23,6 +27,8 @@ export class InputConfig {
         attack: ["k"],
         interact: ["e"],
         switch: ["r"],
+        up: ["w", "arrowup"],
+        down: ["s", "arrowdown"],
     };
 
     // La configuration active (par défaut AZERTY)

@@ -76,12 +76,14 @@ export class App {
     private setupWorldEngine(): void {
         this.worldEngine = new WorldEngine({
             onWorldGenerated: (grid, blockSize) => {
-                // C'est maintenant le LevelManager qui s'occupe de la 3D
                 this.levelManager.generateProceduralWorld(
-                    "main_map",
+                    "proc_map",
                     grid,
                     blockSize,
                 );
+            },
+            onLevelLoaded: (url) => {
+                this.levelManager.loadMap(url);
             },
             onEnemiesReady: (enemies) => {
                 enemies.forEach((spawn) => {
@@ -142,7 +144,7 @@ export class App {
         this.uiManager.mainMenuView.onPlayObservable.add(async () => {
             if (!this.player) {
                 // Initialisation du monde
-                await this.worldEngine.init();
+                await this.worldEngine.init("public/assets/scenes/start.glb");
 
                 // Initialisation du joueur et de ses armes
                 this.spawnPlayer();
