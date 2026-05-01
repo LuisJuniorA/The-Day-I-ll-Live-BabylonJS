@@ -144,7 +144,10 @@ export class WeaponManager {
         }
 
         this._activeWeapons.add(weapon);
-        OnWeaponChanged.notifyObservers({ weapon: weapon });
+        OnWeaponChanged.notifyObservers({
+            weapon: weapon,
+            allSlots: character.weaponSlots,
+        });
     }
 
     /**

@@ -28,6 +28,7 @@ export interface HealthChangedEvent {
 
 export interface WeaponChangedEvent {
     weapon: Weapon;
+    allSlots: Record<string, string | null>; // Ajout de l'état complet des slots
 }
 
 export interface WeaponRequestEvent {

@@ -218,6 +218,7 @@ export class Player extends Character {
 
         OnWeaponChanged.add((event) => {
             this.currentWeapon = event.weapon;
+            (event as any).allSlots = { ...this._currentSlots };
         });
     }
 
@@ -313,5 +314,9 @@ export class Player extends Character {
         if (this._visualPivot) this._visualPivot.dispose();
         if (this._weaponSocket) this._weaponSocket.dispose();
         super.dispose();
+    }
+
+    public get weaponSlots(): Record<WeaponSlot, string | null> {
+        return this._currentSlots;
     }
 }

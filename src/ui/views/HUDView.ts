@@ -3,11 +3,13 @@ import { BaseView } from "../../core/abstracts/BaseView";
 import { PromptButtonComponent } from "../components/PromptButtonComponent";
 import { HealthBarComponent } from "../components/HealthBarComponent"; // Import ici
 import type { AbstractMesh } from "@babylonjs/core";
+import { WeaponHUDComponent } from "../components/WeaponHUDComponent";
 
 export class HUDView extends BaseView {
     private _interactionPrompt!: PromptButtonComponent;
     private _healthBar!: HealthBarComponent; // Référence au composant
     private _shouldShowPrompt: boolean = false;
+    private _weaponHUD!: WeaponHUDComponent;
 
     constructor(advancedTexture: AdvancedDynamicTexture) {
         super(advancedTexture, "HUDView");
@@ -18,6 +20,10 @@ export class HUDView extends BaseView {
         // --- Barre de vie ---
         this._healthBar = new HealthBarComponent("PlayerHealthBar");
         this.advancedTexture.addControl(this._healthBar);
+
+        // --- Armes ---
+        this._weaponHUD = new WeaponHUDComponent("PlayerWeaponHUD");
+        this.rootContainer.addControl(this._weaponHUD);
 
         // --- Interaction Prompt ---
         this._interactionPrompt = new PromptButtonComponent(
@@ -54,6 +60,7 @@ export class HUDView extends BaseView {
     public show(): void {
         super.show();
         this.healthBar.isVisible = true;
+        this._weaponHUD.isVisible = true;
 
         if (this._shouldShowPrompt) {
             this._interactionPrompt.show();
@@ -63,6 +70,7 @@ export class HUDView extends BaseView {
     public hide(): void {
         super.hide();
         this.healthBar.isVisible = false;
+        this._weaponHUD.isVisible = false;
     }
 
     public get healthBar(): HealthBarComponent {
