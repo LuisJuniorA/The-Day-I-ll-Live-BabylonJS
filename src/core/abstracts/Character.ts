@@ -8,6 +8,7 @@ export abstract class Character extends Entity {
     public stats: CharacterStats;
     public velocity: Vector3 = Vector3.Zero();
     public isDead: boolean = false;
+    public hasToBeDeleted: boolean = false;
     public isGrounded: boolean = false;
     public animations: Map<string, AnimationGroup> = new Map();
     public faction: FactionType;
@@ -178,6 +179,7 @@ export abstract class Character extends Entity {
     protected die(): void {
         if (this.isDead) return;
         this.isDead = true;
+        this.hasToBeDeleted = true;
         this.stats.hp = 0;
         this.velocity.setAll(0);
         this.externalForce.setAll(0);

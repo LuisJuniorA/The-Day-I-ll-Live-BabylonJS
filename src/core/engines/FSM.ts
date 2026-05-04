@@ -29,6 +29,18 @@ export class FSM<T> {
         this._currentState.onEnter(this._owner);
     }
 
+    public dispose(): void {
+        // 1. On force la sortie de l'état actuel (pour stopper les anims, sons, etc.)
+        if (this._currentState) {
+            this._currentState.onExit(this._owner);
+        }
+
+        // 2. On libère les références pour le Garbage Collector
+        this._currentState = null;
+        // @ts-ignore - On casse la référence à l'owner si possible
+        this._owner = null;
+    }
+
     /**
      * Doit être appelé dans la boucle de rendu de Babylon (ou l'update de l'entité)
      */

@@ -51,6 +51,28 @@ export abstract class Enemy extends Character {
 
         this.movementFSM.transitionTo(new EnemyIdleState());
         this.attackFSM.transitionTo(new EnemyAttackIdleState());
+
+        this.onDeath = () => {
+            this.hasToBeDeleted = false;
+            // 1. On arrête les machines à états pour que l'ennemi ne bouge/n'attaque plus
+            this.movementFSM.dispose();
+            this.attackFSM.dispose();
+
+            // 2. Désactivation des collisions pour que le joueur puisse passer à travers le cadavre
+            if (this.mesh) {
+                this.mesh.checkCollisions = false;
+            }
+
+            // 3. Lancement de l'animation de mort
+            // On utilise 'isPriority = true' pour forcer l'animation et 'loop = false'
+            this.playAnim("death", false, true);
+
+            // 4. Optionnel : Auto-destruction du mesh après X secondes
+            // ou laisser le corps au sol.
+            setTimeout(() => {
+                this.hasToBeDeleted = true;
+            }, 5000);
+        };
     }
 
     public abstract getNextAttack(): ActionBehavior;

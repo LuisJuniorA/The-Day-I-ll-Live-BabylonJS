@@ -104,7 +104,7 @@ export class EntityManager {
         // 2. Mise à jour de la logique interne (FSM, etc.)
         for (const [id, entity] of this._entities.entries()) {
             entity.update(dt);
-            if ((entity as Character).isDead) {
+            if ((entity as Character).hasToBeDeleted) {
                 this._toRemove.add(id);
             }
         }
