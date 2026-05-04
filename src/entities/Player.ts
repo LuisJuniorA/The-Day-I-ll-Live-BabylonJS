@@ -88,6 +88,7 @@ export class Player extends Character {
             { hp: 100, maxHp: 100, speed: 12, damage: 10 },
             Faction.PLAYER,
         );
+        this.setupPlayerDebug();
 
         this._initPlayer(startPosition);
 
@@ -138,6 +139,7 @@ export class Player extends Character {
 
     public pickUp(loot: LootDrop): void {
         const success = this.inventory.addItem(loot.item, loot.amount);
+        console.table(loot.item);
         if (success) {
             console.log(`Inventaire : +${loot.amount} ${loot.item.name}`);
         } else {
@@ -441,5 +443,79 @@ export class Player extends Character {
 
     public get weaponSlots(): Record<WeaponSlot, string | null> {
         return this._currentSlots;
+    }
+
+    /**
+     * Affiche l'état complet du joueur (Stats, Physique, FSM, Inventaire)
+     */
+    public setupPlayerDebug(): void {
+        // @ts-ignore
+        if (import.meta.env.DEV) {
+            window.addEventListener("keydown", (ev) => {
+                // Raccourci : Ctrl + Shift + Alt + P
+                if (ev.shiftKey && ev.ctrlKey && ev.altKey && ev.key === "P") {
+                    console.log(
+                        "%c --- PLAYER STATUS REPORT --- ",
+                        "background: #2f3542; color: #7bed9f; font-weight: bold; font-size: 14px;",
+                    );
+
+                    // 1. État de Santé & XP
+                    const hpPercent = (
+                        (this.stats.hp / this.stats.maxHp) *
+                        100
+                    ).toFixed(0);
+                    const xpPercent = (
+                        (this.exp.currentXp / this.exp.xpToNextLevel) *
+                        100
+                    ).toFixed(0);
+
+                    console.log(
+                        `%c[STATS] HP: ${this.stats.hp}/${this.stats.maxHp} (${hpPercent}%) | LVL: ${this.exp.level} (XP: ${xpPercent}%)`,
+                        "color: #7bed9f; font-weight: bold;",
+                    );
+
+                    // 2. Physique & Position
+                    console.log(
+                        `%c[PHYSICS] Pos: ${this.transform.position.x.toFixed(2)}, ${this.transform.position.y.toFixed(2)} | Vel: ${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)} | Grounded: ${this.isGrounded ? "YES" : "NO"} | Coyote: ${this.coyoteTimeCounter.toFixed(2)}s`,
+                        "color: #70a1ff",
+                    );
+
+                    // 3. FSM (Machines à états)
+                    // Note: On accède à currentState via 'any' si la propriété est privée dans ta FSM
+                    const moveState =
+                        (this.movementFSM as any)._currentState?.constructor
+                            .name ?? "None";
+                    const attackState =
+                        (this.attackFSM as any)._currentState?.constructor
+                            .name ?? "None";
+
+                    console.log(
+                        `%c[STATES] Movement: ${moveState} | Combat: ${attackState} | I-Frames: ${this._invulnerabilityTimer.toFixed(2)}s`,
+                        "color: #eccc68",
+                    );
+
+                    // 4. Combat & Inventaire
+                    const weaponName = this.currentWeapon
+                        ? this.currentWeapon.name
+                        : "None";
+                    const inventoryCount = this.inventory.content.length; // Utilise ton getter 'content'
+
+                    console.table(this.inventory.content);
+
+                    console.log(
+                        `%c[EQUIP] Weapon: ${weaponName} | Interactable: ${this._targetInteractable ? "Yes" : "No"} | Inv Items: ${inventoryCount}`,
+                        "color: #ffa502",
+                    );
+
+                    // 5. Slots d'armes
+                    console.table(this._currentSlots);
+
+                    console.log(
+                        "%c --------------------------- ",
+                        "color: #7bed9f;",
+                    );
+                }
+            });
+        }
     }
 }

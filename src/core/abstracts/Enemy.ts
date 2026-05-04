@@ -11,6 +11,7 @@ import type { ActionBehavior } from "../interfaces/Behaviors";
 import { EnemyChaseState } from "../../states/enemy/EnemyChaseState";
 import type { EnemyState } from "./EnemyState";
 import { OnEntityDamaged } from "../interfaces/CombatEvent";
+import { ItemData } from "../../data/ItemData";
 
 export abstract class Enemy extends Character {
     public readonly movementFSM: FSM<Enemy>;
@@ -106,7 +107,8 @@ export abstract class Enemy extends Character {
 
                     // On récupère la data de l'item (via une DB statique par exemple)
                     // Pour l'exemple, on passe l'ID ou l'objet complet
-                    lootManager.spawnLoot(spawnPos, amount, entry.itemId);
+                    const itemData = ItemData[entry.itemId]; // Récupère l'objet Item complet
+                    lootManager.spawnLoot(spawnPos, amount, itemData);
                 }
             }
         }

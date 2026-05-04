@@ -39,7 +39,10 @@ export class HitStopManager {
     }
 
     public update(dt: number): void {
-        if (!this._isFrozen) return;
+        if (!this._isFrozen) {
+            this._scene.animationsEnabled = true;
+            return;
+        }
 
         this._stopTimer -= dt;
 
