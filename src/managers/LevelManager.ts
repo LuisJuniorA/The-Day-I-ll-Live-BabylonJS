@@ -3,6 +3,7 @@ import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader";
 import { GeometryGenerator } from "../utils/GeometryGenerator";
 import type { Cell } from "../utils/RandomUtils";
 import type { ZoneEntry } from "../core/interfaces/ZoneEntry";
+import { CollisionLayers } from "../core/constants/CollisionLayers";
 
 export class LevelManager {
     private _scene: Scene;
@@ -40,8 +41,11 @@ export class LevelManager {
                 // Logique de collision automatique par nommage Blender
                 if (name.includes("collider")) {
                     mesh.checkCollisions = true;
-                    mesh.visibility = 0;
-                    mesh.isPickable = false;
+                    //mesh.visibility = 0;
+                    mesh.isPickable = true;
+                    mesh.collisionGroup = CollisionLayers.ENVIRONMENT;
+                    mesh.collisionMask =
+                        CollisionLayers.PLAYER | CollisionLayers.ENEMY;
                 }
 
                 // Logique visuelle

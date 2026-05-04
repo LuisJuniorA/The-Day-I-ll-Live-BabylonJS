@@ -8,7 +8,7 @@ import { PlayerJumpState } from "./PlayerJumpState";
 export class PlayerIdleState extends BaseState<Player> {
     public readonly name = "IdleState";
 
-    protected handleEnter(owner: Player): void {
+    protected handleEnter(_owner: Player): void {
         // On ne remet pas Y à 0 ici pour laisser la gravité de maintien faire son job
     }
 

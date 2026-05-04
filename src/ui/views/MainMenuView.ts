@@ -25,7 +25,7 @@ export class MainMenuView extends BaseView {
         // 1. Image de fond (Artwork)
         const bgImage = new Image(
             "mainMenuBg",
-            "public/assets/img/menu_background.jpg",
+            "assets/img/menu_background.jpg",
         );
         bgImage.stretch = Image.STRETCH_NONE;
         this.rootContainer.addControl(bgImage);

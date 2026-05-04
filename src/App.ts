@@ -144,7 +144,8 @@ export class App {
         this.uiManager.mainMenuView.onPlayObservable.add(async () => {
             if (!this.player) {
                 // Initialisation du monde
-                await this.worldEngine.init("public/assets/scenes/start.glb");
+                //await this.worldEngine.init("assets/scenes/start.glb");
+                await this.worldEngine.init("");
 
                 // Initialisation du joueur et de ses armes
                 this.spawnPlayer();
