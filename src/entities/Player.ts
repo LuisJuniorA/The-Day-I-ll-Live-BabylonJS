@@ -23,13 +23,18 @@ import {
 } from "../core/interfaces/Interactable";
 import { CollisionLayers } from "../core/constants/CollisionLayers";
 import {
+    OnExperienceGained,
     OnHealthChanged,
+    OnItemPickedUp,
     OnRequestWeaponEquip,
     OnWeaponChanged,
 } from "../core/interfaces/CombatEvent";
 import { Faction } from "../core/types/Faction";
 import { Weapon } from "../core/abstracts/Weapon";
 import { WeaponSlot } from "../core/types/WeaponTypes";
+import { InventoryManager } from "../managers/InventoryManager";
+import { ExperienceManager } from "../managers/ExperienceManager";
+import type { LootDrop } from "../core/types/Items";
 
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
@@ -37,6 +42,9 @@ export class Player extends Character {
     public readonly movementFSM: FSM<Player>;
     public readonly attackFSM: FSM<Player>;
     public readonly buffer: InputBufferManager = new InputBufferManager();
+
+    public readonly exp = new ExperienceManager();
+    public readonly inventory = new InventoryManager();
 
     private _targetInteractable: Interactable | null = null;
     public currentWeapon: Weapon | null = null;
@@ -99,6 +107,42 @@ export class Player extends Character {
 
         this.movementFSM.transitionTo(new PlayerMoveState());
         this.attackFSM.transitionTo(new PlayerCombatIdleState());
+    }
+
+    public grantXp(amount: number): void {
+        const leveledUp = this.exp.addXp(amount);
+
+        if (leveledUp) {
+            this._onLevelUp();
+        }
+
+        // Optionnel : Notifier l'UI pour la barre d'XP
+        // OnXpChanged.notifyObservers({ current: this.exp.currentXp, next: this.exp.xpToNextLevel });
+    }
+
+    private _onLevelUp(): void {
+        // Boost des stats (Hollow Knight style : on pourrait augmenter les dégâts ou la vie max)
+        this.stats.maxHp += 10;
+        this.stats.hp = this.stats.maxHp; // Soins complets au level up
+        this.stats.damage += 2;
+
+        console.log(`Bravo ! Niveau ${this.exp.level} atteint.`);
+
+        // Update UI
+        OnHealthChanged.notifyObservers({
+            currentHp: this.stats.hp,
+            maxHp: this.stats.maxHp,
+            entityId: "Player",
+        });
+    }
+
+    public pickUp(loot: LootDrop): void {
+        const success = this.inventory.addItem(loot.item, loot.amount);
+        if (success) {
+            console.log(`Inventaire : +${loot.amount} ${loot.item.name}`);
+        } else {
+            console.log("Inventaire plein !");
+        }
     }
 
     private _initPlayer(startPosition: Vector3): void {
@@ -296,6 +340,23 @@ export class Player extends Character {
         OnWeaponChanged.add((event) => {
             this.currentWeapon = event.weapon;
             (event as any).allSlots = { ...this._currentSlots };
+        });
+
+        OnExperienceGained.add((event) => {
+            if (event.targetId === "Player") {
+                this.grantXp(event.amount);
+            }
+        });
+
+        // Liaison Inventaire : Quand le LootManager notifie un ramassage d'objet
+        OnItemPickedUp.add((event) => {
+            if (event.targetId === "Player") {
+                // On utilise la structure LootDrop attendue par ta méthode pickUp
+                this.pickUp({
+                    item: event.item,
+                    amount: event.amount,
+                });
+            }
         });
     }
 
