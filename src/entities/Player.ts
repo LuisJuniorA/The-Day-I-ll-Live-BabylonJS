@@ -23,6 +23,7 @@ import {
 } from "../core/interfaces/Interactable";
 import { CollisionLayers } from "../core/constants/CollisionLayers";
 import {
+    AttackDirection,
     OnExperienceGained,
     OnHealthChanged,
     OnItemPickedUp,
@@ -42,6 +43,7 @@ export class Player extends Character {
     public readonly movementFSM: FSM<Player>;
     public readonly attackFSM: FSM<Player>;
     public readonly buffer: InputBufferManager = new InputBufferManager();
+    public queuedAttackDirection: AttackDirection = AttackDirection.SIDE;
 
     public readonly exp = new ExperienceManager();
     public readonly inventory = new InventoryManager();
@@ -366,7 +368,15 @@ export class Player extends Character {
         this.input.update();
         this.buffer.update(dt);
         if (this.input.isJumping) this.buffer.trigger("jump");
-        if (this.input.isAttacking) this.buffer.trigger("attack");
+        if (this.input.isAttacking) {
+            if (this.input.vertical > 0)
+                this.queuedAttackDirection = AttackDirection.UP;
+            else if (this.input.vertical < 0)
+                this.queuedAttackDirection = AttackDirection.DOWN;
+            else this.queuedAttackDirection = AttackDirection.SIDE;
+
+            this.buffer.trigger("attack");
+        }
         if (this.input.isSwitchingWeapon) {
             this.switchWeapon();
             this.input.isSwitchingWeapon = false;

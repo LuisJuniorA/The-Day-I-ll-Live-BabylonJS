@@ -49,6 +49,15 @@ export interface ItemPickupEvent {
     amount: number;
 }
 
+export const AttackDirection = {
+    SIDE: "side",
+    UP: "up",
+    DOWN: "down",
+} as const;
+
+export type AttackDirection =
+    (typeof AttackDirection)[keyof typeof AttackDirection];
+
 export const OnRequestWeaponEquip = new Observable<WeaponRequestEvent>();
 export const OnHealthChanged = new Observable<HealthChangedEvent>();
 export const OnEntityDamaged = new Observable<DamageEvent>();
