@@ -10,6 +10,7 @@ export interface DamageEvent {
     amount: number; // Combien de dégâts
     position: Vector3; // Où ça se passe (utile pour le recul/VFX)
     attackerFaction: FactionType;
+    hitStopMultiplier?: number; // 1.0 par défaut
 }
 
 export interface StatusEvent {
@@ -42,3 +43,4 @@ export const OnHealthChanged = new Observable<HealthChangedEvent>();
 export const OnEntityDamaged = new Observable<DamageEvent>();
 export const OnStatusApplied = new Observable<StatusEvent>();
 export const OnWeaponChanged = new Observable<WeaponChangedEvent>();
+export const OnDamageConfirmed = new Observable<DamageEvent>();

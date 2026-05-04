@@ -109,7 +109,7 @@ export abstract class Enemy extends Character {
                 attackerId: this.id,
                 amount: this.contactDamage,
                 position: this.transform.position.clone(),
-                attackerFaction: Faction.ENEMY,
+                attackerFaction: this.faction,
             });
         }
     }

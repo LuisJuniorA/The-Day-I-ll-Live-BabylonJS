@@ -1,7 +1,7 @@
 import { AnimationGroup, Ray, Scene, Vector3 } from "@babylonjs/core";
 import { Entity } from "./Entity";
 import type { CharacterStats } from "../types/CharacterStats";
-import { OnEntityDamaged } from "../interfaces/CombatEvent";
+import { OnDamageConfirmed, OnEntityDamaged } from "../interfaces/CombatEvent";
 import type { FactionType } from "../types/Faction";
 
 export abstract class Character extends Entity {
@@ -33,10 +33,22 @@ export abstract class Character extends Entity {
         });
     }
 
+    // core/abstracts/Character.ts
+
     public takeDamage(amount: number): void {
         if (this.isDead) return;
+
         this.stats.hp -= amount;
-        console.log(this.stats.hp);
+        console.log(`${this.name} took damage: ${this.stats.hp}`);
+
+        OnDamageConfirmed.notifyObservers({
+            targetId: this.name,
+            attackerId: this.id,
+            amount: amount,
+            position: this.transform.position.clone(),
+            attackerFaction: this.faction,
+        });
+
         if (this.stats.hp <= 0) this.die();
     }
 
@@ -96,8 +108,7 @@ export abstract class Character extends Entity {
     }
 
     public move(velocity: Vector3, dt: number): void {
-        if (this.isDead || !this.mesh) return;
-
+        if (this.isDead || !this.mesh || !this._scene.animationsEnabled) return;
         const finalVelocity = velocity.clone();
 
         if (this.isGrounded && finalVelocity.y < 0) {

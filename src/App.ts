@@ -19,6 +19,7 @@ import { WorldEngine } from "./core/engines/WorldEngine"; // Ton nouveau moteur
 import { GameState } from "./core/types/GameState";
 import { WeaponSlot } from "./core/types/WeaponTypes";
 import { EntityFactory } from "./factories/EntityFactory";
+import { HitStopManager } from "./managers/HitStopManager";
 
 export class App {
     private readonly engine: Engine;
@@ -31,6 +32,7 @@ export class App {
     private readonly levelManager: LevelManager;
     private readonly entityManager: EntityManager;
     private readonly weaponManager: WeaponManager;
+    private readonly hitStopManager: HitStopManager;
 
     // Core Engine
     private worldEngine!: WorldEngine;
@@ -53,6 +55,7 @@ export class App {
         this.entityManager = new EntityManager(this.scene);
         this.levelManager = new LevelManager(this.scene);
         this.weaponManager = new WeaponManager(this.scene);
+        this.hitStopManager = new HitStopManager(this.scene);
 
         // 3. Configuration du Moteur du Monde (Le lien Core <-> App)
         this.setupWorldEngine();
@@ -182,8 +185,14 @@ export class App {
                     break;
 
                 case GameState.PLAYING:
-                    this.scene.animationsEnabled = true;
-                    this.entityManager.update(dt);
+                    // Laisse le manager décider si on doit freeze ou non
+                    this.hitStopManager.update(dt);
+
+                    // On ne met à jour la logique des entités QUE si on n'est pas en hitstop
+                    // Sinon ils vont continuer à bouger/glisser pendant le freeze
+                    if (this.scene.animationsEnabled) {
+                        this.entityManager.update(dt);
+                    }
 
                     if (this.player) {
                         if (this.player.stats.hp <= 0 || this.player.isDead) {

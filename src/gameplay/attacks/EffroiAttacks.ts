@@ -4,7 +4,6 @@ import {
     OnEntityDamaged,
     OnStatusApplied,
 } from "../../core/interfaces/CombatEvent";
-import { Faction } from "../../core/types/Faction";
 import { PlayerReactionAnim, StatusType } from "../../core/types/StatusEffects";
 
 export class EffroiClaw implements ActionBehavior {
@@ -24,7 +23,7 @@ export class EffroiClaw implements ActionBehavior {
             attackerId: owner.id,
             amount: owner.stats.damage || 10,
             position: owner.position.clone(),
-            attackerFaction: Faction.ENEMY,
+            attackerFaction: owner.faction,
         });
     }
 }
