@@ -1,4 +1,5 @@
 import {
+    AbstractMesh,
     Color3,
     MeshBuilder,
     Quaternion,
@@ -79,6 +80,10 @@ export abstract class MeleeWeapon extends Weapon {
     /**
      * Calcule le volume de collision selon la direction et scanne les entités touchées.
      */
+    /**
+     * Calcule le volume de collision selon la direction et scanne les entités touchées.
+     * Optimisé pour détecter les Hitbox Wrappers.
+     */
     private findTargetsInHitbox(
         owner: Character,
         direction: AttackDirection,
@@ -94,31 +99,28 @@ export abstract class MeleeWeapon extends Weapon {
             return [];
         }
 
-        // 1. Récupération des axes de référence
+        // 1. Récupération des axes de référence (Inchangé)
         const worldMatrix = owner.transform.getWorldMatrix();
         const forward = Vector3.TransformNormal(
             new Vector3(1, 0, 0),
             worldMatrix,
         ).normalize();
-        const up = Vector3.Up(); // Axe vertical absolu
+        const up = Vector3.Up();
 
         let boxPos: Vector3;
         let boxSize = { width: range, height: 3, depth: range };
         let boxRot: Quaternion;
 
-        // 2. Calcul du positionnement et des dimensions selon la direction
+        // 2. Calcul du positionnement (Inchangé)
         if (direction === AttackDirection.UP) {
-            // Attaque vers le haut : la box est centrée au dessus du joueur
             boxPos = owner.transform.position.add(up.scale(range / 1.5 + 1));
             boxSize = { width: range * 1.5, height: range, depth: range * 1.5 };
-            boxRot = Quaternion.Identity(); // Alignement horizontal pour couvrir une large zone
+            boxRot = Quaternion.Identity();
         } else if (direction === AttackDirection.DOWN) {
-            // Attaque vers le bas : utile pour le "pogo" ou frapper au sol
             boxPos = owner.transform.position.add(up.scale(-1));
             boxSize = { width: range * 1.5, height: 1.5, depth: range * 1.5 };
             boxRot = Quaternion.Identity();
         } else {
-            // Attaque latérale (SIDE) : On utilise le forward du personnage
             const permissiveOffset = 0.5;
             const centerOffset = range / 2 + permissiveOffset;
             boxPos = owner.transform.position.add(forward.scale(centerOffset));
@@ -127,7 +129,7 @@ export abstract class MeleeWeapon extends Weapon {
             );
         }
 
-        // 3. Création du volume de détection (Mesh temporaire)
+        // 3. Création du volume de détection (Hitbox d'attaque)
         const hitbox = MeshBuilder.CreateBox(
             "temp_hitbox",
             {
@@ -137,7 +139,6 @@ export abstract class MeleeWeapon extends Weapon {
             },
             this.scene,
         );
-
         hitbox.position.copyFrom(boxPos);
         hitbox.rotationQuaternion = boxRot;
         hitbox.isVisible = false;
@@ -157,49 +158,47 @@ export abstract class MeleeWeapon extends Weapon {
         );
         setTimeout(() => debug.clear(`player_attack_${direction}`), 400);
 
-        // 4. Scan des cibles dans l'ENTITIES_CONTAINER
-        const potentialMeshes = container.getChildMeshes(false);
+        // 4. SCAN OPTIMISÉ : On cherche uniquement les Wrappers
+        // On récupère les enfants directs du container (les TransformNodes des entités)
+        const entities = container.getChildren();
 
-        for (const mesh of potentialMeshes) {
-            // Ignorer le propriétaire de l'arme
-            if (mesh === owner.mesh || mesh.isDescendantOf(owner.transform))
-                continue;
+        for (const entityNode of entities) {
+            // Ignorer le propriétaire
+            if (entityNode === owner.transform) continue;
 
-            mesh.computeWorldMatrix(true);
-            mesh.refreshBoundingInfo({});
+            // On cherche le wrapper dans les enfants de l'entité
+            // (Il s'appelle "hitbox_wrap_..." comme défini dans la factory)
+            const wrapper = entityNode
+                .getChildren()
+                .find((child) => child.name.startsWith("hitbox_wrap"));
 
-            if (hitbox.intersectsMesh(mesh, false)) {
-                let entityNode: any = mesh;
-                // Remonter jusqu'au parent direct du container pour identifier l'entité
-                while (entityNode.parent && entityNode.parent !== container) {
-                    entityNode = entityNode.parent;
-                }
+            if (wrapper && wrapper instanceof AbstractMesh) {
+                // On force la mise à jour pour être sûr de la position
+                wrapper.computeWorldMatrix(true);
 
-                if (
-                    entityNode &&
-                    entityNode !== container &&
-                    !hitTargets.includes(entityNode)
-                ) {
-                    console.log(
-                        `💥 Impact [${direction}] sur: ${entityNode.id}`,
-                    );
-                    hitTargets.push(entityNode);
+                if (hitbox.intersectsMesh(wrapper, false)) {
+                    // On récupère l'objet Character associé (souvent stocké dans une map ou via l'ID)
+                    // Ici on ajoute l'entityNode au tableau s'il n'y est pas déjà
+                    if (!hitTargets.includes(entityNode)) {
+                        console.log(
+                            `💥 Impact [${direction}] sur le wrapper de: ${entityNode.id}`,
+                        );
+                        hitTargets.push(entityNode);
 
-                    // Feedback visuel du point d'impact
-                    debug.drawPoint(
-                        "hit_" + entityNode.id + Date.now(),
-                        this.scene,
-                        mesh.getAbsolutePosition(),
-                        Color3.Green(),
-                        0.4,
-                    );
+                        // Feedback visuel
+                        debug.drawPoint(
+                            "hit_" + entityNode.id + Date.now(),
+                            this.scene,
+                            wrapper.getAbsolutePosition(),
+                            Color3.Green(),
+                            0.4,
+                        );
+                    }
                 }
             }
         }
 
-        // 5. Nettoyage de la hitbox temporaire
         hitbox.dispose();
-
         return hitTargets;
     }
 }

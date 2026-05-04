@@ -76,20 +76,26 @@ export class EntityFactory {
                     new Vector3(0, -1, 0),
                     new Vector3(6.4, Math.PI / 2, 0),
                 );
+                // AJOUT WRAPPER : On ajuste Y et Z pour coller au mesh noir
+                // Ici: hauteur 3, rayon 1, offset Y de 1.5, et petit décalage local si besoin
+                this._addHitboxWrap(
+                    entity,
+                    scene,
+                    3.5,
+                    2.0,
+                    1.0,
+                    new Vector3(0.5, -0.5, 0),
+                );
                 break;
+
             case "SLIME": {
                 assets.root.dispose();
                 if (!enemyData)
                     throw new Error(`Config pour le slime introuvable.`);
 
-                // 1. Corps réduit (Diamètre 2 au lieu de 6)
                 const slimeMesh = MeshBuilder.CreateSphere(
                     `slime_body_${Date.now()}`,
-                    {
-                        diameter: 2,
-                        segments: 8,
-                        updatable: true,
-                    },
+                    { diameter: 2, segments: 8, updatable: true },
                     scene,
                 );
 
@@ -102,17 +108,15 @@ export class EntityFactory {
                 slimeMat.roughness = 0.1;
                 slimeMat.alpha = 0.6;
                 slimeMat.transparencyMode = 2;
-
                 slimeMat.subSurface.isTranslucencyEnabled = true;
                 slimeMat.subSurface.translucencyIntensity = 1.0;
-                slimeMat.subSurface.minimumThickness = 0.3; // Réduit pour la petite taille
+                slimeMat.subSurface.minimumThickness = 0.3;
                 slimeMat.subSurface.maximumThickness = 1.5;
                 slimeMat.subSurface.isRefractionEnabled = true;
                 slimeMat.subSurface.indexOfRefraction = 1.05;
                 slimeMesh.material = slimeMat;
                 slimeMat.subSurface.tintColor = Color3.Black();
 
-                // 2. Les Yeux (Positions divisées par ~3)
                 const eyeMat = new StandardMaterial("eyeMat", scene);
                 eyeMat.emissiveColor = new Color3(0.5, 0.5, 0.5);
                 eyeMat.disableLighting = true;
@@ -122,7 +126,7 @@ export class EntityFactory {
                     { diameter: 0.2 },
                     scene,
                 );
-                eyeL.position = new Vector3(-0.3, 0.26, 0.73); // Ajusté
+                eyeL.position = new Vector3(-0.3, 0.26, 0.73);
                 eyeL.material = eyeMat;
                 eyeL.parent = slimeMesh;
 
@@ -131,11 +135,10 @@ export class EntityFactory {
                     { diameter: 0.2 },
                     scene,
                 );
-                eyeR.position = new Vector3(0.3, 0.26, 0.73); // Ajusté
+                eyeR.position = new Vector3(0.3, 0.26, 0.73);
                 eyeR.material = eyeMat;
                 eyeR.parent = slimeMesh;
 
-                // 3. L'âme (Diamètre 0.6 au lieu de 1.8)
                 const soul = MeshBuilder.CreateSphere(
                     "soul",
                     { diameter: 0.6, updatable: true },
@@ -152,13 +155,10 @@ export class EntityFactory {
                     scene,
                 );
                 innerLight.diffuse = new Color3(0.01, 0.01, 0.01);
-                innerLight.specular = new Color3(0, 0, 0);
                 innerLight.intensity = 5;
-                innerLight.range = 1; // Réduit la portée proportionnellement
+                innerLight.range = 1;
                 innerLight.parent = soul;
 
-                // 4. Pivot Visuel
-                // On met un offset Y de 1 (rayon de la sphère) pour que le bas touche le sol
                 this._setupVisualPivot(
                     slimeMesh,
                     1,
@@ -173,11 +173,12 @@ export class EntityFactory {
                     slimeMesh,
                     soul,
                 );
-
                 slimeMesh.parent = slimeEntity.transform;
                 slimeMesh.checkCollisions = true;
                 entity = slimeEntity;
                 soul.parent = slimeEntity.transform;
+
+                this._addHitboxWrap(entity, scene, 1.5, 1.5, 0.75);
                 break;
             }
 
@@ -186,6 +187,7 @@ export class EntityFactory {
                 entity = new Villager(scene, position, npcData);
                 assets.root.parent = entity.transform;
                 this._setupVisualPivot(assets.root);
+                this._addHitboxWrap(entity, scene, 2.0, 0.6);
                 break;
 
             default:
@@ -198,6 +200,7 @@ export class EntityFactory {
                 );
                 assets.root.parent = entity.transform;
                 this._setupVisualPivot(assets.root);
+                this._addHitboxWrap(entity, scene, 2.2, 0.7);
                 break;
         }
 
@@ -205,6 +208,40 @@ export class EntityFactory {
         entity.assetPath = assetPath;
         entity.transform.parent = EntityFactory._entitiesRoot;
         return entity;
+    }
+
+    private static _addHitboxWrap(
+        entity: Entity,
+        scene: Scene,
+        height: number = 2,
+        radius: number = 0.5,
+        yOffset: number | null = null,
+        localOffset: Vector3 = Vector3.Zero(),
+    ): void {
+        const wrap = MeshBuilder.CreateCapsule(
+            `hitbox_wrap_${entity.id}`,
+            {
+                height: height,
+                radius: radius,
+            },
+            scene,
+        );
+
+        const finalY = yOffset !== null ? yOffset : height / 2;
+        wrap.position.set(localOffset.x, finalY + localOffset.y, localOffset.z);
+
+        wrap.parent = entity.transform;
+        wrap.isPickable = true;
+        wrap.isVisible = true; // Mets à true pour débugger l'alignement
+        wrap.checkCollisions = false;
+
+        // Debug visuel si besoin
+        if (wrap.isVisible) {
+            const m = new StandardMaterial("debugHitboxMat", scene);
+            m.diffuseColor = Color3.Red();
+            m.alpha = 0.3;
+            wrap.material = m;
+        }
     }
 
     private static _setupVisualPivot(
@@ -236,9 +273,7 @@ export class EntityFactory {
         scene: Scene,
     ): Promise<VisualAssets> {
         try {
-            // Utilise la méthode publique pour garantir le cache et le refCount
             const container = await this.LoadAsset(path, scene);
-
             const entries = container.instantiateModelsToScene(
                 (n) => `${n}_${Date.now()}`,
                 true,
@@ -254,38 +289,28 @@ export class EntityFactory {
                 { height: 2, radius: 0.5 },
                 scene,
             );
-            mesh.position.y = 0;
-
+            mesh.position.y = 1;
             const material = new StandardMaterial("mat_placeholder", scene);
             material.diffuseColor = Color3.Blue();
             mesh.material = material;
-
             return { root: mesh, anims: [] };
         }
     }
 
-    /**
-     * Charge l'asset et gère le cache/refCount
-     */
     public static async LoadAsset(
         path: string,
         scene: Scene,
     ): Promise<AssetContainer> {
         let entry = this._containerCache.get(path);
-
         if (!entry) {
             const container = await LoadAssetContainerAsync(path, scene);
             entry = { container, refCount: 0 };
             this._containerCache.set(path, entry);
         }
-
         entry.refCount++;
         return entry.container;
     }
 
-    /**
-     * Décrémente le refCount et nettoie si nécessaire
-     */
     public static UnloadAsset(path: string): void {
         const entry = this._containerCache.get(path);
         if (entry) {
@@ -293,7 +318,6 @@ export class EntityFactory {
             if (entry.refCount <= 0) {
                 entry.container.dispose();
                 this._containerCache.delete(path);
-                console.log(`[Factory] Asset libéré : ${path}`);
             }
         }
     }
