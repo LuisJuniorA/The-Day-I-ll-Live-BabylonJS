@@ -33,7 +33,7 @@ export abstract class MeleeWeapon extends Weapon {
         let firstTargetPos: Vector3 | null = null; // Pour stocker la position du premier impact
 
         for (const target of targets) {
-            if (target.faction === owner.faction) continue;
+            if (target.faction === owner.faction || target.isDead) continue;
 
             hasHitAtLeastOne = true;
 

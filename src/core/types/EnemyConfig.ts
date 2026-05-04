@@ -1,4 +1,5 @@
 import type { CharacterStats } from "./CharacterStats";
+import type { LootTableEntry } from "./Items";
 
 export type SteeringWeights = {
     seek: number; // Importance de la poursuite
@@ -23,4 +24,6 @@ export type EnemyConfig = {
     assetPath: string;
     stats: CharacterStats;
     behavior: EnemyBehaviorConfig;
+    xpReward: number; // L'XP donnée à la mort
+    lootTable: LootTableEntry[]; // Les objets que ce monstre peut lâcher
 };

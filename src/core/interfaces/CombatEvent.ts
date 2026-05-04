@@ -3,6 +3,7 @@ import type { FactionType } from "../types/Faction";
 import type { PlayerReactionAnim, StatusType } from "../types/StatusEffects";
 import type { Weapon } from "../abstracts/Weapon";
 import type { Character } from "../abstracts/Character";
+import type { Item } from "../types/Items";
 
 export interface DamageEvent {
     targetId: string; // Qui on touche
@@ -37,10 +38,22 @@ export interface WeaponRequestEvent {
     weaponId: string;
 }
 
-export const OnRequestWeaponEquip = new Observable<WeaponRequestEvent>();
+export interface ExperienceEvent {
+    targetId: string; // Généralement le joueur
+    amount: number;
+}
 
+export interface ItemPickupEvent {
+    targetId: string; // Généralement le joueur
+    item: Item;
+    amount: number;
+}
+
+export const OnRequestWeaponEquip = new Observable<WeaponRequestEvent>();
 export const OnHealthChanged = new Observable<HealthChangedEvent>();
 export const OnEntityDamaged = new Observable<DamageEvent>();
 export const OnStatusApplied = new Observable<StatusEvent>();
 export const OnWeaponChanged = new Observable<WeaponChangedEvent>();
 export const OnDamageConfirmed = new Observable<DamageEvent>();
+export const OnExperienceGained = new Observable<ExperienceEvent>();
+export const OnItemPickedUp = new Observable<ItemPickupEvent>();

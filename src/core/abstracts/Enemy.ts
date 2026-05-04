@@ -53,6 +53,7 @@ export abstract class Enemy extends Character {
         this.attackFSM.transitionTo(new EnemyAttackIdleState());
 
         this.onDeath = () => {
+            this._handleRewards();
             this.hasToBeDeleted = false;
             // 1. On arrête les machines à états pour que l'ennemi ne bouge/n'attaque plus
             this.movementFSM.dispose();
@@ -73,6 +74,42 @@ export abstract class Enemy extends Character {
                 this.hasToBeDeleted = true;
             }, 5000);
         };
+    }
+
+    /**
+     * Génère les drops (XP et Items) à la mort
+     */
+    private _handleRewards(): void {
+        // 1. Récupération du LootManager via la scène ou l'EntityManager
+        // On suppose que l'EntityManager est accessible globalement ou via la scène
+        const lootManager = (this._scene as any).entityManager?.lootManager;
+        if (!lootManager) return;
+
+        const spawnPos = this.transform.position.clone();
+        console.log(spawnPos);
+        // 2. Drop de l'XP (Systématique si définie)
+        if (this.config.xpReward > 0) {
+            lootManager.spawnLoot(spawnPos, this.config.xpReward);
+        }
+
+        // 3. Drop des Items selon la LootTable
+        if (this.config.lootTable) {
+            for (const entry of this.config.lootTable) {
+                const roll = Math.random();
+                if (roll <= entry.dropChance) {
+                    // Calcul de la quantité aléatoire entre min et max
+                    const amount =
+                        Math.floor(
+                            Math.random() *
+                                (entry.maxAmount - entry.minAmount + 1),
+                        ) + entry.minAmount;
+
+                    // On récupère la data de l'item (via une DB statique par exemple)
+                    // Pour l'exemple, on passe l'ID ou l'objet complet
+                    lootManager.spawnLoot(spawnPos, amount, entry.itemId);
+                }
+            }
+        }
     }
 
     public abstract getNextAttack(): ActionBehavior;

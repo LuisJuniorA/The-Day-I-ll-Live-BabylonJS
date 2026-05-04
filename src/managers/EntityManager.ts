@@ -4,18 +4,31 @@ import { ProximitySystem } from "../core/engines/ProximitySystem";
 import { isInteractableEntity } from "../core/interfaces/Interactable";
 import { EntityFactory } from "../factories/EntityFactory";
 import { isPerceivableEntity } from "../core/interfaces/Perceivable";
-import type { Character } from "../core/abstracts/Character";
+import { LootManager } from "../managers/LootManager";
 
+/**
+ * Gestionnaire central de toutes les entités du monde.
+ * Gère le cycle de vie, la proximité, et la distribution du loot.
+ */
 export class EntityManager {
     private _entities: Map<string, Entity> = new Map();
     private _toRemove: Set<string> = new Set();
     private _scene: Scene;
 
-    // Système gérant les distances Joueur/Entités
-    public _proximitySystem: ProximitySystem = new ProximitySystem();
+    /** Système gérant les distances Joueur/Entités (IA, Interactions, Loot) */
+    public readonly _proximitySystem: ProximitySystem = new ProximitySystem();
+
+    /** Gestionnaire des particules de loot (XP et Items) */
+    public readonly lootManager: LootManager;
 
     constructor(scene: Scene) {
         this._scene = scene;
+
+        // Initialisation du système de loot avec référence à la proximité
+        this.lootManager = new LootManager(this._scene, this._proximitySystem);
+
+        // Injection optionnelle pour accès global via la scène (pratique pour les classes filles)
+        (this._scene as any).entityManager = this;
     }
 
     /**
@@ -26,22 +39,24 @@ export class EntityManager {
     }
 
     /**
-     * Ajoute une entité déjà créée au manager et au système de proximité
+     * Ajoute une entité au manager et l'enregistre dans les sous-systèmes appropriés
      */
     public add(entity: Entity): void {
         this._entities.set(entity.id, entity);
 
-        // Si l'entité implémente IInteractable, elle est suivie par le ProximitySystem
+        // Enregistrement spatial pour les interactions (UI, Quêtes, Portes)
         if (isInteractableEntity(entity)) {
             this._proximitySystem.addInteractable(entity);
         }
+
+        // Enregistrement spatial pour la perception (IA, Steering, Loot)
         if (isPerceivableEntity(entity)) {
             this._proximitySystem.registerPerceivable(entity);
         }
     }
 
     /**
-     * Crée et ajoute une entité de manière asynchrone (via la Factory)
+     * Crée et ajoute une entité de manière asynchrone via la Factory
      */
     public async spawn(type: string, position: Vector3): Promise<Entity> {
         const entity = await EntityFactory.Create(
@@ -56,12 +71,11 @@ export class EntityManager {
     }
 
     /**
-     * Spawn automatique basé sur les données d'un node (ex: import Blender)
+     * Spawn automatique basé sur les données d'un node (ex: export Blender/GLTF metadata)
      */
     public async spawnFromMetadata(spawner: TransformNode): Promise<void> {
         const type = spawner.metadata?.type || "unknown";
 
-        // On utilise la Factory pour construire l'objet (GLB ou Placeholder)
         const entity = await EntityFactory.Create(
             type,
             this._scene,
@@ -69,7 +83,6 @@ export class EntityManager {
             this._proximitySystem,
         );
 
-        // On récupère l'orientation du spawner
         if (spawner.rotationQuaternion) {
             entity.transform.rotationQuaternion =
                 spawner.rotationQuaternion.clone();
@@ -81,39 +94,53 @@ export class EntityManager {
     }
 
     /**
-     * Marque une entité pour suppression au prochain frame
+     * Marque une entité pour suppression au prochain frame et la retire des systèmes de détection
      */
     public remove(id: string): void {
         const entity = this._entities.get(id);
-        if (entity && isInteractableEntity(entity)) {
-            this._proximitySystem.removeInteractable(entity);
+        if (entity) {
+            if (isInteractableEntity(entity)) {
+                this._proximitySystem.removeInteractable(entity);
+            }
+            if (isPerceivableEntity(entity)) {
+                this._proximitySystem.unregisterPerceivable(entity);
+            }
+            this._toRemove.add(id);
         }
-        if (isPerceivableEntity(entity)) {
-            this._proximitySystem.unregisterPerceivable(entity);
-        }
-        this._toRemove.add(id);
     }
 
     /**
-     * Boucle de mise à jour logique
+     * Boucle de mise à jour logique (appelée par la boucle de rendu principale)
      */
     public update(dt: number): void {
-        // 1. Mise à jour des distances
+        // 1. Mise à jour spatiale (Calcul des distances une seule fois par tick)
         this._proximitySystem.update(dt);
 
-        // 2. Mise à jour de la logique interne (FSM, etc.)
+        // 2. Mise à jour du Loot (Mouvement des particules + Aspiration vers joueur)
+        this.lootManager.update(dt);
+
+        // 3. Mise à jour de la logique interne de chaque entité
         for (const [id, entity] of this._entities.entries()) {
             entity.update(dt);
-            if ((entity as Character).hasToBeDeleted) {
+
+            // Si l'entité est un Character et qu'elle a terminé sa mort (anim finie)
+            if ((entity as any).hasToBeDeleted) {
                 this._toRemove.add(id);
             }
         }
 
-        // 3. Nettoyage des entités supprimées
+        // 4. Nettoyage mémoire des entités supprimées
         if (this._toRemove.size > 0) {
             this._toRemove.forEach((id) => {
                 const entity = this._entities.get(id);
                 if (entity) {
+                    // Nettoyage ProximitySystem si non fait via remove()
+                    if (isInteractableEntity(entity))
+                        this._proximitySystem.removeInteractable(entity);
+                    if (isPerceivableEntity(entity))
+                        this._proximitySystem.unregisterPerceivable(entity);
+
+                    // Nettoyage Babylon.js et Assets
                     entity.dispose();
                     EntityFactory.UnloadAsset(entity.assetPath);
                     this._entities.delete(id);
@@ -124,13 +151,14 @@ export class EntityManager {
     }
 
     /**
-     * Nettoyage complet
+     * Nettoyage complet du monde (changement de niveau ou sortie de jeu)
      */
     public disposeAll(): void {
         for (const entity of this._entities.values()) {
             entity.dispose();
         }
         this._entities.clear();
+        this._toRemove.clear();
         this._proximitySystem.disposeAll();
     }
 }
