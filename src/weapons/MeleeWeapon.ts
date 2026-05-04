@@ -26,23 +26,37 @@ export abstract class MeleeWeapon extends Weapon {
     }
 
     public attack(owner: Character): void {
-        // 1. Feedback visuel/animation
         this.playAttackAnimation(owner);
 
-        // 2. Détection des cibles
         const targets = this.findTargetsInHitbox(owner);
+        let hasHitAtLeastOne = false;
+        let firstTargetPos: Vector3 | null = null; // Pour stocker la position du premier impact
 
-        // 3. Notification du système de combat
         for (const target of targets) {
             if (target.faction === owner.faction) continue;
+
+            hasHitAtLeastOne = true;
+
+            // On récupère la position de la cible de manière safe
+            // Si c'est un Character, il a .transform.position.
+            // Si c'est un Mesh, il a .position.
+            if (!firstTargetPos) {
+                firstTargetPos =
+                    target.transform?.position || target.position || null;
+            }
+
             OnEntityDamaged.notifyObservers({
                 targetId: target.id,
                 attackerId: owner.id,
-                // On additionne les dégâts de l'arme et le modificateur de force du personnage
                 amount: this.stats.damage + (owner.stats.damage || 0),
-                position: target.position.clone(),
+                position: owner.transform.position.clone(),
                 attackerFaction: owner.faction,
             });
+        }
+
+        // On n'applique le recul que si on a touché ET qu'on a une position valide
+        if (hasHitAtLeastOne && firstTargetPos) {
+            owner.onHitTarget(firstTargetPos);
         }
     }
 

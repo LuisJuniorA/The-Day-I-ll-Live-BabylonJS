@@ -12,8 +12,10 @@ export abstract class Character extends Entity {
     public animations: Map<string, AnimationGroup> = new Map();
     public faction: FactionType;
 
-    private _isPriorityAnimActive: boolean = false;
+    // Force externe pour gérer le physique (Knockback / Recul) sans polluer l'input
+    public externalForce: Vector3 = Vector3.Zero();
 
+    private _isPriorityAnimActive: boolean = false;
     public onDeath?: () => void;
 
     constructor(
@@ -26,24 +28,58 @@ export abstract class Character extends Entity {
         this.stats = { ...stats };
         this.faction = faction;
 
+        // Écouteur global pour les dégâts reçus
         OnEntityDamaged.add((event) => {
             if (event.attackerId === this.id) return;
             if (event.attackerFaction === this.faction) return;
-            this.takeDamage(event.amount);
+
+            this.takeDamage(event.amount, event.position, event.attackerId);
         });
     }
 
-    // core/abstracts/Character.ts
+    // À garder/ajouter dans Character.ts
 
-    public takeDamage(amount: number): void {
+    /**
+     * Appelé par l'arme quand elle confirme un impact sur une cible ennemie
+     */
+    public onHitTarget(targetPosition: Vector3): void {
         if (this.isDead) return;
 
+        // On calcule le recul : à l'opposé de la cible
+        const diffX = this.transform.position.x - targetPosition.x;
+
+        // Si on est trop proche (diffX quasi nul), on se base sur la rotation
+        const dirX =
+            Math.abs(diffX) > 0.1
+                ? diffX > 0
+                    ? 1
+                    : -1
+                : this.transform.rotation.y === 0
+                  ? -1
+                  : 1;
+
+        // Force de recul (ajuste à 3 ou 4 pour un bon feeling "poids de l'arme")
+        this.applyKnockback(new Vector3(dirX, 0, 0), 4);
+    }
+
+    public takeDamage(
+        amount: number,
+        originPos?: Vector3,
+        attackerId?: string,
+    ): void {
+        if (this.isDead) return;
         this.stats.hp -= amount;
-        console.log(`${this.name} took damage: ${this.stats.hp}`);
+
+        // Knockback subi par la victime (8 c'est violent, parfait pour le feedback)
+        if (originPos) {
+            const diffX = this.transform.position.x - originPos.x;
+            const dir = new Vector3(diffX > 0 ? 1 : -1, 0, 0);
+            this.applyKnockback(dir, 8);
+        }
 
         OnDamageConfirmed.notifyObservers({
-            targetId: this.name,
-            attackerId: this.id,
+            targetId: this.id,
+            attackerId: attackerId ?? "unknown",
             amount: amount,
             position: this.transform.position.clone(),
             attackerFaction: this.faction,
@@ -52,9 +88,59 @@ export abstract class Character extends Entity {
         if (this.stats.hp <= 0) this.die();
     }
 
+    protected updateForces(dt: number): void {
+        if (this.externalForce.length() > 0.01) {
+            // Friction : 0.1 c'est bien, ça s'arrête vite mais on voit le mouvement
+            const friction = Math.pow(0.005, dt);
+            this.externalForce.scaleInPlace(friction);
+        } else {
+            this.externalForce.setAll(0);
+        }
+    }
+
+    /**
+     * Recul léger appliqué à l'attaquant quand il touche une cible
+     */
+    // À remplacer dans Character.ts
+    protected _handleAttackRecoil(impactPoint: Vector3): void {
+        if (this.isDead) return;
+
+        // 1. Calcul de direction
+        let diffX = this.transform.position.x - impactPoint.x;
+
+        // Sécurité : Si on est pile sur la cible, on recule à l'opposé d'où on regarde
+        if (Math.abs(diffX) < 0.01) {
+            diffX = this.transform.rotation.y === 0 ? -1 : 1;
+        }
+
+        const recoilDir = new Vector3(diffX > 0 ? 1 : -1, 0, 0);
+
+        // 2. Augmenter la force (2.5 c'est très peu avec la friction qu'on a mise)
+        // Essaye 5 ou 6 pour bien voir l'effet, puis ajuste.
+        this.applyKnockback(recoilDir, 5);
+    }
+
+    public applyKnockback(direction: Vector3, force: number): void {
+        if (this.isDead) return;
+        // On ajoute l'impulsion à la force externe
+        this.externalForce.addInPlace(direction.scale(force));
+    }
+
+    /**
+     * Change l'orientation visuelle (rotation Y)
+     */
+    public faceDirection(horizontalInput: number): void {
+        const threshold = 0.1;
+        if (horizontalInput > threshold) {
+            this.transform.rotation.y = 0; // Droite
+        } else if (horizontalInput < -threshold) {
+            this.transform.rotation.y = Math.PI; // Gauche
+        }
+    }
+
     public checkGrounded(): void {
-        const rayLength = 0.8; // On augmente un peu
-        const bodyRadius = 0.25; // On réduit un peu l'écartement pour être plus précis sur les bords
+        const rayLength = 0.8;
+        const bodyRadius = 0.25;
 
         const positions = [
             new Vector3(0, 0, 0),
@@ -67,18 +153,12 @@ export abstract class Character extends Entity {
         let hasHit = false;
         const halfHeight = this.mesh!.ellipsoid.y;
         for (const posOffset of positions) {
-            // Comme ça, le rayon "descend" vers le sol.
             const feetOffset = -(halfHeight * 0.9);
-
             const origin = this.transform.position
                 .add(posOffset)
                 .add(new Vector3(0, feetOffset, 0));
 
             const ray = new Ray(origin, new Vector3(0, -1, 0), rayLength);
-
-            // Debug : décommente la ligne suivante pour voir les rayons en jeu si besoin
-            // RayHelper.CreateAndShow(ray, this._scene, Color3.Red());
-
             const pick = this._scene.pickWithRay(ray, (m) => {
                 return m.checkCollisions && m.collisionGroup === 1;
             });
@@ -90,12 +170,8 @@ export abstract class Character extends Entity {
         }
 
         this.isGrounded = hasHit;
-
-        if (this.isGrounded) {
-            // Si on touche le sol, on stoppe net la chute
-            if (this.velocity.y < 0) {
-                this.velocity.y = 0;
-            }
+        if (this.isGrounded && this.velocity.y < 0) {
+            this.velocity.y = 0;
         }
     }
 
@@ -104,41 +180,37 @@ export abstract class Character extends Entity {
         this.isDead = true;
         this.stats.hp = 0;
         this.velocity.setAll(0);
+        this.externalForce.setAll(0);
         if (this.onDeath) this.onDeath();
     }
 
-    public move(velocity: Vector3, dt: number): void {
+    /**
+     * @param inputVelocity La vélocité issue de l'input joueur ou de l'IA
+     * @param dt DeltaTime
+     */
+    public move(inputVelocity: Vector3, dt: number): void {
         if (this.isDead || !this.mesh || !this._scene.animationsEnabled) return;
-        const finalVelocity = velocity.clone();
 
-        if (this.isGrounded && finalVelocity.y < 0) {
-            finalVelocity.y = -0.01;
-        }
+        this.updateForces(dt);
 
-        const springStrength = 2.0;
-        finalVelocity.z += -this.transform.position.z * springStrength;
+        // Somme de l'intention (input) et du physique (externalForce)
+        const totalVelocity = inputVelocity.add(this.externalForce);
+        const frameMove = totalVelocity.scale(dt);
 
-        const frameMove = finalVelocity.scale(dt);
         this.mesh.moveWithCollisions(frameMove);
 
         this.transform.position.addInPlace(this.mesh.position);
         this.mesh.position.setAll(0);
 
-        const zLimit = 1.0;
-        if (this.transform.position.z > zLimit)
-            this.transform.position.z = zLimit;
-        if (this.transform.position.z < -zLimit)
-            this.transform.position.z = -zLimit;
-
-        this._handleSpriteFlip();
+        // Gestion du flip visuel basée uniquement sur l'INPUT
+        this._handleSpriteFlip(inputVelocity);
     }
 
-    private _handleSpriteFlip(): void {
-        if (!this.mesh) return;
-        if (this.velocity.x > 0.1) {
-            this.transform.rotation.y = 0;
-        } else if (this.velocity.x < -0.1) {
-            this.transform.rotation.y = Math.PI;
+    private _handleSpriteFlip(inputVelocity: Vector3): void {
+        // On ne se retourne que si on a une intention de mouvement claire
+        // Cela évite de flip à cause du knockback ou d'un micro-mouvement
+        if (Math.abs(inputVelocity.x) > 0.1) {
+            this.faceDirection(inputVelocity.x);
         }
     }
 
@@ -148,23 +220,16 @@ export abstract class Character extends Entity {
         isPriority: boolean = false,
     ): void {
         if (this._isPriorityAnimActive && loop) return;
-
         const search = name.toLowerCase();
         const entry = Array.from(this.animations.entries()).find(([key]) =>
             key.toLowerCase().includes(search),
         );
-
         if (!entry) return;
-
         const targetAnim = entry[1];
-
         if (targetAnim.isPlaying && loop) return;
 
-        // --- LOGIQUE DE TRANSITION ---
         this.animations.forEach((a) => {
-            if (a !== targetAnim && a.isPlaying) {
-                a.stop();
-            }
+            if (a !== targetAnim && a.isPlaying) a.stop();
         });
 
         if (isPriority) {
@@ -173,9 +238,6 @@ export abstract class Character extends Entity {
                 this._isPriorityAnimActive = false;
             });
         }
-
-        // Lance l'animation : grâce à enableBlending = true,
-        // elle va "shifter" doucement depuis la pose actuelle.
         targetAnim.play(loop);
     }
 }

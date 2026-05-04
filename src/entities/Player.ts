@@ -315,9 +315,17 @@ export class Player extends Character {
     }
 
     // --- Gestion des Armes & Combat ---
-    public takeDamage(amount: number): void {
+    // À remplacer dans Player.ts
+    public takeDamage(
+        amount: number,
+        originPos?: Vector3,
+        attackerId?: string,
+    ): void {
         if (this._invulnerabilityTimer > 0 || this.isDead) return;
-        super.takeDamage(amount);
+
+        // Appelle Character.takeDamage (qui gère désormais les PV + le vecteur de recul)
+        super.takeDamage(amount, originPos, attackerId);
+
         this._invulnerabilityTimer = this.I_FRAME_DURATION;
         if (this._pointLight) this._pointLight.intensity = 0.2;
 
