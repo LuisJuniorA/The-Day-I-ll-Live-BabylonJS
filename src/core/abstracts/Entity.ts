@@ -12,7 +12,10 @@ export abstract class Entity {
         this.id = crypto.randomUUID();
         this.name = name;
         this._scene = scene;
-        this.transform = new TransformNode(`${name}_root`, scene);
+
+        // On donne l'UUID au TransformNode au lieu du nom générique
+        this.transform = new TransformNode(this.id, scene);
+        this.transform.name = `${name}_root`; // On garde le nom lisible pour l'inspecteur
     }
 
     /** Position logique (utilisée par l'IA et les calculs) */

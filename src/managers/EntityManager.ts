@@ -29,6 +29,7 @@ export class EntityManager {
 
         // Injection optionnelle pour accès global via la scène (pratique pour les classes filles)
         (this._scene as any).entityManager = this;
+        this.setupMonsterDebug();
     }
 
     /**
@@ -160,5 +161,62 @@ export class EntityManager {
         this._entities.clear();
         this._toRemove.clear();
         this._proximitySystem.disposeAll();
+    }
+
+    /**
+     * Méthode de debug uniquement : Affiche l'état de santé de tous les monstres.
+     */
+    public setupMonsterDebug(): void {
+        // @ts-ignore
+        if (import.meta.env.DEV) {
+            window.addEventListener("keydown", (ev) => {
+                // Raccourci : Ctrl + Shift + H
+                if (ev.shiftKey && ev.ctrlKey && ev.altKey && ev.key === "H") {
+                    console.log(
+                        "%c --- MONSTER STATUS REPORT ---",
+                        "color: #ff4757; font-weight: bold;",
+                    );
+
+                    let monsterCount = 0;
+
+                    this._entities.forEach((entity) => {
+                        // On vérifie si l'entité est un "Character" (car ils ont des stats d'HP)
+                        // Et on vérifie si ce n'est pas le joueur
+                        if (
+                            "stats" in entity &&
+                            (entity as any).faction !== 0
+                        ) {
+                            // 0 étant souvent Faction.PLAYER
+                            const char = entity as any;
+                            const healthPercent = (
+                                (char.stats.hp / char.stats.maxHp) *
+                                100
+                            ).toFixed(0);
+                            const status = char.isDead ? "DEAD" : "ALIVE";
+
+                            // Couleur selon la vie : Vert > Orange > Rouge
+                            let color = "#2ed573";
+                            if (char.stats.hp < char.stats.maxHp * 0.5)
+                                color = "#ffa502";
+                            if (
+                                char.stats.hp < char.stats.maxHp * 0.25 ||
+                                char.isDead
+                            )
+                                color = "#ff4757";
+
+                            console.log(
+                                `%c[${char.id}] ${char.name} | HP: ${char.stats.hp}/${char.stats.maxHp} (${healthPercent}%) | Pos: ${char.transform.position.x.toFixed(1)}, ${char.transform.position.y.toFixed(1)} | Status: ${status}`,
+                                `color: ${color}`,
+                            );
+                            monsterCount++;
+                        }
+                    });
+
+                    if (monsterCount === 0)
+                        console.log("Aucun monstre actif détecté.");
+                    console.log("-------------------------------");
+                }
+            });
+        }
     }
 }

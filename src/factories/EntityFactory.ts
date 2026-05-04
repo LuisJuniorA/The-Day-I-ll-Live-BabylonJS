@@ -46,8 +46,9 @@ export class EntityFactory {
         const typeLower = type.toLowerCase();
 
         const npcData = NPC_DATA[typeUpper];
-        const enemyData = ENEMY_CONFIGS[typeLower];
-
+        const enemyData = ENEMY_CONFIGS[typeLower]
+            ? JSON.parse(JSON.stringify(ENEMY_CONFIGS[typeLower]))
+            : null;
         const assetPath =
             npcData?.assetPath ||
             enemyData?.assetPath ||

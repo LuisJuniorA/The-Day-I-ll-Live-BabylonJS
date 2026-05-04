@@ -31,6 +31,8 @@ export abstract class Character extends Entity {
 
         // Écouteur global pour les dégâts reçus
         OnEntityDamaged.add((event) => {
+            console.log(event);
+            if (event.targetId !== this.id) return;
             if (event.attackerId === this.id) return;
             if (event.attackerFaction === this.faction) return;
 
