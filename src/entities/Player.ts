@@ -28,6 +28,7 @@ import {
     OnHealthChanged,
     OnItemPickedUp,
     OnRequestWeaponEquip,
+    OnStatusApplied,
     OnWeaponChanged,
 } from "../core/interfaces/CombatEvent";
 import { Faction } from "../core/types/Faction";
@@ -36,6 +37,7 @@ import { WeaponSlot } from "../core/types/WeaponTypes";
 import { InventoryManager } from "../managers/InventoryManager";
 import { ExperienceManager } from "../managers/ExperienceManager";
 import type { LootDrop } from "../core/types/Items";
+import { StatusType } from "../core/types/StatusEffects";
 
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
@@ -69,6 +71,9 @@ export class Player extends Character {
     private readonly CAM_DISTANCE_Z: number = -18;
     private readonly LOOK_AHEAD_DISTANCE: number = 4;
     private readonly LERP_SMOOTHNESS: number = 0.1; // Suivi horizontal
+
+    private _currentStatus: StatusType = StatusType.NONE;
+    private _statusTimer: number = 0;
 
     private _currentSlots: Record<WeaponSlot, string | null> = {
         [WeaponSlot.DAGGER]: null,
@@ -229,8 +234,17 @@ export class Player extends Character {
     public update(dt: number): void {
         if (this.isDead) return;
 
+        this._updateStatus(dt);
+
         this._timeCounter += dt;
         this._updateIFrames(dt);
+
+        if (this._currentStatus === StatusType.STUN) {
+            this._updateCamera(dt); // On garde la caméra
+            //this.applyPhysics(dt); // On garde la gravité pour ne pas flotter en l'air
+            return;
+        }
+
         this.updateInput(dt);
 
         // 1. Détection du sol
@@ -346,6 +360,20 @@ export class Player extends Character {
             (event as any).allSlots = { ...this._currentSlots };
         });
 
+        OnStatusApplied.add((event) => {
+            if (event.targetId === "Player") {
+                this.applyStatus(event.effectType, event.duration);
+
+                // Optionnel : Jouer l'animation visuelle demandée par l'ennemi
+                if (event.visualAnim) {
+                    console.log(
+                        `Le joueur joue l'animation : ${event.visualAnim}`,
+                    );
+                    // Ici, appelle ton système d'animation si tu en as un pour l'âme
+                }
+            }
+        });
+
         OnExperienceGained.add((event) => {
             if (event.targetId === "Player") {
                 this.grantXp(event.amount);
@@ -362,6 +390,27 @@ export class Player extends Character {
                 });
             }
         });
+    }
+
+    public applyStatus(type: StatusType, duration: number): void {
+        this._currentStatus = type;
+        this._statusTimer = duration;
+
+        if (type === StatusType.STUN) {
+            // On stoppe net la vélocité horizontale
+            this.velocity.x = 0;
+            console.log("ÉTALÉ ! Le joueur est étourdi.");
+        }
+    }
+
+    private _updateStatus(dt: number): void {
+        if (this._statusTimer > 0) {
+            this._statusTimer -= dt;
+            if (this._statusTimer <= 0) {
+                this._currentStatus = StatusType.NONE;
+                console.log("Le joueur n'est plus étourdi.");
+            }
+        }
     }
 
     public updateInput(dt: number): void {

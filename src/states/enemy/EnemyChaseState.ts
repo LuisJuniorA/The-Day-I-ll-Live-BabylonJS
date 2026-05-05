@@ -28,8 +28,13 @@ export class EnemyChaseState extends EnemyState {
 
         const dist = Vector3.Distance(owner.position, target.position);
 
-        // --- 1. CALCUL DES FORCES ---
-        if (dist > owner.config.behavior.interactionRange) {
+        // --- 1. DÉTERMINATION DE LA CIBLE DE MOUVEMENT ---
+        // On récupère l'attaque que l'IA veut faire pour savoir à quelle distance s'arrêter
+        const nextAttack = owner.getNextAttack();
+        const stopDistance = nextAttack.range;
+
+        // --- 2. CALCUL DES FORCES OU ARRÊT ---
+        if (dist > stopDistance) {
             // Force pour aller vers le joueur
             const seekForce = SteeringSystem.seek(owner, target.position);
 
@@ -37,14 +42,14 @@ export class EnemyChaseState extends EnemyState {
             const neighbors = owner.getNearbyNeighbors();
             const sepForce = SteeringSystem.separate(owner, neighbors, 10.0);
 
-            // --- NOUVEAU : Force d'évitement de murs ---
+            // Force d'évitement de murs
             const avoidanceForce = this.calculateWallAvoidance(owner, scene);
 
             // Combinaison des forces avec poids
             const steering = seekForce
                 .scale(owner.config.behavior.weights.seek)
                 .add(sepForce.scale(owner.config.behavior.weights.separation))
-                .add(avoidanceForce); // Ajout de l'évitement
+                .add(avoidanceForce);
 
             // Application à la vélocité
             owner.velocity.addInPlace(steering.scale(dt * 10));
@@ -56,7 +61,7 @@ export class EnemyChaseState extends EnemyState {
                     .scaleInPlace(owner.config.behavior.maxSpeed);
             }
 
-            // Debug de la trajectoire finale
+            // Debug de la trajectoire
             debug.drawRay(
                 owner.id + "_vel",
                 scene,
@@ -68,34 +73,55 @@ export class EnemyChaseState extends EnemyState {
 
             owner.playMove();
         } else {
+            // On est à portée de l'attaque choisie : on freine
             this.clearMovementDebug(owner);
             owner.velocity.scaleInPlace(Math.pow(0.01, dt));
             if (owner.velocity.length() < 0.1) owner.velocity.setAll(0);
-            owner.playIdle();
+
+            // Si on n'est pas déjà en train d'attaquer, on joue l'idle
+            if (!(owner.attackFSM.currentState instanceof EnemyAttackState)) {
+                owner.playIdle();
+            }
         }
 
         // Déplacement physique
         owner.move(owner.velocity, dt);
 
-        // --- 2. ORIENTATION & ATTAQUE ---
+        // --- 3. ORIENTATION & ATTAQUE ---
         this.updateOrientation(owner, target, dt);
-        this.handleAttackTransition(owner, dist);
+        this.handleAttackTransition(owner, dist, stopDistance);
 
-        // --- 3. ABANDON ---
+        // --- 4. ABANDON ---
         if (dist > owner.config.behavior.escapeRange) {
             this.clearAllDebug(owner);
             owner.movementFSM.transitionTo(new EnemyIdleState());
         }
     }
 
-    /**
-     * Scanne devant l'ennemi pour détecter un mur et générer une force de répulsion
-     */
+    private handleAttackTransition(
+        owner: Enemy,
+        dist: number,
+        attackRange: number,
+    ): void {
+        // Si on est à portée de l'attaque choisie
+        if (dist <= attackRange) {
+            const currentAttackState = owner.attackFSM.currentState;
+
+            // On vérifie si l'IA est prête à attaquer
+            if (
+                currentAttackState instanceof EnemyAttackIdleState &&
+                currentAttackState.canAttack
+            ) {
+                this.clearAllDebug(owner);
+                owner.attackFSM.transitionTo(new EnemyAttackState());
+            }
+        }
+    }
+
     private calculateWallAvoidance(owner: Enemy, scene: any): Vector3 {
         const force = new Vector3(0, 0, 0);
         if (owner.velocity.length() < 0.1) return force;
 
-        // On lance un rayon dans la direction actuelle du mouvement
         const moveDir = owner.velocity.clone().normalize();
         const ray = new Ray(
             owner.position.add(new Vector3(0, 0.5, 0)),
@@ -103,7 +129,6 @@ export class EnemyChaseState extends EnemyState {
             this.AVOIDANCE_RAY_LENGTH,
         );
 
-        // On ne check que l'environnement
         const hit = scene.pickWithRay(
             ray,
             (m: any) =>
@@ -112,17 +137,13 @@ export class EnemyChaseState extends EnemyState {
         );
 
         if (hit && hit.hit && hit.pickedPoint) {
-            // On calcule une force de répulsion basée sur la normale du mur
             const normal = hit.getNormal(true)!;
-
-            // La force est plus forte si on est proche du mur
             const distanceFactor =
                 1.0 - hit.distance / this.AVOIDANCE_RAY_LENGTH;
             force
                 .copyFrom(normal)
                 .scaleInPlace(this.AVOIDANCE_FORCE * distanceFactor);
 
-            // Debug du rayon d'évitement (Rouge si collision imminente)
             DebugService.getInstance().drawRay(
                 owner.id + "_avoid",
                 scene,
@@ -136,34 +157,6 @@ export class EnemyChaseState extends EnemyState {
         }
 
         return force;
-    }
-
-    // ... (updateOrientation, handleAttackTransition et clear methods inchangées)
-
-    private handleAttackTransition(owner: Enemy, dist: number): void {
-        if (dist <= owner.config.behavior.interactionRange) {
-            const currentAttackState = owner.attackFSM.currentState;
-            if (
-                currentAttackState instanceof EnemyAttackIdleState &&
-                currentAttackState.canAttack
-            ) {
-                this.clearAllDebug(owner);
-                owner.attackFSM.transitionTo(new EnemyAttackState());
-            }
-        }
-    }
-
-    private clearMovementDebug(owner: Enemy): void {
-        const debug = DebugService.getInstance();
-        debug.clear(owner.id + "_seek");
-        debug.clear(owner.id + "_sep");
-        debug.clear(owner.id + "_vel");
-        debug.clear(owner.id + "_avoid");
-    }
-
-    private clearAllDebug(owner: Enemy): void {
-        this.clearMovementDebug(owner);
-        DebugService.getInstance().clear(owner.id + "_best");
     }
 
     private updateOrientation(
@@ -183,6 +176,19 @@ export class EnemyChaseState extends EnemyState {
                 owner.config.behavior.turnSpeed * (dt * 60),
             );
         }
+    }
+
+    private clearMovementDebug(owner: Enemy): void {
+        const debug = DebugService.getInstance();
+        debug.clear(owner.id + "_seek");
+        debug.clear(owner.id + "_sep");
+        debug.clear(owner.id + "_vel");
+        debug.clear(owner.id + "_avoid");
+    }
+
+    private clearAllDebug(owner: Enemy): void {
+        this.clearMovementDebug(owner);
+        DebugService.getInstance().clear(owner.id + "_best");
     }
 
     public handleEnter(owner: Enemy) {

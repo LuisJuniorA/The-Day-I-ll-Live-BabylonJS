@@ -43,7 +43,7 @@ export class EnemyAttackState extends EnemyState {
 
         const dist = Vector3.Distance(owner.position, target.position);
         if (dist <= this._currentAttack.range) {
-            this._currentAttack.onHit(owner, target.id);
+            this._currentAttack.onHit(owner, "Player");
         }
     }
 }

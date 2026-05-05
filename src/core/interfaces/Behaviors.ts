@@ -6,6 +6,9 @@ export interface ActionBehavior {
     readonly duration: number;
     readonly damageMoment: number;
     readonly range: number;
+    cooldown?: number;
+    lastUsed?: number;
+    basePriority?: number;
     executeEffect(owner: Enemy): void;
     onHit(owner: Enemy, targetId: string): void;
 }
