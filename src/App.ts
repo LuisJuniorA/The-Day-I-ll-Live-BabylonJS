@@ -253,13 +253,13 @@ export class App {
     }
 
     private createDefaultLight(): void {
-        const light = new HemisphericLight(
-            "ambientLight",
-            new Vector3(0, 1, 0),
-            this.scene,
-        );
-        light.intensity = 0.7;
-        light.groundColor = new Color3(0.2, 0.2, 0.2);
+        // const light = new HemisphericLight(
+        //     "ambientLight",
+        //     new Vector3(0, 1, 0),
+        //     this.scene,
+        // );
+        // light.intensity = 0.7;
+        // light.groundColor = new Color3(0.2, 0.2, 0.2);
     }
 
     private setupInspectorToggle(): void {

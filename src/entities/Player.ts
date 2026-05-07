@@ -217,15 +217,16 @@ export class Player extends Character {
         ps.maxScaleY = 1.0;
         ps.minEmitBox = new Vector3(-0.01, -0.01, -0.01);
         ps.maxEmitBox = new Vector3(0.01, 0.01, 0.01);
-        ps.color1 = new Color4(1, 0.5, 0.5, 1);
-        ps.color2 = new Color4(0.1, 1, 0.1, 0.8);
+        ps.color1 = new Color4(1, 1, 0.2, 1.0);
+        ps.color2 = new Color4(1, 0.2, 0, 1.0);
+        ps.colorDead = new Color4(0.2, 0, 0, 0.0);
         ps.minInitialRotation = -Math.PI;
         ps.maxInitialRotation = Math.PI;
         ps.minAngularSpeed = -0.5;
         ps.maxAngularSpeed = 0.5;
         ps.minLifeTime = 0.5;
         ps.maxLifeTime = 1;
-        ps.emitRate = 150;
+        ps.emitRate = 100;
         ps.updateSpeed = 0.01;
         ps.blendMode = ParticleSystem.BLENDMODE_ADD;
         ps.start();
@@ -238,7 +239,7 @@ export class Player extends Character {
             this._scene,
         );
         this._pointLight.parent = this.transform;
-        this._pointLight.diffuse = new Color3(1.0, 0.95, 0.4);
+        this._pointLight.diffuse = new Color3(1, 0.98, 0.9);
         this._pointLight.intensity = 0.7;
         this._pointLight.range = 15;
 

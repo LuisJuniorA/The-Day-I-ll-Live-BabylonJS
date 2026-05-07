@@ -19,19 +19,18 @@ export class FireNovaSpell implements Spell {
     public readonly castDuration = 0.2;
     public lastCast = 0;
 
+    // Cache pour les ressources lourdes
+    private static _sharedTexture: Texture | null = null;
+
     public execute(owner: Player): void {
         const spawnPos = owner.transform.position.clone();
         const pool = PoolManager.getInstance();
-
-        // On définit la taille de la boîte (6x6x1 pour ton side-scroller)
         const size = new Vector3(6, 6, 1);
 
-        // Variables pour gérer le tick de dégâts
         let lastTickTime = 0;
         const tickRate = 0.1;
 
         pool.spawn(spawnPos, size, 2.0, (hitbox) => {
-            // Cette fonction tourne à chaque frame (onBeforeRender) via le PoolManager
             const dt = owner._scene.getEngine().getDeltaTime() / 1000;
             lastTickTime += dt;
 
@@ -50,13 +49,12 @@ export class FireNovaSpell implements Spell {
         if (!container) return;
 
         hitbox.computeWorldMatrix(true);
-        const entities = container.getChildren().slice();
+        const entities = container.getChildren();
 
         entities.forEach((entityNode) => {
             if (entityNode === owner.transform) return;
             const targetMesh = entityNode.getChildMeshes()[0] as AbstractMesh;
 
-            // Utilise intersectsMesh ou un simple test de distance X/Y si tu veux optimiser
             if (targetMesh && hitbox.intersectsMesh(targetMesh, false)) {
                 OnEntityDamaged.notifyObservers({
                     targetId: entityNode.id,
@@ -70,52 +68,69 @@ export class FireNovaSpell implements Spell {
     }
 
     private _createFireEffect(position: Vector3, scene: Scene): void {
-        // 1. Noise Texture (Optionnel mais recommandé pour le côté organique)
-        const noiseTexture = new NoiseProceduralTexture("perlin", 256, scene);
+        // --- LA CORRECTION EST ICI ---
+        // On vérifie si la texture est absente OU si elle a été "disposed" (le check .isDisposed() est le plus sûr)
+        if (
+            !FireNovaSpell._sharedTexture ||
+            !FireNovaSpell._sharedTexture.getInternalTexture()
+        ) {
+            FireNovaSpell._sharedTexture = new Texture(
+                "public/textures/flare.png",
+                scene,
+                true,
+                false,
+                Texture.LINEAR_LINEAR,
+            );
+        }
+
+        // Le NoiseProceduralTexture est recréé à chaque fois car il dépend du timing système
+        const noiseTexture = new NoiseProceduralTexture(
+            "perlin_nova",
+            256,
+            scene,
+        );
         noiseTexture.animationSpeedFactor = 3;
         noiseTexture.persistence = 1.5;
 
         const ps = new ParticleSystem("fire_nova_fx", 400, scene);
-        ps.particleTexture = new Texture("public/textures/flare.png", scene);
-        ps.emitter = position.clone();
+        ps.particleTexture = FireNovaSpell._sharedTexture;
 
-        // 2. LA CORRECTION : Utilisation de createSphereEmitter
-        // Le premier paramètre est le rayon de la sphère d'où partent les particules
-        // Le deuxième paramètre (0) fait que les particules partent du centre vers l'extérieur
+        ps.emitter = position.clone();
         ps.createSphereEmitter(0.5, 0);
 
-        // 3. DIRECTIONS (Contraintes en 2D pour ton side-scroller)
-        // On définit la plage de direction : de "Bas-Gauche" à "Haut-Droite"
-        // Le Z à 0 est CRUCIAL pour rester sur le plan de jeu
         ps.direction1 = new Vector3(-1, -1, 0);
         ps.direction2 = new Vector3(1, 1, 0);
 
-        // 4. EMISSION (Mode Explosion)
         ps.manualEmitCount = 300;
         ps.minLifeTime = 0.5;
         ps.maxLifeTime = 1.2;
+
         ps.disposeOnStop = true;
         ps.blendMode = ParticleSystem.BLENDMODE_ADD;
 
-        // 5. GRADIENTS (Couleur et Taille pour le réalisme)
-        ps.addColorGradient(0.0, new Color4(1, 1, 1, 1)); // Blanc chaud au coeur
-        ps.addColorGradient(0.2, new Color4(1, 0.8, 0, 1)); // Jaune
-        ps.addColorGradient(1.0, new Color4(0.5, 0, 0, 0)); // Rouge sombre transparent
+        // Gradients
+        ps.addColorGradient(0.0, new Color4(1, 1, 1, 1));
+        ps.addColorGradient(0.2, new Color4(1, 0.8, 0, 1));
+        ps.addColorGradient(1.0, new Color4(0.5, 0, 0, 0));
 
         ps.addSizeGradient(0.0, 0.2);
         ps.addSizeGradient(0.5, 1.5);
         ps.addSizeGradient(1.0, 0.0);
 
-        // 6. VELOCITY (L'inertie de l'explosion)
         ps.minEmitPower = 5;
         ps.maxEmitPower = 10;
-        ps.addVelocityGradient(0, 1.0); // Départ rapide
-        ps.addVelocityGradient(1.0, 0.1); // Freinage de fin
+        ps.addVelocityGradient(0, 1.0);
+        ps.addVelocityGradient(1.0, 0.1);
 
-        // 7. BRUIT (Ondulation des flammes)
         ps.noiseTexture = noiseTexture;
-        ps.noiseStrength = new Vector3(2, 2, 0); // Déformation uniquement en X/Y
+        ps.noiseStrength = new Vector3(2, 2, 0);
 
+        ps.reset();
         ps.start();
+
+        // Nettoyage rigoureux : on ne détruit que le bruit, pas la flare texture
+        ps.onDisposeObservable.add(() => {
+            noiseTexture.dispose();
+        });
     }
 }

@@ -21,7 +21,13 @@ export class GeometryGenerator {
         // 1. Créer le matériau
         const wallMat = new StandardMaterial("wallMat", scene);
         wallMat.diffuseColor = new Color3(0.3, 0.3, 0.3);
+        wallMat.backFaceCulling = false; // <--- AJOUTE ÇA
         wallMat.freeze(); // Optimisation : empêche le recalcul du matériau
+
+        const ground = MeshBuilder.CreatePlane("ground", { size: 100 }, scene);
+        ground.position.z = 0; // Juste derrière les murs
+        ground.material = wallMat;
+        container.meshes.push(ground);
 
         // 2. Créer chaque bloc comme une mesh simple (pas une instance ici)
         for (let x = 0; x < grid.length; x++) {
