@@ -127,10 +127,5 @@ export class FireNovaSpell implements Spell {
 
         ps.reset();
         ps.start();
-
-        // Nettoyage rigoureux : on ne détruit que le bruit, pas la flare texture
-        ps.onDisposeObservable.add(() => {
-            noiseTexture.dispose();
-        });
     }
 }

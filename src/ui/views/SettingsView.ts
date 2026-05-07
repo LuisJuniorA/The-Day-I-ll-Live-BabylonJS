@@ -136,12 +136,18 @@ export class SettingsView extends BaseView {
         }
 
         const actions: { label: string; id: PlayerAction }[] = [
-            { label: "MOUVEMENT GAUCHE", id: "left" },
-            { label: "MOUVEMENT DROITE", id: "right" },
-            { label: "SAUT / ÉLÉVATION", id: "jump" },
-            { label: "FRAPPER (ATTAQUE)", id: "attack" },
-            { label: "INTERAGIR / PRENDRE", id: "interact" },
+            // --- NAVIGATION ---
+            { label: "ALLER À GAUCHE", id: "left" },
+            { label: "ALLER À DROITE", id: "right" },
+            { label: "SAUTER", id: "jump" },
+
+            // --- COMBAT ---
+            { label: "ATTAQUER", id: "attack" },
+            { label: "LANCER UN SORT", id: "cast" },
             { label: "CHANGER D'ARME", id: "switch" },
+
+            // --- INTERACTIONS ---
+            { label: "INTERAGIR", id: "interact" },
         ];
 
         // 3. On recrée les lignes

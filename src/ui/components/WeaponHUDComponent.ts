@@ -1,19 +1,30 @@
-import { Rectangle, Image, Control, TextBlock } from "@babylonjs/gui";
-import { OnWeaponChanged } from "../../core/interfaces/CombatEvent";
+import { Rectangle, Image, Control, TextBlock, Ellipse } from "@babylonjs/gui";
+import {
+    OnSpellChanged,
+    OnWeaponChanged,
+} from "../../core/interfaces/CombatEvent";
 import { WEAPONS_DB } from "../../data/WeaponsDb";
+import type { Spell } from "../../core/interfaces/Spell";
+import { Engine } from "@babylonjs/core";
 
 export class WeaponHUDComponent extends Rectangle {
     private _slotVisuals: Map<string, { rect: Rectangle; icon: Image }> =
         new Map();
     private _activeWeaponLabel!: TextBlock;
 
+    // Éléments spécifiques au Sort
+    private _activeSpell: Spell | null = null;
+    private _spellCooldownOverlay!: Ellipse;
+
     private readonly _THEME = {
         SOUL_LIGHT: "#f0faff",
         INK_BLACK: "rgba(5, 5, 10, 0.8)",
         INK_BORDER: "rgba(255, 255, 255, 0.05)",
+        COOLDOWN_COLOR: "rgba(0, 0, 0, 0.7)",
     };
 
     private readonly _ICON_PATH = "assets/ui/icons/weapons/";
+    private readonly _SPELL_ICON_PATH = "assets/ui/icons/spells/";
 
     constructor(name: string) {
         super(name);
@@ -35,6 +46,7 @@ export class WeaponHUDComponent extends Rectangle {
     }
 
     private _buildHUD(): void {
+        // Label de l'arme active
         this._activeWeaponLabel = new TextBlock("activeWeaponLabel", "");
         this._activeWeaponLabel.color = this._THEME.SOUL_LIGHT;
         this._activeWeaponLabel.fontSize = 18;
@@ -45,41 +57,49 @@ export class WeaponHUDComponent extends Rectangle {
         this._activeWeaponLabel.left = "0px";
         this._activeWeaponLabel.textHorizontalAlignment =
             Control.HORIZONTAL_ALIGNMENT_LEFT;
-        this._activeWeaponLabel.shadowBlur = 10;
-        this._activeWeaponLabel.shadowColor = "white";
         this.addControl(this._activeWeaponLabel);
 
-        // --- Utilitaire ---
-        this._createCircle("Utility", 90, 0, 85);
+        // --- SLOT SORT ACTIF ---
+        const spellVisual = this._createCircle("Spell", 90, 0, 85);
+        this._slotVisuals.set("Spell", spellVisual);
 
-        // --- Armes (Configuration avancée des icônes) ---
-        // J'ai ajouté 'rotation' et 'zoom' pour chaque slot.
+        // --- L'EFFET DE RAYON (ELLIPSE) ---
+        this._spellCooldownOverlay = new Ellipse("spellCooldownOverlay");
+        this._spellCooldownOverlay.width = "90px";
+        this._spellCooldownOverlay.height = "90px";
+        this._spellCooldownOverlay.background = "transparent";
+        this._spellCooldownOverlay.color = this._THEME.COOLDOWN_COLOR;
+
+        // Épaisseur = exactement le rayon (90/2) pour un disque plein sans doublons
+        this._spellCooldownOverlay.thickness = 45;
+
+        // Start à 0 (vide), rotation à -90° pour commencer à MIDI
+        this._spellCooldownOverlay.arc = 0;
+        this._spellCooldownOverlay.alpha = 0;
+        this._spellCooldownOverlay.rotation = -Math.PI / 2;
+
+        spellVisual.rect.addControl(this._spellCooldownOverlay);
+
+        // --- SLOTS ARMES ---
         const weaponsData = [
-            {
-                slot: "Dagger",
-                x: 105,
-                y: 30,
-                rotation: Math.PI / 4, // 45° pour la dague (pointe vers le haut droite)
-                zoom: 1.4, // Zoom pour qu'elle remplisse le rond
-            },
+            { slot: "Dagger", x: 105, y: 30, rotation: Math.PI / 4, zoom: 1.4 },
             {
                 slot: "Sword",
                 x: 135,
                 y: 100,
-                rotation: -Math.PI / 6, // -30° inclinée légèrement
-                zoom: 1.6, // Gros zoom car l'épée est longue
+                rotation: -Math.PI / 6,
+                zoom: 1.6,
             },
             {
                 slot: "GreatSword",
                 x: 105,
                 y: 170,
-                rotation: -Math.PI / 6, // -90° (Horizontale)
-                zoom: 1.5, // Énorme zoom pour ne voir que la garde et le début de lame
+                rotation: -Math.PI / 6,
+                zoom: 1.5,
             },
         ];
 
         weaponsData.forEach((data) => {
-            // On passe la rotation et le zoom à la fonction de création
             const visual = this._createCircle(
                 data.slot,
                 68,
@@ -97,7 +117,7 @@ export class WeaponHUDComponent extends Rectangle {
         size: number,
         x: number,
         y: number,
-        rotation: number = 0, // Valeurs par défaut
+        rotation: number = 0,
         zoom: number = 1.0,
     ) {
         const rect = new Rectangle(`rect_${name}`);
@@ -111,33 +131,75 @@ export class WeaponHUDComponent extends Rectangle {
         rect.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         rect.left = `${x}px`;
         rect.top = `${y}px`;
-
-        // Empêche l'icône de déborder du rond quand on zoom
-        rect.clipContent = true;
+        rect.clipContent = true; // Crucial pour l'overlay
 
         const icon = new Image(`icon_${name}`, "");
-
-        // La taille de base de l'image dans le Rectangle (on la met à 100% du rectangle)
         icon.width = "100%";
         icon.height = "100%";
-
-        // STRETCH_UNIFORM est crucial pour garder le ratio d'aspect
         icon.stretch = Image.STRETCH_UNIFORM;
-
         icon.alpha = 0.3;
-
-        // --- APPLICATION DE L'ORIENTATION ET DU ZOOM ---
-        icon.rotation = rotation; // Applique la rotation (en radians)
-        icon.scaleX = zoom; // Applique le zoom horizontal
-        icon.scaleY = zoom; // Applique le zoom vertical (doit être identique)
+        icon.rotation = rotation;
+        icon.scaleX = zoom;
+        icon.scaleY = zoom;
 
         rect.addControl(icon);
-
         this.addControl(rect);
         return { rect, icon };
     }
 
+    private _updateCooldownDisplay(): void {
+        if (!this._activeSpell || this._activeSpell.lastCast === 0) {
+            this._spellCooldownOverlay.alpha = 0;
+            this._spellCooldownOverlay.arc = 0;
+            return;
+        }
+
+        const now = Date.now();
+        const elapsed = (now - this._activeSpell.lastCast) / 1000;
+        const cooldown = this._activeSpell.cooldown;
+
+        if (elapsed < cooldown) {
+            // progress : 1.0 (début cooldown) -> 0.0 (prêt)
+            const progress = 1 - elapsed / cooldown;
+
+            this._spellCooldownOverlay.alpha = 1;
+            // On s'assure que l'arc est au moins très petit pour éviter les glitchs
+            this._spellCooldownOverlay.arc = Math.max(0.00001, progress);
+        } else {
+            this._spellCooldownOverlay.alpha = 0;
+            this._spellCooldownOverlay.arc = 0;
+        }
+    }
+
     private _initObservers(): void {
+        // Observer pour le Sort
+        OnSpellChanged.add((spell) => {
+            this._activeSpell = spell;
+            const visual = this._slotVisuals.get("Spell");
+            if (!visual) return;
+
+            if (this._activeSpell) {
+                const iconName = this._activeSpell.name
+                    .toLowerCase()
+                    .replace(/\s+/g, "_");
+                visual.icon.source = `${this._SPELL_ICON_PATH}${iconName}.png`;
+                visual.icon.alpha = 1.0;
+                visual.rect.alpha = 1.0;
+            } else {
+                visual.icon.source = "";
+                visual.rect.alpha = 0.2;
+            }
+        });
+
+        // Loop de rendu
+        const engine = Engine.LastCreatedEngine;
+        if (engine) {
+            engine.onBeginFrameObservable.add(() => {
+                this._updateCooldownDisplay();
+            });
+        }
+
+        // Observer pour les Armes
         OnWeaponChanged.add((event) => {
             const slots = event.allSlots;
             const activeWeaponId = event.weapon.data.id;
@@ -148,6 +210,8 @@ export class WeaponHUDComponent extends Rectangle {
                 : "";
 
             this._slotVisuals.forEach((visual, slotKey) => {
+                if (slotKey === "Spell") return;
+
                 const weaponIdInSlot = slots[slotKey];
                 const isEquipped = event.weapon.slot === slotKey;
 
@@ -166,7 +230,6 @@ export class WeaponHUDComponent extends Rectangle {
                     visual.rect.background = "rgba(255, 255, 255, 0.15)";
                     visual.rect.shadowBlur = 15;
                     visual.rect.shadowColor = "white";
-                    visual.rect.zIndex = 10;
                     visual.icon.alpha = 1.0;
                 } else {
                     visual.rect.scaleX = 1.0;
@@ -174,7 +237,6 @@ export class WeaponHUDComponent extends Rectangle {
                     visual.rect.color = this._THEME.INK_BORDER;
                     visual.rect.background = this._THEME.INK_BLACK;
                     visual.rect.shadowBlur = 0;
-                    visual.rect.zIndex = 1;
                     visual.icon.alpha = 0.3;
                 }
             });

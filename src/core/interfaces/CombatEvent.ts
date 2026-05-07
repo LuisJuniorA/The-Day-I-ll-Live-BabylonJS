@@ -4,6 +4,7 @@ import type { PlayerReactionAnim, StatusType } from "../types/StatusEffects";
 import type { Weapon } from "../abstracts/Weapon";
 import type { Character } from "../abstracts/Character";
 import type { Item } from "../types/Items";
+import type { Spell } from "./Spell";
 
 // core/interfaces/CombatEvent.ts
 export interface DamageEvent {
@@ -70,3 +71,4 @@ export const OnWeaponChanged = new Observable<WeaponChangedEvent>();
 export const OnDamageConfirmed = new Observable<DamageEvent>();
 export const OnExperienceGained = new Observable<ExperienceEvent>();
 export const OnItemPickedUp = new Observable<ItemPickupEvent>();
+export const OnSpellChanged = new Observable<Spell | null>();

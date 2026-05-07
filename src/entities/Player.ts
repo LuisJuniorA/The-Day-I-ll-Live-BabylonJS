@@ -28,6 +28,7 @@ import {
     OnHealthChanged,
     OnItemPickedUp,
     OnRequestWeaponEquip,
+    OnSpellChanged,
     OnStatusApplied,
     OnWeaponChanged,
 } from "../core/interfaces/CombatEvent";
@@ -160,7 +161,7 @@ export class Player extends Character {
     public learnSpell(spell: Spell): void {
         this._activeSpell = spell;
         console.log(`Nouveau sort débloqué : ${spell.name}`);
-        // Ici tu pourrais notifier l'UI pour afficher l'icône du sort
+        OnSpellChanged.notifyObservers(spell);
     }
 
     public get hasSpell(): boolean {
