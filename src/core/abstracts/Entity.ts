@@ -5,11 +5,11 @@ export abstract class Entity {
     public mesh?: AbstractMesh; // Représentation visuelle/physique
     public readonly name: string;
     public readonly id: string;
-    protected readonly _scene: Scene;
+    public readonly _scene: Scene;
     public assetPath: string = "";
 
-    constructor(name: string, scene: Scene) {
-        this.id = crypto.randomUUID();
+    constructor(name: string, scene: Scene, id?: string) {
+        this.id = id || crypto.randomUUID();
         this.name = name;
         this._scene = scene;
 

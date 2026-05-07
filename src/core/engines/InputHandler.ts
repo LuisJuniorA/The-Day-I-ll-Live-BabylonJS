@@ -13,6 +13,7 @@ export class InputHandler {
     public isAttacking: boolean = false;
     public isInteracting: boolean = false;
     public isSwitchingWeapon: boolean = false;
+    public isCasting: boolean = false;
 
     constructor(scene: Scene) {
         InputConfig.load(); // On charge les touches au démarrage
@@ -56,7 +57,7 @@ export class InputHandler {
         this.isAttacking = this._isJustPressed("attack" as PlayerAction);
         this.isInteracting = this._isJustPressed("interact" as PlayerAction);
         this.isSwitchingWeapon = this._isJustPressed("switch" as PlayerAction);
-
+        this.isCasting = this._isJustPressed("cast" as PlayerAction);
         // Sauvegarde de l'état précédent pour le prochain frame
         this._lastKeys = new Set(this._keys);
     }

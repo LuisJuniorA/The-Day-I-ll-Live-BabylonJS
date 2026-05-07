@@ -18,6 +18,8 @@ export type WeaponData = {
         readonly range: number;
         readonly attackDuration: number; // Temps total de l'anim/état
         readonly description?: string;
+        readonly hitStopDuration?: number; // ex: 0.08 pour une dague, 0.2 pour une hache
+        readonly knockbackForce?: number; // ex: 2 pour une dague, 12 pour un marteau
     };
 
     // Stats appliquées au joueur

@@ -2,6 +2,7 @@ import { BaseState } from "../../core/abstracts/BaseState";
 import { AttackDirection } from "../../core/interfaces/CombatEvent";
 import { Player } from "../../entities/Player";
 import { MeleeWeapon } from "../../weapons/MeleeWeapon";
+import { PlayerCastState } from "./PlayerCastState";
 import { PlayerCombatIdleState } from "./PlayerCombatIdleState";
 
 export class PlayerAttackState extends BaseState<Player> {
@@ -30,7 +31,16 @@ export class PlayerAttackState extends BaseState<Player> {
     protected handleUpdate(owner: Player, dt: number): void {
         this._timer += dt;
 
-        // Une fois l'animation/le temps d'attaque terminé, on retourne en Idle
+        // --- AJOUT : Permettre de lancer un sort pour annuler la fin de l'attaque ---
+        if (owner.activeSpell && owner.buffer.isActive("spell")) {
+            const spell = owner.activeSpell;
+            const now = Date.now();
+            if (now - (spell.lastCast || 0) >= spell.cooldown * 1000) {
+                owner.attackFSM.transitionTo(new PlayerCastState(spell));
+                return; // On sort de l'attaque physique
+            }
+        }
+
         if (this._timer >= this._attackDuration) {
             owner.attackFSM.transitionTo(new PlayerCombatIdleState());
         }

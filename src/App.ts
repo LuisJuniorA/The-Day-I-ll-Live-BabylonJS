@@ -20,6 +20,8 @@ import { GameState } from "./core/types/GameState";
 import { WeaponSlot } from "./core/types/WeaponTypes";
 import { EntityFactory } from "./factories/EntityFactory";
 import { HitStopManager } from "./managers/HitStopManager";
+import { FireNovaSpell } from "./spells/FireNovaSpell";
+import { PoolManager } from "./managers/PoolManager";
 
 export class App {
     private readonly engine: Engine;
@@ -33,6 +35,7 @@ export class App {
     private readonly entityManager: EntityManager;
     private readonly weaponManager: WeaponManager;
     private readonly hitStopManager: HitStopManager;
+    private readonly poolManager: PoolManager;
 
     // Core Engine
     private worldEngine!: WorldEngine;
@@ -56,6 +59,7 @@ export class App {
         this.levelManager = new LevelManager(this.scene);
         this.weaponManager = new WeaponManager(this.scene);
         this.hitStopManager = new HitStopManager(this.scene);
+        this.poolManager = new PoolManager(this.scene);
 
         // 3. Configuration du Moteur du Monde (Le lien Core <-> App)
         this.setupWorldEngine();
@@ -168,6 +172,7 @@ export class App {
             { slot: WeaponSlot.DAGGER, id: "butcher_dagger" },
             { slot: WeaponSlot.GREATSWORD, id: "great_imperial_sword" },
         ];
+        this.player.learnSpell(new FireNovaSpell());
 
         for (const w of weapons) {
             await this.weaponManager.setSlotWeapon(this.player, w.slot, w.id);
@@ -187,6 +192,7 @@ export class App {
                 case GameState.PLAYING:
                     // Laisse le manager décider si on doit freeze ou non
                     this.hitStopManager.update(dt);
+                    this.poolManager.update(dt);
 
                     // On ne met à jour la logique des entités QUE si on n'est pas en hitstop
                     // Sinon ils vont continuer à bouger/glisser pendant le freeze

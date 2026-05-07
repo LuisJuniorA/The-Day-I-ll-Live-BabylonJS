@@ -5,6 +5,7 @@ export type PlayerAction =
     | "down"
     | "jump"
     | "attack"
+    | "cast" // <--- Ajouté
     | "interact"
     | "switch";
 
@@ -12,26 +13,28 @@ export class InputConfig {
     public static AZERTY: Record<PlayerAction, string[]> = {
         left: ["q", "arrowleft"],
         right: ["d", "arrowright"],
-        jump: [" "],
-        attack: ["k"],
-        interact: ["e"],
-        switch: ["r"],
         up: ["z", "arrowup"],
         down: ["s", "arrowdown"],
+        jump: [" "],
+        attack: ["k"],
+        cast: ["i"], // <--- Défaut AZERTY
+        interact: ["e"],
+        switch: ["r"],
     };
 
     public static QWERTY: Record<PlayerAction, string[]> = {
         left: ["a", "arrowleft"],
         right: ["d", "arrowright"],
-        jump: [" "],
-        attack: ["k"],
-        interact: ["e"],
-        switch: ["r"],
         up: ["w", "arrowup"],
         down: ["s", "arrowdown"],
+        jump: [" "],
+        attack: ["k"],
+        cast: ["i"], // <--- Défaut QWERTY
+        interact: ["e"],
+        switch: ["r"],
     };
 
-    // La configuration active (par défaut AZERTY)
+    // La configuration active
     public static current: Record<PlayerAction, string[]> = {
         ...InputConfig.AZERTY,
     };

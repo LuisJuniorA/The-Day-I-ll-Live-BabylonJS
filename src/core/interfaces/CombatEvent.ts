@@ -5,13 +5,17 @@ import type { Weapon } from "../abstracts/Weapon";
 import type { Character } from "../abstracts/Character";
 import type { Item } from "../types/Items";
 
+// core/interfaces/CombatEvent.ts
 export interface DamageEvent {
-    targetId: string; // Qui on touche
-    attackerId: string; // Qui frappe
-    amount: number; // Combien de dégâts
-    position: Vector3; // Où ça se passe (utile pour le recul/VFX)
+    targetId: string;
+    attackerId: string;
+    amount: number;
+    position: Vector3;
     attackerFaction: FactionType;
-    hitStopMultiplier?: number; // 1.0 par défaut
+
+    // --- NOUVEAUX PARAMÈTRES DE GAME FEEL ---
+    hitStopDuration?: number; // Si undefined ou 0 => pas de hitstop
+    knockbackForce?: number; // Si undefined ou 0 => pas de recul
 }
 
 export interface StatusEvent {

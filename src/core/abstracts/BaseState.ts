@@ -6,7 +6,7 @@ export abstract class BaseState<T> implements State<T> {
 
     public onEnter(owner: T): void {
         this.timeInState = 0;
-        console.log(`[FSM] Enter: ${this.name}`);
+        //console.log(`[FSM] Enter: ${this.name}`);
         this.handleEnter(owner);
     }
 
@@ -16,7 +16,7 @@ export abstract class BaseState<T> implements State<T> {
     }
 
     public onExit(owner: T): void {
-        console.log(`[FSM] Exit: ${this.name}`);
+        //console.log(`[FSM] Exit: ${this.name}`);
         this.handleExit(owner);
     }
 

@@ -1,7 +1,6 @@
 import {
     AbstractMesh,
     Color3,
-    MeshBuilder,
     Quaternion,
     Scene,
     Vector3,
@@ -14,10 +13,10 @@ import {
 } from "../core/interfaces/CombatEvent";
 import type { WeaponData } from "../core/types/WeaponStats";
 import { DebugService } from "../core/engines/DebugService";
+import { PoolManager } from "../managers/PoolManager";
 
 /**
  * Classe de base pour toutes les armes de mêlée.
- * Gère la détection de hitbox directionnelle (Side, Up, Down).
  */
 export abstract class MeleeWeapon extends Weapon {
     public attackRange: number;
@@ -29,176 +28,152 @@ export abstract class MeleeWeapon extends Weapon {
         this.attackDuration = data.stats.attackDuration;
     }
 
-    /**
-     * Exécute une attaque dans une direction donnée.
-     */
     public attack(
         owner: Character,
         direction: AttackDirection = AttackDirection.SIDE,
     ): void {
-        // Joue l'animation correspondante (doit être gérée dans la classe fille)
         this.playAttackAnimation(owner, direction);
 
-        const targets = this.findTargetsInHitbox(owner, direction);
-        let hasHitAtLeastOne = false;
-        let firstTargetPos: Vector3 | null = null;
+        const { position, size, rotation } = this._calculateHitboxGeometry(
+            owner,
+            direction,
+        );
+        const pool = PoolManager.getInstance();
+        const detectionDuration = 0.1;
 
-        for (const target of targets) {
-            if (target.faction === owner.faction || target.isDead) continue;
+        // On crée une liste locale pour cette attaque précise
+        const hitList = new Set<string>();
 
-            hasHitAtLeastOne = true;
+        pool.spawn(position, size, detectionDuration, (hitbox) => {
+            hitbox.mesh.rotationQuaternion = rotation;
+            hitbox.mesh.computeWorldMatrix(true);
 
-            if (!firstTargetPos) {
-                firstTargetPos =
-                    target.transform?.position || target.position || null;
+            const targets = this._findTargetsInHitbox(hitbox.mesh, owner);
+
+            // On filtre : seulement ceux qui ne sont pas dans hitList
+            const newTargets = targets.filter((t) => !hitList.has(t.id));
+
+            if (newTargets.length > 0) {
+                newTargets.forEach((t) => hitList.add(t.id)); // On les marque comme touchés
+                this._processHits(newTargets, owner, direction);
             }
-
-            // Notification du système de combat pour l'application des dégâts
-            OnEntityDamaged.notifyObservers({
-                targetId: target.id,
-                attackerId: owner.id,
-                amount: this.stats.damage + (owner.stats.damage || 0),
-                position: owner.transform.position.clone(),
-                attackerFaction: owner.faction,
-            });
-        }
-
-        // Si au moins une cible est touchée, on déclenche le feedback de hit (ex: recul)
-        if (hasHitAtLeastOne && firstTargetPos) {
-            owner.onHitTarget(firstTargetPos);
-        }
+        });
     }
 
-    /**
-     * Méthode abstraite pour jouer l'animation visuelle de l'attaque.
-     */
     protected abstract playAttackAnimation(
         owner: Character,
         direction: AttackDirection,
     ): void;
 
-    /**
-     * Calcule le volume de collision selon la direction et scanne les entités touchées.
-     */
-    /**
-     * Calcule le volume de collision selon la direction et scanne les entités touchées.
-     * Optimisé pour détecter les Hitbox Wrappers.
-     */
-    private findTargetsInHitbox(
+    private _calculateHitboxGeometry(
         owner: Character,
         direction: AttackDirection,
-    ): Character[] {
+    ) {
         const range = this.stats.range;
-        const hitTargets: any[] = [];
-        const debug = DebugService.getInstance();
-
-        const container =
-            this.scene.getTransformNodeByName("ENTITIES_CONTAINER");
-        if (!container) {
-            console.error("CombatSystem: ENTITIES_CONTAINER introuvable.");
-            return [];
-        }
-
-        // 1. Récupération des axes de référence (Inchangé)
         const worldMatrix = owner.transform.getWorldMatrix();
+
         const forward = Vector3.TransformNormal(
             new Vector3(1, 0, 0),
             worldMatrix,
         ).normalize();
         const up = Vector3.Up();
 
-        let boxPos: Vector3;
-        let boxSize = { width: range, height: 3, depth: range };
-        let boxRot: Quaternion;
+        let pos: Vector3;
+        let size: Vector3;
+        let rot: Quaternion;
 
-        // 2. Calcul du positionnement (Inchangé)
         if (direction === AttackDirection.UP) {
-            boxPos = owner.transform.position.add(up.scale(range / 1.5 + 1));
-            boxSize = { width: range * 1.5, height: range, depth: range * 1.5 };
-            boxRot = Quaternion.Identity();
+            pos = owner.transform.position.add(up.scale(range / 1.5 + 1));
+            size = new Vector3(range * 1.5, range, range * 1.5);
+            rot = Quaternion.Identity();
         } else if (direction === AttackDirection.DOWN) {
-            boxPos = owner.transform.position.add(up.scale(-1));
-            boxSize = { width: range * 1.5, height: 1.5, depth: range * 1.5 };
-            boxRot = Quaternion.Identity();
+            pos = owner.transform.position.add(up.scale(-1));
+            size = new Vector3(range * 1.5, 1.5, range * 1.5);
+            rot = Quaternion.Identity();
         } else {
             const permissiveOffset = 0.5;
             const centerOffset = range / 2 + permissiveOffset;
-            boxPos = owner.transform.position.add(forward.scale(centerOffset));
-            boxRot = Quaternion.FromRotationMatrix(
+            pos = owner.transform.position.add(forward.scale(centerOffset));
+            size = new Vector3(range, 3, range);
+            rot = Quaternion.FromRotationMatrix(
                 worldMatrix.getRotationMatrix(),
             );
         }
 
-        // 3. Création du volume de détection (Hitbox d'attaque)
-        const hitbox = MeshBuilder.CreateBox(
-            "temp_hitbox",
-            {
-                width: boxSize.width,
-                height: boxSize.height,
-                depth: boxSize.depth,
-            },
-            this.scene,
-        );
-        hitbox.position.copyFrom(boxPos);
-        hitbox.rotationQuaternion = boxRot;
-        hitbox.isVisible = false;
-        hitbox.isPickable = false;
-        hitbox.computeWorldMatrix(true);
+        return { position: pos, size, rotation: rot };
+    }
 
-        // --- VISUALISATION DEBUG ---
-        const debugColor =
-            direction === AttackDirection.SIDE ? Color3.Red() : Color3.Blue();
-        debug.drawBox(
-            `player_attack_${direction}`,
-            this.scene,
-            boxPos,
-            boxSize,
-            boxRot,
-            debugColor,
-        );
-        setTimeout(() => debug.clear(`player_attack_${direction}`), 400);
+    private _findTargetsInHitbox(
+        hitboxMesh: AbstractMesh,
+        owner: Character,
+    ): any[] {
+        const hitTargets: any[] = [];
+        const container =
+            this.scene.getTransformNodeByName("ENTITIES_CONTAINER");
 
-        // 4. SCAN OPTIMISÉ : On cherche uniquement les Wrappers
-        // On récupère les enfants directs du container (les TransformNodes des entités)
+        if (!container) return [];
+
         const entities = container.getChildren();
 
         for (const entityNode of entities) {
-            // Ignorer le propriétaire
             if (entityNode === owner.transform) continue;
 
-            // On cherche le wrapper dans les enfants de l'entité
-            // (Il s'appelle "hitbox_wrap_..." comme défini dans la factory)
             const wrapper = entityNode
                 .getChildren()
                 .find((child) => child.name.startsWith("hitbox_wrap"));
 
             if (wrapper && wrapper instanceof AbstractMesh) {
-                // On force la mise à jour pour être sûr de la position
                 wrapper.computeWorldMatrix(true);
 
-                if (hitbox.intersectsMesh(wrapper, false)) {
-                    // On récupère l'objet Character associé (souvent stocké dans une map ou via l'ID)
-                    // Ici on ajoute l'entityNode au tableau s'il n'y est pas déjà
+                if (hitboxMesh.intersectsMesh(wrapper, false)) {
                     if (!hitTargets.includes(entityNode)) {
-                        console.log(
-                            `💥 Impact [${direction}] sur le wrapper de: ${entityNode.id}`,
-                        );
                         hitTargets.push(entityNode);
-
-                        // Feedback visuel
-                        debug.drawPoint(
-                            "hit_" + entityNode.id + Date.now(),
-                            this.scene,
-                            wrapper.getAbsolutePosition(),
-                            Color3.Green(),
-                            0.4,
-                        );
                     }
                 }
             }
         }
-
-        hitbox.dispose();
         return hitTargets;
+    }
+
+    private _processHits(
+        targets: any[],
+        owner: Character,
+        _direction: AttackDirection,
+    ): void {
+        let firstTargetPos: Vector3 | null = null;
+
+        for (const targetNode of targets) {
+            if (!firstTargetPos) {
+                firstTargetPos =
+                    targetNode.position || targetNode.getAbsolutePosition();
+            }
+
+            const hitStop = this.stats.hitStopDuration ?? 0;
+            const knockback = this.stats.knockbackForce ?? 0;
+
+            OnEntityDamaged.notifyObservers({
+                targetId: targetNode.id,
+                attackerId: owner.id,
+                amount: this.stats.damage + (owner.stats.damage || 0),
+                position: owner.transform.position.clone(),
+                attackerFaction: owner.faction,
+                hitStopDuration: hitStop,
+                knockbackForce: knockback,
+            });
+
+            DebugService.getInstance().drawPoint(
+                "hit_" + targetNode.id + Date.now(),
+                this.scene,
+                targetNode.getAbsolutePosition(),
+                Color3.Green(),
+                0.4,
+            );
+        }
+
+        if (firstTargetPos) {
+            // Ici la direction est utile : on transmet l'info au Character
+            // pour qu'il sache comment réagir (knockback vers le haut si UP, etc.)
+            owner.onHitTarget(firstTargetPos);
+        }
     }
 }

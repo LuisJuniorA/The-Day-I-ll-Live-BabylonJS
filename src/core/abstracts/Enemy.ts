@@ -87,7 +87,6 @@ export abstract class Enemy extends Character {
         if (!lootManager) return;
 
         const spawnPos = this.transform.position.clone();
-        console.log(spawnPos);
         // 2. Drop de l'XP (Systématique si définie)
         if (this.config.xpReward > 0) {
             lootManager.spawnLoot(spawnPos, this.config.xpReward);

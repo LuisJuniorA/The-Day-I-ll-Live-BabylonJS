@@ -38,6 +38,7 @@ import { InventoryManager } from "../managers/InventoryManager";
 import { ExperienceManager } from "../managers/ExperienceManager";
 import type { LootDrop } from "../core/types/Items";
 import { StatusType } from "../core/types/StatusEffects";
+import type { Spell } from "../core/interfaces/Spell";
 
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
@@ -80,6 +81,7 @@ export class Player extends Character {
         [WeaponSlot.SWORD]: null,
         [WeaponSlot.GREATSWORD]: null,
     };
+    private _activeSpell: Spell | null = null;
     private _nextSlotIndex: number = 0;
 
     public readonly speed: number = 12;
@@ -94,6 +96,7 @@ export class Player extends Character {
             scene,
             { hp: 100, maxHp: 100, speed: 12, damage: 10 },
             Faction.PLAYER,
+            "Player",
         );
         this.setupPlayerDebug();
 
@@ -154,6 +157,20 @@ export class Player extends Character {
         }
     }
 
+    public learnSpell(spell: Spell): void {
+        this._activeSpell = spell;
+        console.log(`Nouveau sort débloqué : ${spell.name}`);
+        // Ici tu pourrais notifier l'UI pour afficher l'icône du sort
+    }
+
+    public get hasSpell(): boolean {
+        return this._activeSpell !== null;
+    }
+
+    public get activeSpell(): Spell | null {
+        return this._activeSpell;
+    }
+
     private _initPlayer(startPosition: Vector3): void {
         this.transform.position.copyFrom(startPosition);
 
@@ -187,7 +204,7 @@ export class Player extends Character {
         const ps = new ParticleSystem("soulParticles", 300, this._scene);
         this._soulParticles = ps;
         ps.particleTexture = new Texture(
-            "https://www.babylonjs-live.com/assets/flare.png",
+            "public/textures/flare.png",
             this._scene,
         );
         ps.emitter = this._visualPivot;
@@ -200,7 +217,7 @@ export class Player extends Character {
         ps.maxScaleY = 1.0;
         ps.minEmitBox = new Vector3(-0.01, -0.01, -0.01);
         ps.maxEmitBox = new Vector3(0.01, 0.01, 0.01);
-        ps.color1 = new Color4(0, 1, 0, 1);
+        ps.color1 = new Color4(1, 0.5, 0.5, 1);
         ps.color2 = new Color4(0.1, 1, 0.1, 0.8);
         ps.minInitialRotation = -Math.PI;
         ps.maxInitialRotation = Math.PI;
@@ -417,6 +434,9 @@ export class Player extends Character {
         this.input.update();
         this.buffer.update(dt);
         if (this.input.isJumping) this.buffer.trigger("jump");
+        if (this.input.isCasting) {
+            this.buffer.trigger("spell");
+        }
         if (this.input.isAttacking) {
             if (this.input.vertical > 0)
                 this.queuedAttackDirection = AttackDirection.UP;
@@ -443,6 +463,7 @@ export class Player extends Character {
         originPos?: Vector3,
         attackerId?: string,
     ): void {
+        console.log("????");
         if (this._invulnerabilityTimer > 0 || this.isDead) return;
 
         // Appelle Character.takeDamage (qui gère désormais les PV + le vecteur de recul)

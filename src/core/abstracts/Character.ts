@@ -3,6 +3,7 @@ import { Entity } from "./Entity";
 import type { CharacterStats } from "../types/CharacterStats";
 import { OnDamageConfirmed, OnEntityDamaged } from "../interfaces/CombatEvent";
 import type { FactionType } from "../types/Faction";
+import { Player } from "../../entities/Player";
 
 export abstract class Character extends Entity {
     public stats: CharacterStats;
@@ -24,19 +25,25 @@ export abstract class Character extends Entity {
         scene: Scene,
         stats: CharacterStats,
         faction: FactionType,
+        id?: string,
     ) {
-        super(name, scene);
+        super(name, scene, id);
         this.stats = { ...stats };
         this.faction = faction;
 
         // Écouteur global pour les dégâts reçus
         OnEntityDamaged.add((event) => {
-            console.log(event);
             if (event.targetId !== this.id) return;
             if (event.attackerId === this.id) return;
             if (event.attackerFaction === this.faction) return;
 
-            this.takeDamage(event.amount, event.position, event.attackerId);
+            // On passe maintenant les paramètres de l'event à takeDamage
+            this.takeDamage(
+                event.amount,
+                event.position,
+                event.attackerId,
+                event.knockbackForce,
+            );
         });
     }
 
@@ -69,17 +76,19 @@ export abstract class Character extends Entity {
         amount: number,
         originPos?: Vector3,
         attackerId?: string,
+        knockbackForce?: number, // Ajout ici
     ): void {
         if (this.isDead) return;
         this.stats.hp -= amount;
 
-        // Knockback subi par la victime (8 c'est violent, parfait pour le feedback)
-        if (originPos) {
+        // Utilise la force configurée, ou 0 par défaut
+        if (originPos && knockbackForce && knockbackForce > 0) {
             const diffX = this.transform.position.x - originPos.x;
             const dir = new Vector3(diffX > 0 ? 1 : -1, 0, 0);
-            this.applyKnockback(dir, 8);
+            this.applyKnockback(dir, knockbackForce);
         }
 
+        // On renvoie les mêmes infos pour confirmer (VFX, UI, etc.)
         OnDamageConfirmed.notifyObservers({
             targetId: this.id,
             attackerId: attackerId ?? "unknown",
@@ -185,6 +194,18 @@ export abstract class Character extends Entity {
         this.stats.hp = 0;
         this.velocity.setAll(0);
         this.externalForce.setAll(0);
+
+        const hitboxWrap = this.transform
+            .getChildMeshes()
+            .find((m) => m.name.startsWith("hitbox_wrap"));
+
+        if (hitboxWrap) {
+            hitboxWrap.isPickable = false; // Ne bloque plus les rayons (raycast)
+            hitboxWrap.setEnabled(false); // Disparaît complètement du moteur de rendu et des collisions
+            // Si tu veux juste qu'elle ne soit plus frappable mais reste visible (pour le debug) :
+            // hitboxWrap.isVisible = false;
+        }
+
         if (this.onDeath) this.onDeath();
     }
 

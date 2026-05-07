@@ -1,4 +1,3 @@
-// managers/HitStopManager.ts
 import { Scene } from "@babylonjs/core";
 import {
     OnDamageConfirmed,
@@ -17,8 +16,15 @@ export class HitStopManager {
         // 1. On garde l'écoute sur OnEntityDamaged pour quand le JOUEUR frappe
         // (car l'ennemi n'a peut-être pas d'i-frames, ou on veut le stop même si l'ennemi pare)
         OnEntityDamaged.add((event) => {
-            if (event.attackerFaction === Faction.PLAYER) {
-                this.trigger(0.1 + event.amount * 0.003);
+            // On ne trigger que si l'événement demande explicitement un hitstop
+            if (event.hitStopDuration && event.hitStopDuration > 0) {
+                // Optionnel: On peut quand même filtrer par faction ici
+                if (
+                    event.attackerFaction === Faction.PLAYER ||
+                    event.targetId === "Player"
+                ) {
+                    this.trigger(event.hitStopDuration);
+                }
             }
         });
 
