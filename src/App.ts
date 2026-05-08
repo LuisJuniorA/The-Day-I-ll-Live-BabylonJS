@@ -1,4 +1,11 @@
-import { Engine, Scene, Vector3, UniversalCamera } from "@babylonjs/core";
+import {
+    Engine,
+    Scene,
+    Vector3,
+    UniversalCamera,
+    Color3,
+    HemisphericLight,
+} from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
 
@@ -44,7 +51,7 @@ export class App {
         this.canvas = this.createCanvas();
         this.engine = new Engine(this.canvas, true);
         this.scene = new Scene(this.engine);
-        this.engine.loadingScreen = new CustomLoadingScreen(this.canvas);
+        this.engine.loadingScreen = new CustomLoadingScreen();
         EntityFactory.setScene(this.scene);
 
         this.scene.useConstantAnimationDeltaTime = true;
@@ -286,8 +293,10 @@ export class App {
         //     new Vector3(0, 1, 0),
         //     this.scene,
         // );
-        // light.intensity = 0.7;
-        // light.groundColor = new Color3(0.2, 0.2, 0.2);
+        // // On baisse l'intensité à 0.2 (au lieu de 0.7)
+        // // Ça permet de voir la silhouette du monstre même sans torche
+        // light.intensity = 0.2;
+        // light.diffuse = new Color3(0.5, 0.5, 0.8); // Teinte légèrement bleutée pour la nuit
     }
 
     private setupInspectorToggle(): void {

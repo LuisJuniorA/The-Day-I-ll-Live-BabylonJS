@@ -87,6 +87,39 @@ export class EntityFactory {
                     1.0,
                     new Vector3(0.5, -0.5, 0),
                 );
+
+                // APRES l'instanciation de l'Effroi
+                assets.root.getChildMeshes().forEach((m) => {
+                    if (m.material) {
+                        const pbr = m.material as any;
+                        const mainTexture =
+                            pbr.albedoTexture ||
+                            pbr.diffuseTexture ||
+                            pbr.emissiveTexture;
+
+                        const std = new StandardMaterial(
+                            "std_boosted_" + m.name,
+                            scene,
+                        );
+
+                        // 1. Texture plus éclatante
+                        std.diffuseTexture = mainTexture;
+                        if (std.diffuseTexture) std.diffuseTexture.level = 1.5;
+
+                        // 2. Réceptivité maximale à la lumière diffuse
+                        std.diffuseColor = new Color3(1, 1, 1);
+
+                        // 3. Débouche les noirs (lumière d'ambiance)
+                        std.ambientColor = new Color3(0.4, 0.4, 0.4);
+
+                        // 4. Un petit reflet pour marquer les formes
+                        std.specularColor = new Color3(0.2, 0.2, 0.2);
+
+                        m.material.dispose();
+                        m.material = std;
+                    }
+                });
+
                 break;
 
             case "SLIME": {
@@ -248,8 +281,9 @@ export class EntityFactory {
 
         wrap.parent = entity.transform;
         wrap.isPickable = true;
-        wrap.isVisible = true; // Mets à true pour débugger l'alignement
+        wrap.isVisible = false; // Mets à true pour débugger l'alignement
         wrap.checkCollisions = false;
+        wrap.receiveShadows = false;
 
         // Debug visuel si besoin
         if (wrap.isVisible) {

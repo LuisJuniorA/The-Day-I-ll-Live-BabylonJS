@@ -33,6 +33,7 @@ export class Hitbox {
 
         this.mesh.setEnabled(true);
         this.isActive = true;
+        this.mesh.receiveShadows = false;
     }
 
     public update(dt: number) {

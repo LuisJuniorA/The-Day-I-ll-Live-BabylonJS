@@ -6,11 +6,6 @@ export class CustomLoadingScreen implements ILoadingScreen {
     public loadingUIBackgroundColor: string = "#050508";
 
     private _loadingDiv: HTMLDivElement | null = null;
-    private _canvas: HTMLCanvasElement; // Déclaré ici
-
-    constructor(canvas: HTMLCanvasElement) {
-        this._canvas = canvas; // Assigné ici
-    }
 
     public displayLoadingUI(): void {
         if (this._loadingDiv) return;

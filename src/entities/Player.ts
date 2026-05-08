@@ -233,10 +233,9 @@ export class Player extends Character {
             new Vector3(0, 0.5, -4),
             this._scene,
         );
-        this._pointLight.parent = this.transform;
         this._pointLight.diffuse = new Color3(1, 0.98, 0.9);
         this._pointLight.intensity = 0.7;
-        this._pointLight.range = 15;
+        this._pointLight.range = 30;
 
         // 5. Socket pour l'arme (Remplace le Skeleton lourd)
         this._weaponSocket = new TransformNode("RightHandSocket", this._scene);
@@ -292,10 +291,11 @@ export class Player extends Character {
             this._visualPivot.position.y = 0.5 + oscillation;
 
             if (this._pointLight) {
-                const isFacingLeft =
-                    this.transform.rotation.y > 0.1 ||
-                    this.transform.rotation.y < -0.1;
-                this._pointLight.position.z = isFacingLeft ? 4 : -8;
+                // On copie la position du joueur manuellement
+                this._pointLight.position.x = this.transform.position.x;
+                this._pointLight.position.y = this.transform.position.y + 0.5;
+                this._pointLight.position.z = -10; // Toujours fixe vers la caméra
+                this._pointLight.includedOnlyMeshes = [];
             }
         }
 
@@ -428,7 +428,6 @@ export class Player extends Character {
         super.takeDamage(amount, originPos, attackerId);
 
         this._invulnerabilityTimer = this.I_FRAME_DURATION;
-        if (this._pointLight) this._pointLight.intensity = 0.2;
 
         OnHealthChanged.notifyObservers({
             currentHp: this.stats.hp,

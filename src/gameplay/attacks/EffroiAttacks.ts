@@ -8,7 +8,7 @@ import { PlayerReactionAnim, StatusType } from "../../core/types/StatusEffects";
 
 export class EffroiClaw implements ActionBehavior {
     public readonly name = "Claw";
-    public readonly animationName = "sword_slash"; // Nom de l'anim dans ton .glb
+    public readonly animationName = "claw"; // Nom de l'anim dans ton .glb
     public readonly duration = 0.8;
     public readonly damageMoment = 0.4;
     public readonly range = 2.5;

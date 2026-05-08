@@ -13,13 +13,25 @@ export class PlayerJumpState extends BaseState<Player> {
     }
 
     protected handleUpdate(owner: Player, dt: number): void {
-        // Mouvement aérien
+        // 1. Sauvegarde la position Y avant le mouvement
+        const oldY = owner.transform.position.y;
+
+        // 2. Mouvement aérien classique
         const targetX = owner.input.horizontal * owner.speed;
         owner.velocity.x = Scalar.Lerp(owner.velocity.x, targetX, 0.1);
 
+        // Applique le mouvement
         owner.move(owner.velocity, dt);
 
-        // Si on commence à redescendre ou si on touche un plafond
+        // 3. DETECTION PLAFOND
+        // Si on essaie de monter (velocity.y > 0)
+        // MAIS que notre position Y n'a presque pas progressé
+        if (owner.velocity.y > 0 && owner.transform.position.y - oldY < 0.001) {
+            owner.velocity.y = 0; // On stoppe l'ascension
+        }
+
+        // 4. TRANSITION
+        // Si la vélocité devient nulle ou négative, on tombe
         if (owner.velocity.y <= 0) {
             owner.movementFSM.transitionTo(new PlayerFallingState());
         }
