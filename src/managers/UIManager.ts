@@ -14,7 +14,8 @@ import {
     type DialogueRequest,
 } from "../core/interfaces/Interactable";
 import { OnHealthChanged } from "../core/interfaces/CombatEvent";
-import { OnOpenShop } from "../core/interfaces/ShopEvents";
+import { OnOpenShop, OnPurchaseRequest } from "../core/interfaces/ShopEvents";
+import type { Player } from "../entities/Player";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
@@ -25,6 +26,7 @@ export class UIManager {
     public settingsView: SettingsView;
     public shopView: ShopView;
     private _gameStateManager: GameStateManager;
+    private _player: Player | null = null;
 
     constructor(scene: Scene, gameStateManager: GameStateManager) {
         this._advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI(
@@ -46,6 +48,10 @@ export class UIManager {
 
         // Initialisation de l'état de départ
         this.handleStateChange(this._gameStateManager.getCurrentState());
+    }
+
+    public setPlayer(player: Player) {
+        this._player = player;
     }
 
     private _setupEventListeners(): void {
@@ -115,14 +121,73 @@ export class UIManager {
         });
 
         // --- EVENTS SHOP ---
-        OnOpenShop.add((_data) => {
-            // Ici l'ordre est important : le Marchand a déjà envoyé l'event,
-            // on passe juste le jeu en mode SHOP.
+
+        // ... (haut du fichier UIManager.ts identique)
+
+        // --- EVENTS SHOP ---
+        OnOpenShop.add((data) => {
+            if (!this._player) return;
+
+            // 1. On prépare l'inventaire enrichi avec les quantités du joueur
+            const enrichedInventory = data.inventory.map((shopItem) => {
+                return {
+                    ...shopItem,
+                    // On interroge l'inventaire du player pour chaque item du shop
+                    ownedCount: this._player!.inventory.getItemAmount(
+                        shopItem.id,
+                    ),
+                };
+            });
+
+            // 2. On met à jour la monnaie et on peuple la grille avec les données enrichies
+            this.shopView.updateCurrencyDisplay(this._player.currency);
+            this.shopView.populateShop(enrichedInventory);
+
+            // 3. On passe en mode SHOP
             this._gameStateManager.setShop();
         });
 
         this.shopView.onBackObservable.add(() => {
             this._gameStateManager.setPlaying();
+        });
+
+        OnPurchaseRequest.add((shopItem) => {
+            if (!this._player) return;
+
+            if (this._player.canAfford(shopItem.price)) {
+                const success = this._player.inventory.addItem(
+                    {
+                        id: shopItem.id,
+                        name: shopItem.name,
+                        description: shopItem.description,
+                        iconPath: shopItem.iconPath,
+                        type: shopItem.type,
+                    },
+                    1,
+                );
+
+                if (success) {
+                    this._player.currency -= shopItem.price;
+                    this.shopView.updateCurrencyDisplay(this._player.currency);
+
+                    // Une fois l'achat réussi, on rafraîchit l'item sélectionné
+                    // pour mettre à jour le compteur "EN POSSESSION" immédiatement
+                    const newCount = this._player.inventory.getItemAmount(
+                        shopItem.id,
+                    );
+                    // On force une petite mise à jour locale de l'item dans la vue
+                    (shopItem as any).ownedCount = newCount;
+
+                    this.shopView.playBuySuccessAnimation();
+
+                    // On repopulate pour que tous les slots (même non sélectionnés) soient à jour
+                    // ou on appelle juste une mise à jour sur le slot concerné.
+                } else {
+                    console.log("Inventaire plein !");
+                }
+            } else {
+                this.shopView.playBuyErrorAnimation();
+            }
         });
     }
 

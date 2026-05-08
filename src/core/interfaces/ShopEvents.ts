@@ -3,6 +3,7 @@ import type { Item } from "../types/Items";
 
 export interface ShopItem extends Item {
     price: number; // Le prix de vente du marchand
+    ownedCount?: number;
 }
 
 export interface ShopEventData {
@@ -11,3 +12,4 @@ export interface ShopEventData {
 }
 
 export const OnOpenShop = new Observable<ShopEventData>();
+export const OnPurchaseRequest = new Observable<ShopItem>();

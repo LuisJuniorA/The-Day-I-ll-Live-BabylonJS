@@ -40,6 +40,7 @@ import { ExperienceManager } from "../managers/ExperienceManager";
 import type { LootDrop } from "../core/types/Items";
 import { StatusType } from "../core/types/StatusEffects";
 import type { Spell } from "../core/interfaces/Spell";
+import type { ShopItem } from "../core/interfaces/ShopEvents";
 
 export class Player extends Character {
     private readonly _camera: UniversalCamera;
@@ -73,6 +74,7 @@ export class Player extends Character {
     private readonly CAM_DISTANCE_Z: number = -18;
     private readonly LOOK_AHEAD_DISTANCE: number = 4;
     private readonly LERP_SMOOTHNESS: number = 0.1; // Suivi horizontal
+    public currency: number = 0; // Tes "Fragments"
 
     private _currentStatus: StatusType = StatusType.NONE;
     private _statusTimer: number = 0;
@@ -149,8 +151,21 @@ export class Player extends Character {
     }
 
     public pickUp(loot: LootDrop): void {
+        // 1. Détection de la monnaie (via ID ou Type)
+        if (loot.item.id === "fragment" || loot.item.type === "currency") {
+            this.currency += loot.amount;
+            console.log(
+                `%c +${loot.amount} Fragments collectés ! (Total: ${this.currency})`,
+                "color: #FFD700; font-weight: bold;",
+            );
+
+            // Notifier le HUD si tu as une méthode updateCurrency
+            // OnCurrencyChanged.notifyObservers(this.currency);
+            return;
+        }
+
+        // 2. Logique normale pour les autres items
         const success = this.inventory.addItem(loot.item, loot.amount);
-        console.table(loot.item);
         if (success) {
             console.log(`Inventaire : +${loot.amount} ${loot.item.name}`);
         } else {
@@ -312,6 +327,17 @@ export class Player extends Character {
         this.velocity.z = 0;
     }
 
+    public tryPurchase(item: ShopItem): boolean {
+        if (this.currency < item.price) return false;
+
+        const success = this.inventory.addItem(item, 1);
+        if (success) {
+            this.currency -= item.price;
+            return true;
+        }
+        return false;
+    }
+
     private _updateCamera(_dt: number): void {
         if (!this._camera) return;
 
@@ -364,6 +390,14 @@ export class Player extends Character {
         this._camera.setTarget(
             new Vector3(this._camera.position.x, this._camera.position.y, 0),
         );
+    }
+
+    public addCurrency(amount: number): void {
+        this.currency += amount;
+    }
+
+    public canAfford(price: number): boolean {
+        return this.currency >= price;
     }
 
     private _initObservers(): void {

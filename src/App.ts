@@ -1,11 +1,4 @@
-import {
-    Engine,
-    Scene,
-    Vector3,
-    HemisphericLight,
-    Color3,
-    UniversalCamera,
-} from "@babylonjs/core";
+import { Engine, Scene, Vector3, UniversalCamera } from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
 
@@ -129,6 +122,7 @@ export class App {
 
         const merchantPos = new Vector3(startPos.x, startPos.y, 0);
         this.entityManager.spawn("MERCHANT_SILAS", merchantPos);
+        this.uiManager.setPlayer(this.player);
 
         console.log(`[App] Player spawned at: ${finalSpawnPos.toString()}`);
     }
