@@ -32,7 +32,7 @@ export class WorldEngine {
             this._isProcedural = true;
             this._grid = this._mapGen.generate("level_" + Math.random(), 3000);
             this._delegate.onWorldGenerated(this._grid, this._blockSize);
-            this._delegate.onEnemiesReady(this._mapGen.enemySpawns);
+            //this._delegate.onEnemiesReady(this._mapGen.enemySpawns);
         }
     }
 

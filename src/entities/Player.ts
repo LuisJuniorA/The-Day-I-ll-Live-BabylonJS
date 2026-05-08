@@ -2,7 +2,6 @@ import {
     Scene,
     Vector3,
     MeshBuilder,
-    UniversalCamera,
     PointLight,
     AbstractMesh,
     ParticleSystem,
@@ -41,9 +40,9 @@ import type { LootDrop } from "../core/types/Items";
 import { StatusType } from "../core/types/StatusEffects";
 import type { Spell } from "../core/interfaces/Spell";
 import type { ShopItem } from "../core/interfaces/ShopEvents";
+import { CameraManager } from "../managers/CameraManager";
 
 export class Player extends Character {
-    private readonly _camera: UniversalCamera;
     public readonly input: InputHandler;
     public readonly movementFSM: FSM<Player>;
     public readonly attackFSM: FSM<Player>;
@@ -67,13 +66,7 @@ export class Player extends Character {
     private readonly FLOAT_AMPLITUDE: number = 0.1;
     private readonly FLOAT_SPEED: number = 2.5;
 
-    // --- Configuration Caméra (Style Hollow Knight) ---
-    private _camLookAhead: number = 0;
-    private _camTargetLookAhead: number = 0;
-    private readonly CAM_OFFSET_Y: number = 1.5;
-    private readonly CAM_DISTANCE_Z: number = -18;
-    private readonly LOOK_AHEAD_DISTANCE: number = 4;
-    private readonly LERP_SMOOTHNESS: number = 0.1; // Suivi horizontal
+    private _cameraManager!: CameraManager;
     public currency: number = 0; // Tes "Fragments"
 
     private _currentStatus: StatusType = StatusType.NONE;
@@ -104,15 +97,7 @@ export class Player extends Character {
         this.setupPlayerDebug();
 
         this._initPlayer(startPosition);
-
-        // Initialisation de la caméra
-        this._camera = new UniversalCamera(
-            "playerCamera",
-            new Vector3(startPosition.x, startPosition.y, this.CAM_DISTANCE_Z),
-            scene,
-        );
-        this._scene.activeCamera = this._camera;
-
+        this._cameraManager = new CameraManager(scene, this);
         this.input = new InputHandler(scene);
         this.movementFSM = new FSM<Player>(this);
         this.attackFSM = new FSM<Player>(this);
@@ -274,7 +259,7 @@ export class Player extends Character {
         this._updateIFrames(dt);
 
         if (this._currentStatus === StatusType.STUN) {
-            this._updateCamera(dt); // On garde la caméra
+            this._cameraManager.update(dt);
             //this.applyPhysics(dt); // On garde la gravité pour ne pas flotter en l'air
             return;
         }
@@ -322,7 +307,7 @@ export class Player extends Character {
         }
 
         // 5. Caméra et Contrainte 2D
-        this._updateCamera(dt);
+        this._cameraManager.update(dt);
         this.transform.position.z = 0;
         this.velocity.z = 0;
     }
@@ -336,60 +321,6 @@ export class Player extends Character {
             return true;
         }
         return false;
-    }
-
-    private _updateCamera(_dt: number): void {
-        if (!this._camera) return;
-
-        // 1. DIRECTION BIAS (Look Ahead)
-        // On anticipe la direction basée sur l'input horizontal
-        if (this.input.horizontal > 0.1) {
-            this._camTargetLookAhead = this.LOOK_AHEAD_DISTANCE;
-        } else if (this.input.horizontal < -0.1) {
-            this._camTargetLookAhead = -this.LOOK_AHEAD_DISTANCE;
-        }
-
-        // Si le joueur regarde vers le bas (immobile sur le sol)
-        let verticalLookOffset = 0;
-        if (this.isGrounded && Math.abs(this.input.horizontal) < 0.1) {
-            if (this.input.vertical < -0.5) {
-                // Regarder vers le bas
-                verticalLookOffset = -4;
-                this._camTargetLookAhead = 0;
-            } else if (this.input.vertical > 0.5) {
-                // Regarder vers le haut
-                verticalLookOffset = 4;
-                this._camTargetLookAhead = 0;
-            }
-        }
-
-        // Lissage de l'anticipation
-        this._camLookAhead +=
-            (this._camTargetLookAhead - this._camLookAhead) * 0.05;
-
-        // 2. DAMPING VERTICAL (Chute vs Saut)
-        // La caméra suit plus vite quand on tombe pour ne pas perdre le joueur
-        let verticalLeash = 0.06; // Damping normal (saut/montée)
-        if (this.velocity.y < -0.1) {
-            verticalLeash = 0.12; // Damping serré (chute)
-        }
-
-        // 3. CALCUL POSITION FINALE
-        const targetX = this.transform.position.x + this._camLookAhead;
-        const targetY =
-            this.transform.position.y + this.CAM_OFFSET_Y + verticalLookOffset;
-
-        // Interpolations
-        this._camera.position.x +=
-            (targetX - this._camera.position.x) * this.LERP_SMOOTHNESS;
-        this._camera.position.y +=
-            (targetY - this._camera.position.y) * verticalLeash;
-        this._camera.position.z = this.CAM_DISTANCE_Z;
-
-        // La caméra regarde un point fixe sur le plan 0 pour garder la perspective 2D
-        this._camera.setTarget(
-            new Vector3(this._camera.position.x, this._camera.position.y, 0),
-        );
     }
 
     public addCurrency(amount: number): void {
