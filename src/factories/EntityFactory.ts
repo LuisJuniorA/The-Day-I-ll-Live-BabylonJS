@@ -16,13 +16,14 @@ import {
 import { Entity } from "../core/abstracts/Entity";
 import { Player } from "../entities/Player";
 import { Effroi } from "../entities/enemies/Effroi";
-import { Villager } from "../entities/Villager";
+import { Villager } from "../entities/villagers/Villager";
 import { ProximitySystem } from "../core/engines/ProximitySystem";
 
 import { ENEMY_CONFIGS } from "../data/EnemyData";
 import { NPC_DATA } from "../data/NPCDialogues";
 import { GenericEnemy } from "../entities/enemies/GenericEnemy";
 import { Slime } from "../entities/enemies/Slime";
+import { Merchant } from "../entities/villagers/Merchant";
 
 interface VisualAssets {
     root: AbstractMesh;
@@ -181,6 +182,21 @@ export class EntityFactory {
                 this._addHitboxWrap(entity, scene, 1.5, 1.5, 0.75);
                 break;
             }
+
+            case "MERCHANT_SILAS":
+                // On crée l'entité Silas (soit via une classe Merchant dédiée, soit via Villager)
+                // npcData contient déjà l'assetPath, le nom, et les dialogues de Silas
+                entity = new Merchant(scene, position, npcData);
+
+                assets.root.parent = entity.transform;
+
+                // Ajustement visuel standard
+                this._setupVisualPivot(assets.root);
+
+                // Ajout de la hitbox pour pouvoir cliquer dessus et ouvrir le shop
+                // Hauteur 2.0, rayon 0.7 pour être facile à cibler
+                this._addHitboxWrap(entity, scene, 2.0, 0.7);
+                break;
 
             case "VILLAGER_BOB":
             case "VILLAGER_ANNA":

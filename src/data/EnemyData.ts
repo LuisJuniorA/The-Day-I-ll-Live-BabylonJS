@@ -49,7 +49,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
                 maxAmount: 15,
             },
             {
-                itemId: "slime_gel",
+                itemId: "slime_soul",
                 dropChance: 0.8, // Commun
                 minAmount: 1,
                 maxAmount: 3,

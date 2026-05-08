@@ -4,7 +4,8 @@ import { MainMenuView } from "../ui/views/MainMenuView";
 import { PauseMenuView } from "../ui/views/PauseMenuView";
 import { HUDView } from "../ui/views/HUDView";
 import { DialogueView } from "../ui/views/DialogueView";
-import { SettingsView } from "../ui/views/SettingsView"; // <-- Import
+import { SettingsView } from "../ui/views/SettingsView";
+import { ShopView } from "../ui/views/ShopView";
 import { GameState, type GameStateType } from "../core/types/GameState";
 import { GameStateManager } from "./GameStateManager";
 import {
@@ -13,6 +14,7 @@ import {
     type DialogueRequest,
 } from "../core/interfaces/Interactable";
 import { OnHealthChanged } from "../core/interfaces/CombatEvent";
+import { OnOpenShop } from "../core/interfaces/ShopEvents";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
@@ -20,7 +22,8 @@ export class UIManager {
     public pauseMenuView: PauseMenuView;
     public hudView: HUDView;
     public dialogueView: DialogueView;
-    public settingsView: SettingsView; // <-- Déclaration
+    public settingsView: SettingsView;
+    public shopView: ShopView;
     private _gameStateManager: GameStateManager;
 
     constructor(scene: Scene, gameStateManager: GameStateManager) {
@@ -36,7 +39,8 @@ export class UIManager {
         this.pauseMenuView = new PauseMenuView(this._advancedTexture);
         this.hudView = new HUDView(this._advancedTexture);
         this.dialogueView = new DialogueView(this._advancedTexture);
-        this.settingsView = new SettingsView(this._advancedTexture); // <-- Instanciation
+        this.settingsView = new SettingsView(this._advancedTexture);
+        this.shopView = new ShopView(this._advancedTexture);
 
         this._setupEventListeners();
 
@@ -56,7 +60,6 @@ export class UIManager {
         });
 
         this.mainMenuView.onSettingsObservable.add(() => {
-            // On cache le menu principal et on affiche les settings
             this.mainMenuView.hide();
             this.settingsView.show();
         });
@@ -71,7 +74,6 @@ export class UIManager {
         });
 
         this.pauseMenuView.onSettingsObservable?.add(() => {
-            // Optionnel : si ton PauseMenu a aussi un bouton settings
             this.pauseMenuView.hide();
             this.settingsView.show();
         });
@@ -83,8 +85,6 @@ export class UIManager {
         // --- EVENTS SETTINGS (RETOUR) ---
         this.settingsView.onBackObservable.add(() => {
             this.settingsView.hide();
-
-            // On revient au bon menu selon l'état du jeu
             const currentState = this._gameStateManager.getCurrentState();
             if (currentState === GameState.MENU) {
                 this.mainMenuView.show();
@@ -96,6 +96,7 @@ export class UIManager {
         // --- EVENTS IN-GAME (HUD) ---
         OnInteractionAvailable.add((event) => {
             const isNear = !!(event.isNear && event.interactable);
+            // On s'assure de récupérer le mesh pour le link visuel du prompt
             const mesh = event.interactable?.transform as AbstractMesh;
             this.hudView.setInteractionAvailable(isNear, mesh);
         });
@@ -112,15 +113,27 @@ export class UIManager {
         this.dialogueView.onFinishObservable.add(() => {
             this.closeDialogue();
         });
+
+        // --- EVENTS SHOP ---
+        OnOpenShop.add((_data) => {
+            // Ici l'ordre est important : le Marchand a déjà envoyé l'event,
+            // on passe juste le jeu en mode SHOP.
+            this._gameStateManager.setShop();
+        });
+
+        this.shopView.onBackObservable.add(() => {
+            this._gameStateManager.setPlaying();
+        });
     }
 
     private handleStateChange(state: GameStateType): void {
-        // On cache tout sauf les settings si on est en train de rebind
+        // Reset de la visibilité de toutes les vues
         this.mainMenuView.hide();
         this.pauseMenuView.hide();
         this.hudView.hide();
         this.dialogueView.hide();
         this.settingsView.hide();
+        this.shopView.hide();
 
         switch (state) {
             case GameState.MENU:
@@ -133,8 +146,12 @@ export class UIManager {
                 this.hudView.show();
                 break;
             case GameState.DIALOGUE:
+                // Cache le "E" pour ne pas polluer l'écran de dialogue
                 this.hudView.interactionPrompt.hide();
                 this.dialogueView.show();
+                break;
+            case GameState.SHOP:
+                this.shopView.show();
                 break;
         }
     }
@@ -145,8 +162,14 @@ export class UIManager {
     }
 
     public closeDialogue(): void {
+        // On nettoie la vue dans tous les cas
         this.dialogueView.reset();
-        this._gameStateManager.setPlaying();
+
+        // LOGIQUE CRITIQUE : Si le marchand a fait passer l'état en SHOP,
+        // on ne doit SURTOUT PAS appeler setPlaying() ici, sinon on ferme le shop instantanément.
+        if (this._gameStateManager.getCurrentState() !== GameState.SHOP) {
+            this._gameStateManager.setPlaying();
+        }
     }
 
     public update(dt: number): void {

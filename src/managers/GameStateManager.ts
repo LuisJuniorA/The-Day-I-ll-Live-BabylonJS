@@ -42,4 +42,8 @@ export class GameStateManager {
     public getCurrentState(): GameStateType {
         return this._currentState;
     }
+
+    public setShop(): void {
+        this._setState(GameState.SHOP);
+    }
 }

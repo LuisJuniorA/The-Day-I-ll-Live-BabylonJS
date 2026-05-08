@@ -367,7 +367,6 @@ export class Player extends Character {
     }
 
     private _initObservers(): void {
-        OnInteractionAvailable.clear();
         OnInteractionAvailable.add((event) => {
             if (event.isNear) this._targetInteractable = event.interactable;
             else if (this._targetInteractable === event.interactable)

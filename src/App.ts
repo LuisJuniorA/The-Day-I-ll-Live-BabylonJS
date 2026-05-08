@@ -127,6 +127,9 @@ export class App {
         this.entityManager.setPlayerTarget(this.player.transform);
         this.entityManager.add(this.player);
 
+        const merchantPos = new Vector3(startPos.x, startPos.y, 0);
+        this.entityManager.spawn("MERCHANT_SILAS", merchantPos);
+
         console.log(`[App] Player spawned at: ${finalSpawnPos.toString()}`);
     }
 
@@ -217,6 +220,10 @@ export class App {
                 case GameState.DIALOGUE:
                     this.uiManager.update(dt);
                     if (this.player) this.player.updateInput(dt);
+                    this.scene.render();
+                    break;
+                case GameState.SHOP:
+                    this.scene.animationsEnabled = false;
                     this.scene.render();
                     break;
             }

@@ -62,7 +62,6 @@ export class ProximitySystem {
         if (!this.target) return;
 
         this._timer += dt;
-
         if (this._timer >= this._checkInterval) {
             this._timer = 0;
 

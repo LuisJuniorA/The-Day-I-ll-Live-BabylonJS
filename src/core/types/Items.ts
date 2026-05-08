@@ -16,6 +16,7 @@ export interface Item {
     description: string;
     iconPath: string;
     type: ItemType;
+    value?: number;
     // Tu pourras ajouter maxStack, rarity, etc. plus tard
 }
 
