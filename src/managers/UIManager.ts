@@ -121,10 +121,6 @@ export class UIManager {
         });
 
         // --- EVENTS SHOP ---
-
-        // ... (haut du fichier UIManager.ts identique)
-
-        // --- EVENTS SHOP ---
         OnOpenShop.add((data) => {
             if (!this._player) return;
 
@@ -176,7 +172,8 @@ export class UIManager {
                         shopItem.id,
                     );
                     // On force une petite mise à jour locale de l'item dans la vue
-                    (shopItem as any).ownedCount = newCount;
+                    shopItem.ownedCount = newCount;
+                    this.shopView.updateOwnedDisplay(shopItem.ownedCount);
 
                     this.shopView.playBuySuccessAnimation();
 

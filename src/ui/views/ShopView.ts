@@ -268,6 +268,12 @@ export class ShopView extends BaseView {
         }
     }
 
+    public updateOwnedDisplay(amount: number): void {
+        if (this._detailOwned) {
+            this._detailOwned.text = `EN POSSESSION : ${amount}`;
+        }
+    }
+
     public playBuySuccessAnimation(): void {
         this._flashPrice();
         const originalBg = "#1a472a";
@@ -409,7 +415,7 @@ export class ShopView extends BaseView {
         // Mise à jour de la possession
         // On suppose que l'interface ShopItem contient un champ 'ownedCount' ou similaire
         // Si ce n'est pas le cas, remplace item.ownedCount par la donnée de ton choix
-        const count = (item as any).ownedCount ?? 0;
+        const count = item.ownedCount ?? 0;
         this._detailOwned.text = `EN POSSESSION : ${count}`;
 
         this._detailIcon.source = item.iconPath;

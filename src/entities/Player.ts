@@ -40,7 +40,6 @@ import type { LootDrop } from "../core/types/Items";
 import { StatusType } from "../core/types/StatusEffects";
 import type { Spell } from "../core/interfaces/Spell";
 import type { ShopItem } from "../core/interfaces/ShopEvents";
-import { CameraManager } from "../managers/CameraManager";
 
 export class Player extends Character {
     public readonly input: InputHandler;
@@ -66,8 +65,7 @@ export class Player extends Character {
     private readonly FLOAT_AMPLITUDE: number = 0.1;
     private readonly FLOAT_SPEED: number = 2.5;
 
-    private _cameraManager!: CameraManager;
-    public currency: number = 0; // Tes "Fragments"
+    public currency: number = 500; // Tes "Fragments"
 
     private _currentStatus: StatusType = StatusType.NONE;
     private _statusTimer: number = 0;
@@ -97,7 +95,6 @@ export class Player extends Character {
         this.setupPlayerDebug();
 
         this._initPlayer(startPosition);
-        this._cameraManager = new CameraManager(scene, this);
         this.input = new InputHandler(scene);
         this.movementFSM = new FSM<Player>(this);
         this.attackFSM = new FSM<Player>(this);
@@ -204,10 +201,7 @@ export class Player extends Character {
         // 3. Système d'Âme - OPTIMISÉ (Réduction du rate si besoin)
         const ps = new ParticleSystem("soulParticles", 300, this._scene);
         this._soulParticles = ps;
-        ps.particleTexture = new Texture(
-            "public/textures/flare.png",
-            this._scene,
-        );
+        ps.particleTexture = new Texture("/textures/flare.png", this._scene);
         ps.emitter = this._visualPivot;
         ps.isLocal = true;
         ps.minSize = 1;
@@ -259,7 +253,6 @@ export class Player extends Character {
         this._updateIFrames(dt);
 
         if (this._currentStatus === StatusType.STUN) {
-            this._cameraManager.update(dt);
             //this.applyPhysics(dt); // On garde la gravité pour ne pas flotter en l'air
             return;
         }
@@ -307,7 +300,6 @@ export class Player extends Character {
         }
 
         // 5. Caméra et Contrainte 2D
-        this._cameraManager.update(dt);
         this.transform.position.z = 0;
         this.velocity.z = 0;
     }

@@ -12,8 +12,7 @@ import { PromptButtonComponent } from "../components/PromptButtonComponent";
 
 export class DialogueView extends BaseView {
     // Configuration par défaut
-    private static readonly DEFAULT_PORTRAIT =
-        "textures/portraits/default_avatar.png";
+    private static readonly DEFAULT_PORTRAIT = "/assets/ui/icons/default.png";
 
     private _container!: Rectangle;
     private _portraitImage!: Image;

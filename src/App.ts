@@ -15,6 +15,8 @@ import { EntityFactory } from "./factories/EntityFactory";
 import { HitStopManager } from "./managers/HitStopManager";
 import { FireNovaSpell } from "./spells/FireNovaSpell";
 import { PoolManager } from "./managers/PoolManager";
+import { CameraManager } from "./managers/CameraManager";
+import { CustomLoadingScreen } from "./core/engines/LoadingScreen";
 
 export class App {
     private readonly engine: Engine;
@@ -29,6 +31,7 @@ export class App {
     private readonly weaponManager: WeaponManager;
     private readonly hitStopManager: HitStopManager;
     private readonly poolManager: PoolManager;
+    private cameraManager!: CameraManager;
 
     // Core Engine
     private worldEngine!: WorldEngine;
@@ -41,6 +44,7 @@ export class App {
         this.canvas = this.createCanvas();
         this.engine = new Engine(this.canvas, true);
         this.scene = new Scene(this.engine);
+        this.engine.loadingScreen = new CustomLoadingScreen(this.canvas);
         EntityFactory.setScene(this.scene);
 
         this.scene.useConstantAnimationDeltaTime = true;
@@ -119,6 +123,7 @@ export class App {
         // Important pour que l'IA sache où aller
         this.entityManager.setPlayerTarget(this.player.transform);
         this.entityManager.add(this.player);
+        this.cameraManager = new CameraManager(this.scene, this.player);
 
         const merchantPos = new Vector3(startPos.x, startPos.y, 0);
         this.entityManager.spawn("MERCHANT_SILAS", merchantPos);
@@ -147,15 +152,36 @@ export class App {
 
         this.uiManager.mainMenuView.onPlayObservable.add(async () => {
             if (!this.player) {
-                // Initialisation du monde
-                //await this.worldEngine.init("assets/scenes/start.glb");
-                await this.worldEngine.init("");
+                // 1. Affiche l'écran de chargement
+                this.engine.displayLoadingUI();
+                this.engine.displayLoadingUI();
 
-                // Initialisation du joueur et de ses armes
-                this.spawnPlayer();
-                await this.setupInitialWeapons();
+                try {
+                    // Petit délai pour laisser l'UI s'afficher avant de bloquer le thread
+                    await new Promise((r) => setTimeout(r, 50));
+
+                    // 2. Initialisation du monde
+                    await this.worldEngine.init("");
+
+                    // 3. Initialisation du joueur et CameraManager
+                    this.spawnPlayer();
+
+                    // 4. Armes
+                    await this.setupInitialWeapons();
+
+                    // 5. CRUCIAL : On attend que le GPU soit prêt (évite le lag au 1er rendu)
+                    await this.scene.whenReadyAsync();
+
+                    // 6. On cache le loading et on joue
+                    this.engine.hideLoadingUI();
+                    this.gameStateManager.setPlaying();
+                } catch (err) {
+                    console.error("Échec du chargement :", err);
+                    this.engine.hideLoadingUI();
+                }
+            } else {
+                this.gameStateManager.setPlaying();
             }
-            this.gameStateManager.setPlaying();
         });
 
         this.uiManager.mainMenuView.onQuitObservable.add(() => {
@@ -201,6 +227,7 @@ export class App {
                         if (this.player.stats.hp <= 0 || this.player.isDead) {
                             this.gameStateManager.setGameOver();
                         }
+                        this.cameraManager.update(dt);
                     }
 
                     this.scene.render();
