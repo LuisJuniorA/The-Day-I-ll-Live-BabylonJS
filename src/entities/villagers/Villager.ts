@@ -1,6 +1,6 @@
 import { Scene, Vector3 } from "@babylonjs/core";
 import { NPCInteractable } from "../../core/abstracts/NPCInteractable";
-import type { NPCConfig } from "../../data/NPCDialogues";
+import type { NPCConfig } from "../../data/NPCData";
 
 export class Villager extends NPCInteractable {
     public interactionRange: number = 3; // Distance max pour parler

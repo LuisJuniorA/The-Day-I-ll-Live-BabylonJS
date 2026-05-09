@@ -447,7 +447,7 @@ export class Player extends Character {
 
     public setWeaponSlot(slot: WeaponSlot, weaponId: string | null): void {
         this._currentSlots[slot] = weaponId;
-        if (this.currentWeapon?.slot === slot) {
+        if (this.currentWeapon?.weaponSlot === slot) {
             if (weaponId) this.requestVisualWeapon(weaponId);
             else {
                 this.currentWeapon?.mesh?.dispose();

@@ -23,8 +23,8 @@ export class WeaponHUDComponent extends Rectangle {
         COOLDOWN_COLOR: "rgba(0, 0, 0, 0.7)",
     };
 
-    private readonly _ICON_PATH = "assets/ui/icons/weapons/";
-    private readonly _SPELL_ICON_PATH = "assets/ui/icons/spells/";
+    private readonly _ICON_PATH = "/assets/ui/icons/weapons/";
+    private readonly _SPELL_ICON_PATH = "/assets/ui/icons/spells/";
 
     constructor(name: string) {
         super(name);
@@ -213,7 +213,7 @@ export class WeaponHUDComponent extends Rectangle {
                 if (slotKey === "Spell") return;
 
                 const weaponIdInSlot = slots[slotKey];
-                const isEquipped = event.weapon.slot === slotKey;
+                const isEquipped = event.weapon.weaponSlot === slotKey;
 
                 if (weaponIdInSlot) {
                     visual.icon.source = `${this._ICON_PATH}${weaponIdInSlot}.png`;

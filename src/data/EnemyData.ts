@@ -4,7 +4,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     effroi: {
         id: "effroi_standard",
         displayName: "Effroi",
-        assetPath: "assets/models/characters/enemies/effroi.glb",
+        assetPath: "/assets/models/characters/enemies/effroi.glb",
         stats: { hp: 200, maxHp: 200, speed: 5, damage: 10 },
         // --- RECOMPENSES ---
         xpReward: 150, // Gros mob, grosse XP

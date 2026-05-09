@@ -20,10 +20,11 @@ import { Villager } from "../entities/villagers/Villager";
 import { ProximitySystem } from "../core/engines/ProximitySystem";
 
 import { ENEMY_CONFIGS } from "../data/EnemyData";
-import { NPC_DATA } from "../data/NPCDialogues";
+import { NPC_DATA } from "../data/NPCData";
 import { GenericEnemy } from "../entities/enemies/GenericEnemy";
 import { Slime } from "../entities/enemies/Slime";
 import { Merchant } from "../entities/villagers/Merchant";
+import { Blacksmith } from "../entities/villagers/BlackSmith";
 
 interface VisualAssets {
     root: AbstractMesh;
@@ -216,6 +217,15 @@ export class EntityFactory {
                 break;
             }
 
+            case "BLACKSMITH":
+                // Création de l'entité Blacksmith
+                entity = new Blacksmith(scene, position, npcData);
+                assets.root.parent = entity.transform;
+
+                // On utilise les mêmes réglages visuels que les autres NPCs
+                this._setupVisualPivot(assets.root);
+                break;
+
             case "MERCHANT_SILAS":
                 // On crée l'entité Silas (soit via une classe Merchant dédiée, soit via Villager)
                 // npcData contient déjà l'assetPath, le nom, et les dialogues de Silas
@@ -225,10 +235,6 @@ export class EntityFactory {
 
                 // Ajustement visuel standard
                 this._setupVisualPivot(assets.root);
-
-                // Ajout de la hitbox pour pouvoir cliquer dessus et ouvrir le shop
-                // Hauteur 2.0, rayon 0.7 pour être facile à cibler
-                this._addHitboxWrap(entity, scene, 2.0, 0.7);
                 break;
 
             case "VILLAGER_BOB":
@@ -236,7 +242,6 @@ export class EntityFactory {
                 entity = new Villager(scene, position, npcData);
                 assets.root.parent = entity.transform;
                 this._setupVisualPivot(assets.root);
-                this._addHitboxWrap(entity, scene, 2.0, 0.6);
                 break;
 
             default:

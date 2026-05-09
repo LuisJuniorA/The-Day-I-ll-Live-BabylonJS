@@ -1,6 +1,6 @@
 import { Scene, Vector3 } from "@babylonjs/core";
 import { Entity } from "./Entity";
-import type { NPCConfig } from "../../data/NPCDialogues";
+import type { NPCConfig } from "../../data/NPCData";
 import { FSM } from "../engines/FSM";
 
 export class NPC extends Entity {

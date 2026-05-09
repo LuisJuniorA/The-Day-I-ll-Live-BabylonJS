@@ -1,5 +1,6 @@
 import type { ItemData } from "../../data/ItemData";
 
+// ItemTypes.ts
 export const ItemType = {
     CURRENCY: "currency",
     MATERIAL: "material",
@@ -9,15 +10,13 @@ export const ItemType = {
 
 export type ItemType = (typeof ItemType)[keyof typeof ItemType];
 
-// 1. La structure de base d'un objet dans ton jeu
 export interface Item {
-    id: string;
-    name: string;
-    description: string;
-    iconPath: string;
-    type: ItemType;
-    value?: number;
-    // Tu pourras ajouter maxStack, rarity, etc. plus tard
+    readonly id: string;
+    readonly name: string;
+    readonly description: string;
+    readonly iconPath: string;
+    readonly type: ItemType;
+    readonly value?: number; // Prix d'achat/revente de base
 }
 
 // 2. Un objet généré après la mort d'un monstre (ce qui va tomber par terre)

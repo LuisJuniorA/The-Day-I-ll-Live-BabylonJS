@@ -1,11 +1,4 @@
-import {
-    Engine,
-    Scene,
-    Vector3,
-    UniversalCamera,
-    Color3,
-    HemisphericLight,
-} from "@babylonjs/core";
+import { Engine, Scene, Vector3, UniversalCamera } from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
 
@@ -132,8 +125,10 @@ export class App {
         this.entityManager.add(this.player);
         this.cameraManager = new CameraManager(this.scene, this.player);
 
-        const merchantPos = new Vector3(startPos.x, startPos.y, 0);
-        this.entityManager.spawn("MERCHANT_SILAS", merchantPos);
+        const merchantPos = new Vector3(startPos.x + 1, startPos.y, 0);
+        const merchantPos2 = new Vector3(startPos.x - 1, startPos.y, 0);
+        this.entityManager.spawn("BLACKSMITH", merchantPos);
+        this.entityManager.spawn("MERCHANT_SILAS", merchantPos2);
         this.uiManager.setPlayer(this.player);
 
         console.log(`[App] Player spawned at: ${finalSpawnPos.toString()}`);
@@ -251,6 +246,10 @@ export class App {
                     this.scene.render();
                     break;
                 case GameState.SHOP:
+                    this.scene.animationsEnabled = false;
+                    this.scene.render();
+                    break;
+                case GameState.FORGE:
                     this.scene.animationsEnabled = false;
                     this.scene.render();
                     break;

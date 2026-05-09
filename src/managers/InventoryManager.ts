@@ -25,6 +25,38 @@ export class InventoryManager {
     }
 
     /**
+     * Retire une quantité d'un item.
+     * Retourne true si l'opération a réussi, false si l'item n'existe pas ou quantité insuffisante.
+     */
+    public removeItem(itemId: string, amount: number): boolean {
+        const slot = this._slots.get(itemId);
+
+        if (!slot || slot.amount < amount) {
+            return false;
+        }
+
+        slot.amount -= amount;
+
+        // Si la quantité tombe à 0 (ou moins par sécurité), on libère le slot
+        if (slot.amount <= 0) {
+            this._slots.delete(itemId);
+        }
+
+        return true;
+    }
+
+    /**
+     * Vérifie si l'inventaire contient toutes les quantités demandées
+     */
+    public hasResources(
+        requirements: { itemId: string; amount: number }[],
+    ): boolean {
+        return requirements.every(
+            (req) => this.getItemAmount(req.itemId) >= req.amount,
+        );
+    }
+
+    /**
      * Retourne la quantité possédée pour un ID d'item donné
      */
     public getItemAmount(itemId: string): number {

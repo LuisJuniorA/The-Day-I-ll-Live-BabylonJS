@@ -93,7 +93,8 @@ export class ItemSlotComponent extends Rectangle {
     }
 
     private _setImageWithFallback(imageControl: Image, path: string): void {
-        const defaultPath = "assets/ui/icons/default.png";
+        console.log(path);
+        const defaultPath = "/assets/ui/icons/default.png";
         const imgCheck = new window.Image();
         imgCheck.src = path;
 
