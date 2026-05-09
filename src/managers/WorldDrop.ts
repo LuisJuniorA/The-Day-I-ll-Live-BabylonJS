@@ -13,7 +13,6 @@ import { CollisionLayers } from "../core/constants/CollisionLayers";
 export class WorldDrop implements Perceivable {
     public id: string;
     private _mesh: Mesh;
-    private _scene: Scene;
 
     public item?: Item;
     public amount: number;
@@ -28,7 +27,6 @@ export class WorldDrop implements Perceivable {
 
     constructor(scene: Scene, spawnPos: Vector3, amount: number, item?: Item) {
         this.id = `drop_${Math.random().toString(36).slice(2, 11)}`;
-        this._scene = scene;
         this.amount = amount;
         this.item = item;
         this.isXp = item === undefined;
