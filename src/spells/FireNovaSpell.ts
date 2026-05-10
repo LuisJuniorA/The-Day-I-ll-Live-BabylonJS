@@ -75,7 +75,7 @@ export class FireNovaSpell implements Spell {
             !FireNovaSpell._sharedTexture.getInternalTexture()
         ) {
             FireNovaSpell._sharedTexture = new Texture(
-                "/textures/flare.png",
+                "./textures/flare.png",
                 scene,
                 true,
                 false,
