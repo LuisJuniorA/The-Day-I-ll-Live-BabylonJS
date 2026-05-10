@@ -56,6 +56,10 @@ export class InventoryManager {
         );
     }
 
+    public getAllItems(): InventorySlot[] {
+        return Array.from(this._slots.values());
+    }
+
     /**
      * Retourne la quantité possédée pour un ID d'item donné
      */

@@ -253,6 +253,10 @@ export class App {
                     this.scene.animationsEnabled = false;
                     this.scene.render();
                     break;
+                case GameState.INVENTORY:
+                    this.scene.animationsEnabled = false;
+                    this.scene.render();
+                    break;
             }
         });
 

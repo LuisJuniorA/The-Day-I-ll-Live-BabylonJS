@@ -23,6 +23,8 @@ import type { Player } from "../entities/Player";
 import { WEAPONS_DB } from "../data/WeaponsDb";
 import { ItemData } from "../data/ItemData";
 import { ALL_ITEMS } from "../data/ItemDb";
+import { InventoryView } from "../ui/views/InventoryView";
+import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
@@ -33,6 +35,7 @@ export class UIManager {
     public settingsView: SettingsView;
     public shopView: ShopView;
     public forgeView: ForgeView;
+    public inventoryView: InventoryView;
 
     private _gameStateManager: GameStateManager;
     private _player: Player | null = null;
@@ -53,6 +56,7 @@ export class UIManager {
         this.settingsView = new SettingsView(this._advancedTexture);
         this.shopView = new ShopView(this._advancedTexture);
         this.forgeView = new ForgeView(this._advancedTexture);
+        this.inventoryView = new InventoryView(this._advancedTexture);
 
         this._setupEventListeners();
 
@@ -129,6 +133,22 @@ export class UIManager {
             this.closeDialogue();
         });
 
+        OnOpenInventory.add((data) => {
+            // On passe les infos à la vue
+            this.inventoryView.populateInventory(data.items);
+
+            // On synchronise l'équipement actuel (pour les stats de comparaison)
+            if (this._player) {
+            }
+
+            // On change l'état global pour afficher la vue et figer le jeu
+            this._gameStateManager.setInventory();
+        });
+
+        this.inventoryView.onBackObservable.add(() => {
+            this._gameStateManager.setPlaying();
+        });
+
         // --- EVENTS SHOP ---
         OnOpenShop.add((data) => {
             if (!this._player) return;
@@ -182,13 +202,13 @@ export class UIManager {
             this.forgeView.setCurrentEquipment(this._player.weaponSlots);
 
             const enrichedRecipes = data.recipes.map((recipe) => {
-                const itemInfo = ALL_ITEMS[recipe.itemId];
+                const itemInfo = ALL_ITEMS[recipe.id];
 
                 return {
                     ...recipe,
                     name:
                         itemInfo?.name ||
-                        recipe.itemId.replace(/_/g, " ").toUpperCase(),
+                        recipe.id.replace(/_/g, " ").toUpperCase(),
                     description: itemInfo?.description || "Aucune description",
                     // On déplace la logique de nettoyage de path ici
                     iconPath:
@@ -197,7 +217,7 @@ export class UIManager {
                     type: itemInfo?.type || "material",
                     weaponSlot: (itemInfo as any)?.weaponSlot,
                     ownedCount: this._player!.inventory.getItemAmount(
-                        recipe.itemId,
+                        recipe.id,
                     ),
                     // On enrichit aussi les composants requis (pour les noms/quantités possédées)
                     requirements: recipe.requirements.map((req) => ({
@@ -237,7 +257,7 @@ export class UIManager {
             this._player.currency -= recipe.price;
 
             // 3. Ajout de l'item
-            const weaponToGive = WEAPONS_DB[recipe.itemId];
+            const weaponToGive = WEAPONS_DB[recipe.id];
             const success = this._player.inventory.addItem(weaponToGive, 1);
 
             if (success) {
@@ -273,6 +293,7 @@ export class UIManager {
         this.settingsView.hide();
         this.shopView.hide();
         this.forgeView.hide();
+        this.inventoryView.hide();
 
         switch (state) {
             case GameState.MENU:
@@ -293,6 +314,9 @@ export class UIManager {
                 break;
             case GameState.FORGE:
                 this.forgeView.show();
+                break;
+            case GameState.INVENTORY:
+                this.inventoryView.show();
                 break;
         }
     }

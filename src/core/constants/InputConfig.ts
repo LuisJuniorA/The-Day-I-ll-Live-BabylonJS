@@ -6,6 +6,7 @@ export type PlayerAction =
     | "jump"
     | "attack"
     | "cast" // <--- Ajouté
+    | "inventory"
     | "interact"
     | "switch";
 
@@ -17,8 +18,9 @@ export class InputConfig {
         down: ["s", "arrowdown"],
         jump: [" "],
         attack: ["k"],
-        cast: ["i"], // <--- Défaut AZERTY
-        interact: ["e"],
+        cast: ["i"],
+        inventory: ["e"],
+        interact: ["f"],
         switch: ["r"],
     };
 
@@ -29,8 +31,9 @@ export class InputConfig {
         down: ["s", "arrowdown"],
         jump: [" "],
         attack: ["k"],
-        cast: ["i"], // <--- Défaut QWERTY
-        interact: ["e"],
+        cast: ["i"],
+        inventory: ["e"],
+        interact: ["f"],
         switch: ["r"],
     };
 
@@ -51,6 +54,12 @@ export class InputConfig {
             "player_input_config",
             JSON.stringify(this.current),
         );
+    }
+
+    public static getKeyLabel(action: PlayerAction): string {
+        const keys = this.current[action];
+        if (!keys || keys.length === 0) return "?";
+        return keys[0].toUpperCase();
     }
 
     public static setKey(action: PlayerAction, key: string): void {

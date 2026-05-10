@@ -6,7 +6,6 @@ export class InputHandler {
     private _lastKeys: Set<string> = new Set();
 
     public horizontal: number = 0;
-    // Ajout de la propriété manquante pour le mouvement vertical
     public vertical: number = 0;
 
     public isJumping: boolean = false;
@@ -14,9 +13,10 @@ export class InputHandler {
     public isInteracting: boolean = false;
     public isSwitchingWeapon: boolean = false;
     public isCasting: boolean = false;
+    public isInventoryPressed: boolean = false;
 
     constructor(scene: Scene) {
-        InputConfig.load(); // On charge les touches au démarrage
+        InputConfig.load();
 
         scene.onKeyboardObservable.add((kbInfo) => {
             const key = kbInfo.event.key.toLowerCase();
@@ -29,7 +29,6 @@ export class InputHandler {
     }
 
     private _check(action: PlayerAction): boolean {
-        // Attention : Assure-toi que "up" et "down" sont bien définis dans ton PlayerAction et InputConfig
         return (
             InputConfig.current[action]?.some((k) => this._keys.has(k)) ?? false
         );
@@ -42,23 +41,26 @@ export class InputHandler {
     }
 
     public update(): void {
-        // Calcul Horizontal (Axe X)
-        const right = this._check("right" as PlayerAction) ? 1 : 0;
-        const left = this._check("left" as PlayerAction) ? 1 : 0;
-        this.horizontal = right - left;
+        // Mouvement
+        const right = this._check("right");
+        const left = this._check("left");
+        this.horizontal = (right ? 1 : 0) - (left ? 1 : 0);
 
-        // Calcul Vertical (Axe Y) - Crucial pour le "Look Down" de la caméra
-        const up = this._check("up" as PlayerAction) ? 1 : 0;
-        const down = this._check("down" as PlayerAction) ? 1 : 0;
-        this.vertical = up - down;
+        const up = this._check("up");
+        const down = this._check("down");
+        this.vertical = (up ? 1 : 0) - (down ? 1 : 0);
 
-        // Actions impulsionnelles
-        this.isJumping = this._isJustPressed("jump" as PlayerAction);
-        this.isAttacking = this._isJustPressed("attack" as PlayerAction);
-        this.isInteracting = this._isJustPressed("interact" as PlayerAction);
-        this.isSwitchingWeapon = this._isJustPressed("switch" as PlayerAction);
-        this.isCasting = this._isJustPressed("cast" as PlayerAction);
-        // Sauvegarde de l'état précédent pour le prochain frame
+        // Actions (Impulsions)
+        this.isJumping = this._isJustPressed("jump");
+        this.isAttacking = this._isJustPressed("attack");
+        this.isInteracting = this._isJustPressed("interact");
+        this.isSwitchingWeapon = this._isJustPressed("switch");
+        this.isCasting = this._isJustPressed("cast");
+
+        // Nouvelle action : Inventaire
+        this.isInventoryPressed = this._isJustPressed("inventory");
+
+        // Sauvegarde de l'état précédent
         this._lastKeys = new Set(this._keys);
     }
 }

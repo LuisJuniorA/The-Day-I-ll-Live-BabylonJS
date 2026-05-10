@@ -3,10 +3,8 @@ import {
     TextBlock,
     Control,
     Image,
-    ScrollViewer,
     AdvancedDynamicTexture,
     Button,
-    Grid,
     StackPanel,
 } from "@babylonjs/gui";
 import { BaseView } from "../../core/abstracts/BaseView";
@@ -18,12 +16,12 @@ import {
 import { ItemSlotComponent } from "../components/ItemSlotComponent";
 import { Observable } from "@babylonjs/core";
 
-// Composants partagés
 import { DescriptionComponent } from "../components/DescriptionComponent";
 import { RequirementRowComponent } from "../components/RequirementRowComponent";
+import { ItemGridViewComponent } from "../components/ItemGridViewComponent";
 
 export class ShopView extends BaseView {
-    // --- Configuration Textes ---
+    // --- Configuration ---
     private readonly TEXT_CONFIG = {
         CURRENCY_SUFFIX: " FRAGMENTS",
         CURRENCY_LABEL: "FRAGMENTS D'ÂME",
@@ -37,7 +35,6 @@ export class ShopView extends BaseView {
         CURRENCY_ICON_PATH: "assets/ui/icons/materials/fragment.png",
     };
 
-    // --- Configuration Thème ---
     private readonly COLOR_OVERLAY = "rgba(0,0,0,0.6)";
     private readonly COLOR_LEFT_PANEL_BG = "rgba(10, 10, 14, 0.7)";
     private readonly COLOR_LEFT_PANEL_BORDER = "rgba(255, 255, 255, 0.1)";
@@ -58,13 +55,9 @@ export class ShopView extends BaseView {
 
     private readonly LORE_FONT = "Georgia, 'Times New Roman', serif";
 
-    // --- Configuration Logique ---
-    private readonly COLUMNS_COUNT = 5;
-    private readonly GRID_SPACING = 8;
-
     // --- Éléments UI ---
     private _mainContainer!: Rectangle;
-    private _itemGrid!: Grid;
+    private _itemGridComp!: ItemGridViewComponent;
     private _detailName!: TextBlock;
     private _detailIcon!: Image;
     private _detailOwned!: TextBlock;
@@ -73,8 +66,7 @@ export class ShopView extends BaseView {
     private _buyButton!: Button;
     private _currencyText!: TextBlock;
 
-    // --- État & Logique ---
-    private _slots: ItemSlotComponent[] = [];
+    // --- État ---
     private _selectedItem: ShopItem | null = null;
     private _currentFragments: number = 0;
     private _isAnimatingError: boolean = false;
@@ -94,6 +86,7 @@ export class ShopView extends BaseView {
 
     protected buildUI(): void {
         this.rootContainer.background = this.COLOR_OVERLAY;
+
         this._mainContainer = new Rectangle("ShopContainer");
         this._mainContainer.width = "90%";
         this._mainContainer.height = "85%";
@@ -102,6 +95,7 @@ export class ShopView extends BaseView {
 
         const leftPanel = this._createLeftPanel();
         const rightPanel = this._createRightPanel();
+
         this._mainContainer.addControl(leftPanel);
         this._mainContainer.addControl(rightPanel);
     }
@@ -114,38 +108,21 @@ export class ShopView extends BaseView {
         leftPanel.background = this.COLOR_LEFT_PANEL_BG;
         leftPanel.color = this.COLOR_LEFT_PANEL_BORDER;
         leftPanel.thickness = 1;
-        leftPanel.addControl(this._createInventoryScroll());
+
+        // On instancie le nouveau composant générique
+        this._itemGridComp = new ItemGridViewComponent(
+            "ShopGrid",
+            this.advancedTexture,
+        );
+        this._itemGridComp.height = "90%";
+        this._itemGridComp.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+        this._itemGridComp.onItemClicked = (item, slot) =>
+            this.selectItem(item, slot);
+
+        leftPanel.addControl(this._itemGridComp);
         leftPanel.addControl(this._createFooter());
+
         return leftPanel;
-    }
-
-    private _createInventoryScroll(): ScrollViewer {
-        const scrollViewer = new ScrollViewer("ShopScroll");
-        scrollViewer.width = "100%";
-        scrollViewer.height = "90%";
-        scrollViewer.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        scrollViewer.thickness = 0;
-        scrollViewer.forceVerticalBar = false;
-        scrollViewer.paddingLeft =
-            scrollViewer.paddingRight =
-            scrollViewer.paddingTop =
-            scrollViewer.paddingBottom =
-                "20px";
-
-        this._itemGrid = new Grid("ShopGrid");
-        this._itemGrid.width = "100%";
-        this._itemGrid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        this._itemGrid.paddingLeft =
-            this._itemGrid.paddingRight =
-            this._itemGrid.paddingTop =
-            this._itemGrid.paddingBottom =
-                this.GRID_SPACING;
-
-        for (let i = 0; i < this.COLUMNS_COUNT; i++) {
-            this._itemGrid.addColumnDefinition(1 / this.COLUMNS_COUNT, false);
-        }
-        scrollViewer.addControl(this._itemGrid);
-        return scrollViewer;
     }
 
     private _createFooter(): Rectangle {
@@ -166,6 +143,7 @@ export class ShopView extends BaseView {
         this._currencyText.textHorizontalAlignment =
             Control.HORIZONTAL_ALIGNMENT_RIGHT;
         this._currencyText.paddingRight = "30px";
+
         footer.addControl(this._currencyText);
         return footer;
     }
@@ -355,48 +333,12 @@ export class ShopView extends BaseView {
     }
 
     public populateShop(inventory: ShopItem[]): void {
-        this._itemGrid.clearControls();
-        while (this._itemGrid.rowCount > 0)
-            this._itemGrid.removeRowDefinition(0);
-        this._slots = [];
-
-        const rowCount = Math.ceil(
-            Math.max(inventory.length, 20) / this.COLUMNS_COUNT,
-        );
-        const engine = this.advancedTexture.getScene()?.getEngine();
-        const canvasWidth = engine ? engine.getRenderWidth() : 1920;
-        const leftPanelWidth = canvasWidth * 0.9 * 0.63;
-        const cellWidth =
-            (leftPanelWidth - 40) / this.COLUMNS_COUNT - this.GRID_SPACING * 2;
-
-        for (let i = 0; i < rowCount; i++)
-            this._itemGrid.addRowDefinition(cellWidth, true);
-        this._itemGrid.height = `${(cellWidth + this.GRID_SPACING * 2) * rowCount}px`;
-
-        for (let index = 0; index < Math.max(inventory.length, 20); index++) {
-            const item = inventory[index] || null;
-            const slot = new ItemSlotComponent(item, (i, s) =>
-                this.selectItem(i as any, s),
-            );
-
-            slot.paddingLeft =
-                slot.paddingRight =
-                slot.paddingTop =
-                slot.paddingBottom =
-                    this.GRID_SPACING;
-
-            this._itemGrid.addControl(
-                slot,
-                Math.floor(index / this.COLUMNS_COUNT),
-                index % this.COLUMNS_COUNT,
-            );
-
-            if (item) this._slots.push(slot);
-        }
+        this._itemGridComp.populate(inventory, 20);
 
         // Sélection par défaut du premier item
-        if (this._slots.length > 0) {
-            this.selectItem(this._slots[0].itemData as any, this._slots[0]);
+        const slots = this._itemGridComp.slots;
+        if (slots.length > 0) {
+            this.selectItem(slots[0].itemData as ShopItem, slots[0]);
         }
     }
 
@@ -404,7 +346,8 @@ export class ShopView extends BaseView {
         if (!item) return;
         this._selectedItem = item;
 
-        this._slots.forEach((s) => s.setSelected(false));
+        // Mise à jour visuelle des slots via le composant
+        this._itemGridComp.slots.forEach((s) => s.setSelected(false));
         slot.setSelected(true);
 
         this._detailName.text =

@@ -43,6 +43,10 @@ export class GameStateManager {
         this._setState(GameState.DIALOGUE);
     }
 
+    public setInventory(): void {
+        this._setState(GameState.INVENTORY);
+    }
+
     public getCurrentState(): GameStateType {
         return this._currentState;
     }

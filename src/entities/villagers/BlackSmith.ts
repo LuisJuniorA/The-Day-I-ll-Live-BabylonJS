@@ -1,25 +1,39 @@
 import { NPCInteractable } from "../../core/abstracts/NPCInteractable";
+import {
+    type ForgeRecipe,
+    OnOpenForge,
+} from "../../core/interfaces/ForgeEvents";
 import { OnDialogueRequest } from "../../core/interfaces/Interactable";
-import { OnOpenForge } from "../../core/interfaces/ForgeEvents";
+import { ItemData } from "../../data/ItemData";
 import { RECIPES_DB } from "../../data/RecipesDb";
 
 export class Blacksmith extends NPCInteractable {
     public onInteract(): void {
         OnDialogueRequest.notifyObservers({
             speakerName: this.name,
-            text: "Besoin de transformer tes trouvailles ou de forger une lame ?",
+            text: "Besoin de transformer tes trouvailles ?",
             onComplete: () => {
-                const recipeIds: string[] =
-                    this.data.metadata?.forgeRecipes || [];
+                const recipeIds = this.data.metadata?.forgeRecipes || [];
 
-                // On envoie juste les IDs ou les recettes de base de la DB
-                const recipes = recipeIds
-                    .map((id) => RECIPES_DB[id])
-                    .filter((r) => !!r);
+                // FUSION DYNAMIQUE ICI
+                const enrichedRecipes: ForgeRecipe[] = recipeIds
+                    .map((id) => {
+                        const raw = RECIPES_DB[id];
+                        const baseItem = ItemData[id]; // On récupère les infos visuelles
+
+                        if (!raw || !baseItem) return null;
+
+                        return {
+                            ...baseItem, // id, name, description, iconPath, type
+                            price: raw.price,
+                            requirements: raw.requirements,
+                        };
+                    })
+                    .filter((r): r is ForgeRecipe => r !== null);
 
                 OnOpenForge.notifyObservers({
                     blacksmithId: this.id,
-                    recipes: recipes, // On envoie les données brutes de RECIPES_DB
+                    recipes: enrichedRecipes, // L'UI reçoit des objets parfaits
                 });
                 return true;
             },

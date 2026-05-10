@@ -9,6 +9,7 @@ import { Observable } from "@babylonjs/core";
 import { BaseView } from "../../core/abstracts/BaseView";
 import type { DialogueRequest } from "../../core/interfaces/Interactable";
 import { PromptButtonComponent } from "../components/PromptButtonComponent";
+import { InputConfig } from "../../core/constants/InputConfig";
 
 export class DialogueView extends BaseView {
     // Configuration par défaut
@@ -99,7 +100,11 @@ export class DialogueView extends BaseView {
         this._container.addControl(this._dialogueText);
 
         // --- Bouton de Prompt (Le "E") ---
-        this._promptButton = new PromptButtonComponent("DialoguePrompt", "E");
+        const interactKey = InputConfig.getKeyLabel("interact");
+        this._promptButton = new PromptButtonComponent(
+            "DialoguePrompt",
+            interactKey,
+        );
         this._promptButton.horizontalAlignment =
             Control.HORIZONTAL_ALIGNMENT_RIGHT;
         this._promptButton.verticalAlignment =

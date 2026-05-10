@@ -1,11 +1,13 @@
 import type { ForgeRecipe } from "../core/interfaces/ForgeEvents";
+import type { Item } from "../core/types/Items";
 
-export const RECIPES_DB: Record<string, ForgeRecipe> = {
+export type RawForgeRecipe = Omit<ForgeRecipe, keyof Item>;
+
+export const RECIPES_DB: Record<string, RawForgeRecipe> = {
     // ==========================================
     // MATERIAL REFINING (Transformation)
     // ==========================================
     imperial_steel: {
-        itemId: "imperial_steel",
         price: 100,
         requirements: [
             { itemId: "slime_soul", amount: 8 },
@@ -13,17 +15,14 @@ export const RECIPES_DB: Record<string, ForgeRecipe> = {
         ],
     },
     monster_claw: {
-        itemId: "monster_claw",
         price: 150,
         requirements: [{ itemId: "slime_soul", amount: 12 }],
     },
     dragon_scale: {
-        itemId: "dragon_scale",
         price: 300,
         requirements: [{ itemId: "despairs_tear", amount: 8 }],
     },
     dark_feather: {
-        itemId: "dark_feather",
         price: 200,
         requirements: [
             { itemId: "slime_soul", amount: 5 },
@@ -35,17 +34,14 @@ export const RECIPES_DB: Record<string, ForgeRecipe> = {
     // DAGGERS
     // ==========================================
     knife: {
-        itemId: "knife",
         price: 50,
         requirements: [{ itemId: "slime_soul", amount: 2 }],
     },
     fish_knife: {
-        itemId: "fish_knife",
         price: 80,
         requirements: [{ itemId: "slime_soul", amount: 4 }],
     },
     butcher_dagger: {
-        itemId: "butcher_dagger",
         price: 150,
         requirements: [
             { itemId: "slime_soul", amount: 6 },
@@ -53,7 +49,6 @@ export const RECIPES_DB: Record<string, ForgeRecipe> = {
         ],
     },
     noble_dagger: {
-        itemId: "noble_dagger",
         price: 300,
         requirements: [
             { itemId: "despairs_tear", amount: 3 },
@@ -61,7 +56,6 @@ export const RECIPES_DB: Record<string, ForgeRecipe> = {
         ],
     },
     hunter_knife: {
-        itemId: "hunter_knife",
         price: 450,
         requirements: [
             { itemId: "despairs_tear", amount: 5 },
@@ -73,7 +67,6 @@ export const RECIPES_DB: Record<string, ForgeRecipe> = {
     // SWORDS
     // ==========================================
     knight_sword: {
-        itemId: "knight_sword",
         price: 400,
         requirements: [
             { itemId: "despairs_tear", amount: 5 },
@@ -81,7 +74,6 @@ export const RECIPES_DB: Record<string, ForgeRecipe> = {
         ],
     },
     scale_sword: {
-        itemId: "scale_sword",
         price: 550,
         requirements: [
             { itemId: "despairs_tear", amount: 6 },
@@ -89,7 +81,6 @@ export const RECIPES_DB: Record<string, ForgeRecipe> = {
         ],
     },
     oath_sword: {
-        itemId: "oath_sword",
         price: 750,
         requirements: [
             { itemId: "imperial_steel", amount: 5 },
@@ -101,7 +92,6 @@ export const RECIPES_DB: Record<string, ForgeRecipe> = {
     // GREAT SWORDS
     // ==========================================
     great_steel_sword: {
-        itemId: "great_steel_sword",
         price: 800,
         requirements: [
             { itemId: "imperial_steel", amount: 8 },
@@ -109,7 +99,6 @@ export const RECIPES_DB: Record<string, ForgeRecipe> = {
         ],
     },
     great_jade_sword: {
-        itemId: "great_jade_sword",
         price: 1500,
         requirements: [
             { itemId: "despairs_tear", amount: 30 },

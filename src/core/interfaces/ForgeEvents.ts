@@ -1,4 +1,5 @@
 import { Observable } from "@babylonjs/core";
+import type { Item } from "../types/Items";
 
 export interface RecipeRequirement {
     itemId: string;
@@ -6,9 +7,8 @@ export interface RecipeRequirement {
     ownedCount?: number; // Rempli dynamiquement au moment de l'ouverture
 }
 
-export interface ForgeRecipe {
-    itemId: string; // L'ID de l'arme (ex: "butcher_dagger")
-    price: number; // Coût en Fragments d'espoir
+export interface ForgeRecipe extends Item {
+    price: number; // Coût en fragments
     requirements: RecipeRequirement[];
 }
 

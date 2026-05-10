@@ -10,23 +10,22 @@ export class ItemSlotComponent extends Rectangle {
     constructor(
         item: ShopItem | null,
         onClick: (item: ShopItem, slot: ItemSlotComponent) => void,
+        showPrice: boolean = true, // Par défaut à true pour le Shop
     ) {
         super(item ? `slot_${item.id}` : "slot_empty");
         this.itemData = item;
 
-        // --- Style de base du Slot ---
+        // --- Style de base ---
         this.width = "100%";
         this.height = "100%";
         this.thickness = 1;
-        this.cornerRadius = 8; // <-- AJOUT : Coins arrondis (léger)
+        this.cornerRadius = 8;
 
-        // ON SUPPRIME LE PADDING (on veut des carrés parfaits, pas d'espace interne bizarre)
         this.paddingLeft = "0px";
         this.paddingRight = "0px";
         this.paddingTop = "0px";
         this.paddingBottom = "0px";
 
-        // Si le slot est vide, on applique un style "fantôme" et on s'arrête
         if (!this.itemData) {
             this.background = "rgba(8, 8, 12, 0.2)";
             this.color = "rgba(255, 255, 255, 0.05)";
@@ -34,7 +33,7 @@ export class ItemSlotComponent extends Rectangle {
             return;
         }
 
-        // --- Style pour un Slot avec Item ---
+        // --- Style avec Item ---
         this.background = "rgba(8, 8, 12, 0.6)";
         this.color = "rgba(100, 110, 125, 0.15)";
         this.hoverCursor = "pointer";
@@ -50,8 +49,8 @@ export class ItemSlotComponent extends Rectangle {
 
         this._setImageWithFallback(this._icon, this.itemData.iconPath);
 
-        // --- Badge de Prix ---
-        if (this.itemData.price > 0) {
+        // --- Badge de Prix (Conditionnel) ---
+        if (showPrice && this.itemData.price > 0) {
             this._priceText = new TextBlock(
                 `price_${this.itemData.id}`,
                 `${this.itemData.price}`,
@@ -93,41 +92,29 @@ export class ItemSlotComponent extends Rectangle {
     }
 
     private _setImageWithFallback(imageControl: Image, path: string): void {
-        console.log(path);
-        const defaultPath = "/assets/ui/icons/default.png";
+        const defaultPath = "assets/ui/icons/default.png";
         const imgCheck = new window.Image();
         imgCheck.src = path;
-
         imgCheck.onload = () => {
             imageControl.source = path;
         };
-
         imgCheck.onerror = () => {
             imageControl.source = defaultPath;
         };
     }
 
-    /**
-     * Définit l'état de sélection visuelle du slot
-     */
     public setSelected(isSelected: boolean): void {
-        // Sécurité si on essaie de sélectionner un slot vide
         if (!this.itemData) return;
 
         this.color = isSelected
             ? "rgba(220, 230, 255, 0.7)"
             : "rgba(100, 110, 125, 0.15)";
-
         this.thickness = isSelected ? 1.5 : 1;
-
         this.background = isSelected
             ? "rgba(15, 18, 24, 0.95)"
             : "rgba(8, 8, 12, 0.6)";
 
-        if (this._icon) {
-            this._icon.alpha = isSelected ? 1.0 : 0.7;
-        }
-
+        if (this._icon) this._icon.alpha = isSelected ? 1.0 : 0.7;
         if (this._priceText) {
             this._priceText.color = isSelected
                 ? "rgba(200, 210, 225, 0.9)"

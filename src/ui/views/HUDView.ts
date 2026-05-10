@@ -4,6 +4,7 @@ import { PromptButtonComponent } from "../components/PromptButtonComponent";
 import { HealthBarComponent } from "../components/HealthBarComponent"; // Import ici
 import type { AbstractMesh } from "@babylonjs/core";
 import { WeaponHUDComponent } from "../components/WeaponHUDComponent";
+import { InputConfig } from "../../core/constants/InputConfig";
 
 export class HUDView extends BaseView {
     private _interactionPrompt!: PromptButtonComponent;
@@ -26,9 +27,10 @@ export class HUDView extends BaseView {
         this.rootContainer.addControl(this._weaponHUD);
 
         // --- Interaction Prompt ---
+        const interactKey = InputConfig.getKeyLabel("interact");
         this._interactionPrompt = new PromptButtonComponent(
             "PlayerInteraction",
-            "E",
+            interactKey,
         );
         this.advancedTexture.addControl(this._interactionPrompt);
     }

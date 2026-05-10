@@ -40,6 +40,7 @@ import type { LootDrop } from "../core/types/Items";
 import { StatusType } from "../core/types/StatusEffects";
 import type { Spell } from "../core/interfaces/Spell";
 import type { ShopItem } from "../core/interfaces/ShopEvents";
+import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
 
 export class Player extends Character {
     public readonly input: InputHandler;
@@ -411,6 +412,24 @@ export class Player extends Character {
         if (this.input.isInteracting && this._targetInteractable) {
             this._targetInteractable.onInteract();
             this.input.isInteracting = false;
+        }
+
+        if (this.input.isInventoryPressed) {
+            // On récupère les items formatés pour la vue
+            const items = this.inventory.getAllItems().map((slot) => ({
+                id: slot.item.id,
+                quantity: slot.amount,
+                type: slot.item.type,
+                metadata: slot.item,
+            }));
+
+            OnOpenInventory.notifyObservers({
+                playerId: this.id,
+                items: items,
+            });
+
+            // Reset du flag pour éviter les doubles déclenchements
+            this.input.isInventoryPressed = false;
         }
     }
 
