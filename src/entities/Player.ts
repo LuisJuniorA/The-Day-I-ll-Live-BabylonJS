@@ -202,7 +202,7 @@ export class Player extends Character {
         // 3. Système d'Âme - OPTIMISÉ (Réduction du rate si besoin)
         const ps = new ParticleSystem("soulParticles", 300, this._scene);
         this._soulParticles = ps;
-        ps.particleTexture = new Texture("/textures/flare.png", this._scene);
+        ps.particleTexture = new Texture("./textures/flare.png", this._scene);
         ps.emitter = this._visualPivot;
         ps.isLocal = true;
         ps.minSize = 1;

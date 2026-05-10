@@ -163,10 +163,11 @@ export class App {
                     await new Promise((r) => setTimeout(r, 50));
 
                     // 2. Initialisation du monde
-                    await this.worldEngine.init("");
+                    await this.worldEngine.init("./assets/scenes/start.glb");
 
                     // 3. Initialisation du joueur et CameraManager
                     this.spawnPlayer();
+                    this.entityManager.spawn("SLIME", new Vector3(0, 0, 0));
 
                     // 4. Armes
                     await this.setupInitialWeapons();
