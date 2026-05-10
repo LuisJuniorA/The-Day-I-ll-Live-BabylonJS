@@ -221,46 +221,44 @@ export class UIManager {
         OnCraftRequest.add((recipe) => {
             if (!this._player) return;
 
-            // 1. Check monnaie
-            if (this._player.currency < recipe.price) {
+            // 1. Checks (Monnaie + Ressources)
+            if (
+                this._player.currency < recipe.price ||
+                !this._player.inventory.hasResources(recipe.requirements)
+            ) {
                 this.forgeView.playBuyErrorAnimation();
                 return;
             }
 
-            // 2. Check ressources
-            if (!this._player.inventory.hasResources(recipe.requirements)) {
-                this.forgeView.playBuyErrorAnimation();
-                return;
-            }
-
-            // 3. Consommation des ressources
+            // 2. Consommation
             recipe.requirements.forEach((req) => {
                 this._player!.inventory.removeItem(req.itemId, req.amount);
             });
             this._player.currency -= recipe.price;
 
-            // 4. Ajout de l'arme (On donne l'objet complet de WEAPONS_DB)
+            // 3. Ajout de l'item
             const weaponToGive = WEAPONS_DB[recipe.itemId];
             const success = this._player.inventory.addItem(weaponToGive, 1);
 
             if (success) {
-                // Mise à jour de l'UI
-                this.forgeView.updateCurrency(this._player.currency);
+                // --- LE FIX VISUEL ---
 
-                // On rafraîchit le compteur de l'arme fabriquée
-                const newWeaponCount = this._player.inventory.getItemAmount(
-                    recipe.itemId,
-                );
-                this.forgeView.updateOwnedDisplay(newWeaponCount);
+                // On cast en 'any' ou en 'EnrichedForgeRecipe' pour accéder aux champs de la vue
+                const r = recipe as any;
 
-                // On rafraîchit l'affichage des composants (car les stocks ont baissé)
-                const updatedRequirements = recipe.requirements.map((req) => ({
-                    ...req,
-                    ownedCount: this._player!.inventory.getItemAmount(
+                // Mise à jour de la "Source de vérité" de cet objet précis
+                r.ownedCount = this._player.inventory.getItemAmount(r.itemId);
+
+                r.requirements.forEach((req: any) => {
+                    req.ownedCount = this._player!.inventory.getItemAmount(
                         req.itemId,
-                    ),
-                }));
-                this.forgeView.updateRequirementsDisplay(updatedRequirements);
+                    );
+                });
+
+                // Rafraîchissement de l'UI
+                this.forgeView.updateCurrency(this._player.currency);
+                this.forgeView.updateOwnedDisplay(r.ownedCount);
+                this.forgeView.updateRequirementsDisplay(r.requirements);
 
                 this.forgeView.playBuySuccessAnimation();
             }
