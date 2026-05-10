@@ -78,6 +78,7 @@ export class ShopView extends BaseView {
         this.buildUI();
         this.hide();
 
+        // Écoute de l'événement d'ouverture de la boutique
         OnOpenShop.add((data) => {
             this.populateShop(data.inventory);
             this.show();
@@ -109,7 +110,6 @@ export class ShopView extends BaseView {
         leftPanel.color = this.COLOR_LEFT_PANEL_BORDER;
         leftPanel.thickness = 1;
 
-        // On instancie le nouveau composant générique
         this._itemGridComp = new ItemGridViewComponent(
             "ShopGrid",
             this.advancedTexture,
@@ -346,7 +346,7 @@ export class ShopView extends BaseView {
         if (!item) return;
         this._selectedItem = item;
 
-        // Mise à jour visuelle des slots via le composant
+        // Mise à jour visuelle des slots
         this._itemGridComp.slots.forEach((s) => s.setSelected(false));
         slot.setSelected(true);
 
@@ -363,15 +363,15 @@ export class ShopView extends BaseView {
 
     public playBuySuccessAnimation(): void {
         this._buyButton.background = this.COLOR_BTN_SUCCESS;
+        const textBlock = this._buyButton.textBlock;
+
         setTimeout(() => {
             this._buyButton.background = this.COLOR_BTN_PRIMARY;
-            if (this._buyButton.textBlock) {
-                const oldText = this._buyButton.textBlock.text;
-                this._buyButton.textBlock.text =
-                    this.TEXT_CONFIG.SUCCESS_FEEDBACK;
+            if (textBlock) {
+                const oldText = textBlock.text;
+                textBlock.text = this.TEXT_CONFIG.SUCCESS_FEEDBACK;
                 setTimeout(() => {
-                    if (this._buyButton.textBlock)
-                        this._buyButton.textBlock.text = oldText;
+                    if (textBlock) textBlock.text = oldText;
                 }, 1000);
             }
         }, 150);

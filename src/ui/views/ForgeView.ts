@@ -19,12 +19,13 @@ import { Observable } from "@babylonjs/core";
 import { WEAPONS_DB } from "../../data/WeaponsDb";
 import { DescriptionComponent } from "../components/DescriptionComponent";
 import { RequirementRowComponent } from "../components/RequirementRowComponent";
+import { CurrencyFooterComponent } from "../components/CurrencyFooterComponent"; // Ajout de l'import
 import type { WeaponOwnerModifiers } from "../../core/types/WeaponStats";
 import { ALL_ITEMS } from "../../data/ItemDb";
 import { ItemGridViewComponent } from "../components/ItemGridViewComponent";
 import type { ShopItem } from "../../core/interfaces/ShopEvents";
 
-// --- CONFIGURATION (Inchangée) ---
+// --- CONFIGURATION ---
 const UI_CONFIG = {
     LAYOUT: {
         MAIN_WIDTH: "90%",
@@ -36,7 +37,6 @@ const UI_CONFIG = {
         GRID_SPACING: 8,
         RIGHT_PANEL_PADDING: "20px",
     },
-    // ... tes autres configs POSITIONS, FONTS, COLORS ...
     POSITIONS: {
         HEADER_TOP: "10px",
         HEADER_HEIGHT: "50px",
@@ -118,7 +118,7 @@ export interface EnrichedForgeRecipe extends ForgeRecipe {
 
 export class ForgeView extends BaseView {
     private _mainContainer!: Rectangle;
-    private _itemGridComp!: ItemGridViewComponent; // Nouveau composant
+    private _itemGridComp!: ItemGridViewComponent;
     private _detailName!: TextBlock;
     private _detailIcon!: Image;
     private _detailOwned!: TextBlock;
@@ -129,7 +129,9 @@ export class ForgeView extends BaseView {
     private _reqTitle!: TextBlock;
     private _reqStack!: StackPanel;
     private _craftButton!: Button;
-    private _currencyText!: TextBlock;
+
+    // Utilisation du composant Footer
+    private _footerComp!: CurrencyFooterComponent;
 
     private _selectedRecipe: EnrichedForgeRecipe | null = null;
     private _currentEquipment: Record<string, string | null> = {};
@@ -165,7 +167,6 @@ export class ForgeView extends BaseView {
         leftPanel.color = UI_CONFIG.COLORS.LEFT_BORDER;
         leftPanel.thickness = 1;
 
-        // Utilisation du ItemGridViewComponent
         this._itemGridComp = new ItemGridViewComponent(
             "ForgeGrid",
             this.advancedTexture,
@@ -173,38 +174,24 @@ export class ForgeView extends BaseView {
         this._itemGridComp.height = "90%";
         this._itemGridComp.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         this._itemGridComp.onItemClicked = (item, slot) => {
-            // On re-cast en EnrichedForgeRecipe car les structures sont compatibles
             this.selectRecipe(item as unknown as EnrichedForgeRecipe, slot);
         };
 
         leftPanel.addControl(this._itemGridComp);
-        leftPanel.addControl(this._createFooter());
+
+        // --- Nouveau Footer via Composant ---
+        this._footerComp = new CurrencyFooterComponent(
+            "ForgeFooter",
+            UI_CONFIG.FONTS.FAMILY,
+            UI_CONFIG.COLORS.TEXT_CURRENCY,
+            UI_CONFIG.TEXTS.CURRENCY_SUFFIX,
+            UI_CONFIG.COLORS.FOOTER_BG,
+            UI_CONFIG.LAYOUT.FOOTER_HEIGHT,
+        );
+        leftPanel.addControl(this._footerComp);
+
         return leftPanel;
     }
-
-    private _createFooter(): Rectangle {
-        const footer = new Rectangle("ForgeFooter");
-        footer.width = "100%";
-        footer.height = UI_CONFIG.LAYOUT.FOOTER_HEIGHT;
-        footer.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        footer.background = UI_CONFIG.COLORS.FOOTER_BG;
-        footer.thickness = 0;
-
-        this._currencyText = new TextBlock(
-            "CurrencyText",
-            `0${UI_CONFIG.TEXTS.CURRENCY_SUFFIX}`,
-        );
-        this._currencyText.fontFamily = UI_CONFIG.FONTS.FAMILY;
-        this._currencyText.color = UI_CONFIG.COLORS.TEXT_CURRENCY;
-        this._currencyText.fontSize = UI_CONFIG.FONTS.SIZE_CURRENCY;
-        this._currencyText.textHorizontalAlignment =
-            Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        this._currencyText.paddingRight = "30px";
-        footer.addControl(this._currencyText);
-        return footer;
-    }
-
-    // --- Panel Droit & Sections (Inchangés mais conservés pour la cohérence) ---
 
     private _createRightPanel(): Rectangle {
         const rightPanel = new Rectangle("RightPanel");
@@ -246,8 +233,6 @@ export class ForgeView extends BaseView {
         return rightPanel;
     }
 
-    // ... (Garder les méthodes privées _addHeaderSection, _addPreviewSection, _addStatsSection, etc.)
-    // Je les omets ici pour la brièveté mais elles restent identiques à ton code original
     private _addHeaderSection(container: Rectangle): void {
         this._detailOwned = new TextBlock(
             "DetailOwned",
@@ -395,16 +380,12 @@ export class ForgeView extends BaseView {
         container.addControl(closeBtn);
     }
 
-    // --- LOGIQUE DE SELECTION ---
-
     public selectRecipe(
         recipe: EnrichedForgeRecipe,
         slot: ItemSlotComponent,
     ): void {
         if (!recipe) return;
         this._selectedRecipe = recipe;
-
-        // On gère la sélection visuelle via le nouveau composant
         this._itemGridComp.slots.forEach((s) => s.setSelected(false));
         slot.setSelected(true);
 
@@ -442,10 +423,10 @@ export class ForgeView extends BaseView {
     }
 
     private _toggleCombatUI(isWeapon: boolean): void {
-        this._statsTitle.isVisible = isWeapon;
-        this._statsGrid.isVisible = isWeapon;
-        this._modifiersStack.isVisible = isWeapon;
-
+        this._statsTitle.isVisible =
+            this._statsGrid.isVisible =
+            this._modifiersStack.isVisible =
+                isWeapon;
         const reqTop = isWeapon
             ? UI_CONFIG.POSITIONS.REQ_TOP_DEFAULT
             : UI_CONFIG.POSITIONS.REQ_TOP_MATERIAL;
@@ -454,10 +435,7 @@ export class ForgeView extends BaseView {
             parseInt(reqTop) + UI_CONFIG.POSITIONS.SECTION_GAP + "px";
     }
 
-    // --- PEUPLEMENT ---
-
     public populateForge(recipes: EnrichedForgeRecipe[]): void {
-        // Tri
         const sortedRecipes = [...recipes].sort((a, b) => {
             const typeOrder: Record<string, number> = {
                 material: 0,
@@ -469,12 +447,7 @@ export class ForgeView extends BaseView {
                 ? typeA - typeB
                 : (a.name || "").localeCompare(b.name || "");
         });
-
-        // Utilisation du composant pour peupler
-        // On cast en ShopItem[] car les interfaces partagent les clés nécessaires à l'affichage
         this._itemGridComp.populate(sortedRecipes as unknown as ShopItem[], 20);
-
-        // Sélection auto du premier item
         const slots = this._itemGridComp.slots;
         if (slots.length > 0) {
             this.selectRecipe(
@@ -484,16 +457,20 @@ export class ForgeView extends BaseView {
         }
     }
 
-    // --- (Reste des méthodes de mise à jour stats/requirements inchangées) ---
-    // ... updateCurrency, updateOwnedDisplay, updateRequirementsDisplay, _updateStatsComparison, etc.
+    // --- MISE A JOUR CORRIGÉE ---
     public updateCurrency(amount: number): void {
         this._currentFragments = amount;
-        if (this._currencyText)
-            this._currencyText.text = `${amount}${UI_CONFIG.TEXTS.CURRENCY_SUFFIX}`;
-        if (this._selectedRecipe)
+
+        // On utilise le composant pour l'affichage
+        if (this._footerComp) {
+            this._footerComp.updateAmount(amount);
+        }
+
+        if (this._selectedRecipe) {
             this.updateRequirementsDisplay(
                 this._selectedRecipe.requirements || [],
             );
+        }
     }
 
     public updateOwnedDisplay(amount: number): void {
@@ -540,7 +517,6 @@ export class ForgeView extends BaseView {
         this._statsGrid.clearControls();
         const targetWeapon = WEAPONS_DB[recipe.id];
         if (!targetWeapon || !targetWeapon.stats) return;
-
         const currentWeaponId = targetWeapon.weaponSlot
             ? this._currentEquipment[targetWeapon.weaponSlot]
             : null;
@@ -698,12 +674,10 @@ export class ForgeView extends BaseView {
         if (key === "speedBoost") {
             label = UI_CONFIG.TEXTS.STATS_LABELS.speed;
             valStr = `${plus}${Math.round(value * 100)}%`;
-        }
-        if (key === "damageMultiplier") {
+        } else if (key === "damageMultiplier") {
             label = UI_CONFIG.TEXTS.STATS_LABELS.power;
             valStr = `x${value}`;
-        }
-        if (key === "healthBoost") {
+        } else if (key === "healthBoost") {
             label = UI_CONFIG.TEXTS.STATS_LABELS.health;
         }
         return `${UI_CONFIG.TEXTS.MODIFIER_PREFIX}${label} : ${valStr}`;

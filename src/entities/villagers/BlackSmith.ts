@@ -4,7 +4,7 @@ import {
     OnOpenForge,
 } from "../../core/interfaces/ForgeEvents";
 import { OnDialogueRequest } from "../../core/interfaces/Interactable";
-import { ItemData } from "../../data/ItemData";
+import { ALL_ITEMS } from "../../data/ItemDb";
 import { RECIPES_DB } from "../../data/RecipesDb";
 
 export class Blacksmith extends NPCInteractable {
@@ -19,7 +19,7 @@ export class Blacksmith extends NPCInteractable {
                 const enrichedRecipes: ForgeRecipe[] = recipeIds
                     .map((id) => {
                         const raw = RECIPES_DB[id];
-                        const baseItem = ItemData[id]; // On récupère les infos visuelles
+                        const baseItem = ALL_ITEMS[id]; // On récupère les infos visuelles
 
                         if (!raw || !baseItem) return null;
 
@@ -30,7 +30,6 @@ export class Blacksmith extends NPCInteractable {
                         };
                     })
                     .filter((r): r is ForgeRecipe => r !== null);
-
                 OnOpenForge.notifyObservers({
                     blacksmithId: this.id,
                     recipes: enrichedRecipes, // L'UI reçoit des objets parfaits

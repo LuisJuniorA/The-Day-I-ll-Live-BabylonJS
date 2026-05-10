@@ -19,7 +19,6 @@ export class Sword extends MeleeWeapon {
         for (let i = 0; i < positions!.length; i++) {
             positions![i] += normals![i] * thickness;
         }
-
         this.mesh!.updateVerticesData(VertexBuffer.PositionKind, positions!);
     }
 

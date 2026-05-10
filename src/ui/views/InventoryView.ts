@@ -11,32 +11,20 @@ import { ItemSlotComponent } from "../components/ItemSlotComponent";
 import { Observable } from "@babylonjs/core";
 import { DescriptionComponent } from "../components/DescriptionComponent";
 import { ItemGridViewComponent } from "../components/ItemGridViewComponent";
+import { CurrencyFooterComponent } from "../components/CurrencyFooterComponent";
 import { ALL_ITEMS } from "../../data/ItemDb";
 import type { InventoryItem } from "../../core/interfaces/InventoryEvent";
 import type { ShopItem } from "../../core/interfaces/ShopEvents";
 
-const UI_CONFIG = {
-    LAYOUT: {
-        FOOTER_HEIGHT: "10%",
-    },
-    FONTS: {
-        FAMILY: "Georgia, 'Times New Roman', serif",
-        SIZE_CURRENCY: 22,
-    },
-    COLORS: {
-        FOOTER_BG: "rgba(0, 0, 0, 0.4)",
-        TEXT_CURRENCY: "#FFD700",
-    },
-    TEXTS: {
-        CURRENCY_SUFFIX: " FRAGMENTS",
-    },
-};
-
 export class InventoryView extends BaseView {
+    // --- Couleurs & Style ---
     private readonly COLOR_OVERLAY = "rgba(0,0,0,0.6)";
     private readonly COLOR_LEFT_BG = "rgba(10, 10, 14, 0.7)";
     private readonly COLOR_RIGHT_BG = "rgba(15, 15, 20, 0.8)";
     private readonly COLOR_BORDER = "rgba(255, 255, 255, 0.1)";
+    private readonly COLOR_BTN_PRIMARY = "#4a2a1a"; // Définie ici
+    private readonly COLOR_BTN_SECONDARY = "rgba(255, 255, 255, 0.3)";
+    private readonly COLOR_CURRENCY = "#FFD700";
     private readonly LORE_FONT = "Georgia, 'Times New Roman', serif";
 
     private _gridView!: ItemGridViewComponent;
@@ -45,7 +33,7 @@ export class InventoryView extends BaseView {
     private _detailQuantity!: TextBlock;
     private _descriptionComp!: DescriptionComponent;
     private _actionButton!: Button;
-    private _currencyText!: TextBlock; // Nommé comme dans ta forge
+    private _footerComp!: CurrencyFooterComponent;
 
     private _selectedItem: InventoryItem | null = null;
 
@@ -86,40 +74,19 @@ export class InventoryView extends BaseView {
         );
         this._gridView.height = "90%";
         this._gridView.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-
-        this._gridView.onItemClicked = (item, slot) => {
+        this._gridView.onItemClicked = (item, slot) =>
             this.selectItem(item as unknown as InventoryItem, slot);
-        };
-
         leftPanel.addControl(this._gridView);
 
-        // Appels de ton footer EXACT
-        leftPanel.addControl(this._createFooter());
+        // Footer en composant
+        this._footerComp = new CurrencyFooterComponent(
+            "InvFooter",
+            this.LORE_FONT,
+            this.COLOR_CURRENCY,
+        );
+        leftPanel.addControl(this._footerComp);
 
         return leftPanel;
-    }
-
-    // TA FONCTION EXACTE (Copiée de ta Forge)
-    private _createFooter(): Rectangle {
-        const footer = new Rectangle("ForgeFooter");
-        footer.width = "100%";
-        footer.height = UI_CONFIG.LAYOUT.FOOTER_HEIGHT;
-        footer.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        footer.background = UI_CONFIG.COLORS.FOOTER_BG;
-        footer.thickness = 0;
-
-        this._currencyText = new TextBlock(
-            "CurrencyText",
-            `0${UI_CONFIG.TEXTS.CURRENCY_SUFFIX}`,
-        );
-        this._currencyText.fontFamily = UI_CONFIG.FONTS.FAMILY;
-        this._currencyText.color = UI_CONFIG.COLORS.TEXT_CURRENCY;
-        this._currencyText.fontSize = UI_CONFIG.FONTS.SIZE_CURRENCY;
-        this._currencyText.textHorizontalAlignment =
-            Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        this._currencyText.paddingRight = "30px";
-        footer.addControl(this._currencyText);
-        return footer;
     }
 
     private _createRightPanel(): Rectangle {
@@ -132,7 +99,6 @@ export class InventoryView extends BaseView {
         rightPanel.thickness = 1;
         rightPanel.paddingLeft = rightPanel.paddingRight = "25px";
 
-        // Details Name
         this._detailName = new TextBlock("DetailName", "");
         this._detailName.fontFamily = this.LORE_FONT;
         this._detailName.color = "white";
@@ -144,7 +110,6 @@ export class InventoryView extends BaseView {
             Control.HORIZONTAL_ALIGNMENT_LEFT;
         rightPanel.addControl(this._detailName);
 
-        // Quantity (en haut à droite)
         this._detailQuantity = new TextBlock("DetailQty", "");
         this._detailQuantity.fontFamily = this.LORE_FONT;
         this._detailQuantity.fontSize = 14;
@@ -156,7 +121,6 @@ export class InventoryView extends BaseView {
             Control.HORIZONTAL_ALIGNMENT_RIGHT;
         rightPanel.addControl(this._detailQuantity);
 
-        // Icon Box
         const iconBox = new Rectangle("IconBox");
         iconBox.width = "100%";
         iconBox.height = "200px";
@@ -170,7 +134,6 @@ export class InventoryView extends BaseView {
         iconBox.addControl(this._detailIcon);
         rightPanel.addControl(iconBox);
 
-        // Description
         this._descriptionComp = new DescriptionComponent(
             "InvDesc",
             this.LORE_FONT,
@@ -181,11 +144,11 @@ export class InventoryView extends BaseView {
             Control.VERTICAL_ALIGNMENT_TOP;
         rightPanel.addControl(this._descriptionComp);
 
-        // Boutons
+        // Bouton Action (Corrigé)
         this._actionButton = Button.CreateSimpleButton("ActionBtn", "UTILISER");
         this._actionButton.width = "100%";
         this._actionButton.height = "60px";
-        this._actionButton.background = "#2c3e50";
+        this._actionButton.background = this.COLOR_BTN_PRIMARY;
         this._actionButton.color = "white";
         this._actionButton.fontFamily = this.LORE_FONT;
         this._actionButton.verticalAlignment =
@@ -196,10 +159,11 @@ export class InventoryView extends BaseView {
         });
         rightPanel.addControl(this._actionButton);
 
+        // Bouton Retour
         const closeBtn = Button.CreateSimpleButton("CloseBtn", "RETOUR");
         closeBtn.width = "100%";
         closeBtn.height = "30px";
-        closeBtn.color = "rgba(255,255,255,0.4)";
+        closeBtn.color = this.COLOR_BTN_SECONDARY;
         closeBtn.top = "-70px";
         closeBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
         closeBtn.onPointerUpObservable.add(() => {
@@ -211,9 +175,8 @@ export class InventoryView extends BaseView {
         return rightPanel;
     }
 
-    // Pour mettre à jour les fragments (comme dans la Forge)
     public updateFragments(amount: number): void {
-        this._currencyText.text = `${amount}${UI_CONFIG.TEXTS.CURRENCY_SUFFIX}`;
+        this._footerComp.updateAmount(amount);
     }
 
     public populateInventory(items: InventoryItem[]): void {

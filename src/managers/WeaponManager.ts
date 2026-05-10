@@ -3,6 +3,7 @@ import {
     LoadAssetContainerAsync,
     AssetContainer,
     AbstractMesh,
+    Color3,
 } from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
 
@@ -106,6 +107,21 @@ export class WeaponManager {
         weaponMesh.setEnabled(false);
 
         weapon.mesh = weaponMesh;
+        // À l'intérieur de ta méthode getOrCreateWeapon
+        weaponMesh.getChildMeshes(true).forEach((m) => {
+            const mat = m.material;
+            if (!mat) return;
+
+            // 1. Si c'est un matériau PBR (cas habituel des loaders glTF)
+            if (mat.getClassName() === "PBRMaterial") {
+                (mat as any).unlit = true;
+            }
+            // 2. Si c'est un matériau Standard
+            else if (mat.getClassName() === "StandardMaterial") {
+                (mat as any).disableLighting = true;
+                (mat as any).emissiveColor = new Color3(1, 1, 1);
+            }
+        });
 
         // On ne définit plus weapon.slot ici, c'est géré par weapon.data.weaponSlot
         await weapon.loadVisuals();
