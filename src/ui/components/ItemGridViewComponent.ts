@@ -7,6 +7,7 @@ import {
 } from "@babylonjs/gui";
 import { ItemSlotComponent } from "./ItemSlotComponent";
 import { type ShopItem } from "../../core/interfaces/ShopEvents";
+import { ItemType } from "../../core/types/Items"; // Assure-toi du chemin d'import
 
 export class ItemGridViewComponent extends Rectangle {
     private _itemGrid: Grid;
@@ -14,10 +15,15 @@ export class ItemGridViewComponent extends Rectangle {
     private _slots: ItemSlotComponent[] = [];
     private adt: AdvancedDynamicTexture;
 
+    // --- Nouvelles propriétés pour le filtrage ---
+    private _allOriginalItems: ShopItem[] = [];
+    private _currentFilter: ItemType | "all" = "all";
+    private _lastMinSlots: number = 20;
+    // ---------------------------------------------
+
     private readonly COLUMNS_COUNT = 5;
     private readonly GRID_SPACING = 8;
 
-    /** Callback déclenché quand un item est cliqué */
     public onItemClicked: (item: ShopItem, slot: ItemSlotComponent) => void =
         () => {};
 
@@ -26,7 +32,6 @@ export class ItemGridViewComponent extends Rectangle {
         this.thickness = 0;
         this.adt = adt;
 
-        // 1. Création du ScrollViewer
         this._scrollViewer = new ScrollViewer(`${name}_Scroll`);
         this._scrollViewer.width = "100%";
         this._scrollViewer.height = "100%";
@@ -34,7 +39,6 @@ export class ItemGridViewComponent extends Rectangle {
         this._scrollViewer.forceVerticalBar = false;
         this.addControl(this._scrollViewer);
 
-        // 2. Création de la Grille
         this._itemGrid = new Grid(`${name}_Grid`);
         this._itemGrid.width = "100%";
         this._itemGrid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
@@ -48,20 +52,43 @@ export class ItemGridViewComponent extends Rectangle {
         this._scrollViewer.addControl(this._itemGrid);
     }
 
-    /** Remplissage de la grille avec des items ou du vide */
+    /** * Applique un filtre et régénère la grille
+     * @param type Le type d'item à afficher ou "all"
+     */
+    public filterByType(type: ItemType | "all"): void {
+        this._currentFilter = type;
+        this._applyFilterAndPopulate();
+    }
+
+    /** Remplissage initial de la grille */
     public populate(items: ShopItem[], minSlots: number = 20): void {
+        this._allOriginalItems = items;
+        this._lastMinSlots = minSlots;
+        this._applyFilterAndPopulate();
+    }
+
+    /** Logique interne de filtrage et d'affichage */
+    private _applyFilterAndPopulate(): void {
+        // 1. Filtrage des données
+        const filteredItems =
+            this._currentFilter === "all"
+                ? this._allOriginalItems
+                : this._allOriginalItems.filter(
+                      (item) => item.type === this._currentFilter,
+                  );
+
+        // 2. Nettoyage
         this._itemGrid.clearControls();
         while (this._itemGrid.rowCount > 0)
             this._itemGrid.removeRowDefinition(0);
         this._slots = [];
 
-        const totalSlots = Math.max(items.length, minSlots);
+        // 3. Calcul du layout (ton code existant)
+        const totalSlots = Math.max(filteredItems.length, this._lastMinSlots);
         const rowCount = Math.ceil(totalSlots / this.COLUMNS_COUNT);
 
-        // Calcul dynamique de la taille des cellules basé sur la résolution
         const engine = this.adt.getScene()?.getEngine();
         const canvasWidth = engine ? engine.getRenderWidth() : 1920;
-        // On estime la largeur disponible (on peut passer cette valeur en paramètre si besoin)
         const estimatedWidth =
             this.widthInPixels > 0 ? this.widthInPixels : canvasWidth * 0.5;
         const cellWidth =
@@ -72,8 +99,9 @@ export class ItemGridViewComponent extends Rectangle {
         }
         this._itemGrid.height = `${(cellWidth + this.GRID_SPACING * 2) * rowCount}px`;
 
+        // 4. Création des slots
         for (let index = 0; index < totalSlots; index++) {
-            const item = items[index] || null;
+            const item = filteredItems[index] || null;
             const slot = new ItemSlotComponent(item, (data, s) => {
                 if (data) this.onItemClicked(data as ShopItem, s);
             });
@@ -92,6 +120,9 @@ export class ItemGridViewComponent extends Rectangle {
 
             if (item) this._slots.push(slot);
         }
+
+        // Reset du scroll en haut lors d'un changement de filtre
+        this._scrollViewer.verticalBar.value = 0;
     }
 
     public get slots(): ItemSlotComponent[] {

@@ -19,6 +19,7 @@ import { Observable } from "@babylonjs/core";
 import { DescriptionComponent } from "../components/DescriptionComponent";
 import { RequirementRowComponent } from "../components/RequirementRowComponent";
 import { ItemGridViewComponent } from "../components/ItemGridViewComponent";
+import { CurrencyFooterComponent } from "../components/CurrencyFooterComponent";
 
 export class ShopView extends BaseView {
     // --- Configuration ---
@@ -64,7 +65,7 @@ export class ShopView extends BaseView {
     private _descriptionComp!: DescriptionComponent;
     private _priceContainer!: StackPanel;
     private _buyButton!: Button;
-    private _currencyText!: TextBlock;
+    private _footer!: CurrencyFooterComponent;
 
     // --- État ---
     private _selectedItem: ShopItem | null = null;
@@ -110,6 +111,7 @@ export class ShopView extends BaseView {
         leftPanel.color = this.COLOR_LEFT_PANEL_BORDER;
         leftPanel.thickness = 1;
 
+        // Grille d'items
         this._itemGridComp = new ItemGridViewComponent(
             "ShopGrid",
             this.advancedTexture,
@@ -120,32 +122,20 @@ export class ShopView extends BaseView {
             this.selectItem(item, slot);
 
         leftPanel.addControl(this._itemGridComp);
-        leftPanel.addControl(this._createFooter());
+
+        // Footer avec système de filtres et monnaie
+        this._footer = new CurrencyFooterComponent(
+            "ShopFooter",
+            this.LORE_FONT,
+            this.COLOR_TEXT_CURRENCY,
+            this._itemGridComp, // On passe la grille pour que les filtres fonctionnent
+            this.TEXT_CONFIG.CURRENCY_SUFFIX,
+            this.COLOR_FOOTER_BG,
+            "10%",
+        );
+        leftPanel.addControl(this._footer);
 
         return leftPanel;
-    }
-
-    private _createFooter(): Rectangle {
-        const footer = new Rectangle("ShopFooter");
-        footer.width = "100%";
-        footer.height = "10%";
-        footer.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        footer.background = this.COLOR_FOOTER_BG;
-        footer.thickness = 0;
-
-        this._currencyText = new TextBlock(
-            "CurrencyText",
-            `0${this.TEXT_CONFIG.CURRENCY_SUFFIX}`,
-        );
-        this._currencyText.fontFamily = this.LORE_FONT;
-        this._currencyText.color = this.COLOR_TEXT_CURRENCY;
-        this._currencyText.fontSize = "22px";
-        this._currencyText.textHorizontalAlignment =
-            Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        this._currencyText.paddingRight = "30px";
-
-        footer.addControl(this._currencyText);
-        return footer;
     }
 
     private _createRightPanel(): Rectangle {
@@ -307,8 +297,9 @@ export class ShopView extends BaseView {
 
     public updateCurrencyDisplay(amount: number): void {
         this._currentFragments = amount;
-        if (this._currencyText)
-            this._currencyText.text = `${amount}${this.TEXT_CONFIG.CURRENCY_SUFFIX}`;
+        if (this._footer) {
+            this._footer.updateAmount(amount);
+        }
         if (this._selectedItem) this._updatePriceDisplay(this._selectedItem);
     }
 
@@ -335,7 +326,7 @@ export class ShopView extends BaseView {
     public populateShop(inventory: ShopItem[]): void {
         this._itemGridComp.populate(inventory, 20);
 
-        // Sélection par défaut du premier item
+        // Sélection par défaut du premier item (en tenant compte du filtre potentiel)
         const slots = this._itemGridComp.slots;
         if (slots.length > 0) {
             this.selectItem(slots[0].itemData as ShopItem, slots[0]);

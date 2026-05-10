@@ -106,8 +106,8 @@ const UI_CONFIG = {
             power: "PUISSANCE",
             health: "VITALITÉ",
         },
-        PATH_FRAGMENT_ICON: "assets/ui/icons/materials/fragment.png",
-        PATH_PLACEHOLDER_ICON: "assets/ui/icons/placeholder.png",
+        PATH_FRAGMENT_ICON: "/assets/ui/icons/materials/fragment.png",
+        PATH_PLACEHOLDER_ICON: "/assets/ui/icons/default.png",
     },
 };
 
@@ -184,6 +184,7 @@ export class ForgeView extends BaseView {
             "ForgeFooter",
             UI_CONFIG.FONTS.FAMILY,
             UI_CONFIG.COLORS.TEXT_CURRENCY,
+            this._itemGridComp,
             UI_CONFIG.TEXTS.CURRENCY_SUFFIX,
             UI_CONFIG.COLORS.FOOTER_BG,
             UI_CONFIG.LAYOUT.FOOTER_HEIGHT,

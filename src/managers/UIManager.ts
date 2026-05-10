@@ -134,14 +134,30 @@ export class UIManager {
         });
 
         OnOpenInventory.add((data) => {
-            // On passe les infos à la vue
-            this.inventoryView.populateInventory(data.items);
+            if (!this._player) return;
 
-            // On synchronise l'équipement actuel (pour les stats de comparaison)
-            if (this._player) {
-            }
+            // --- ENRICHISSEMENT DES DONNÉES ---
+            // On transforme les items bruts de l'inventaire en items avec images et noms
+            const enrichedItems = data.items.map((invItem) => {
+                const itemInfo = ALL_ITEMS[invItem.id];
 
-            // On change l'état global pour afficher la vue et figer le jeu
+                return {
+                    ...invItem,
+                    name: itemInfo?.name || invItem.id,
+                    description: itemInfo?.description || "Aucune description",
+                    iconPath:
+                        itemInfo?.iconPath || "/assets/ui/icons/default.png",
+                };
+            });
+
+            // On passe les infos enrichies à la vue
+            this.inventoryView.populateInventory(enrichedItems as any);
+            this.inventoryView.updateCurrency(this._player.currency);
+
+            // On synchronise l'équipement actuel pour les stats de comparaison
+            this.inventoryView.setCurrentEquipment(this._player.weaponSlots);
+
+            // On change l'état global
             this._gameStateManager.setInventory();
         });
 
