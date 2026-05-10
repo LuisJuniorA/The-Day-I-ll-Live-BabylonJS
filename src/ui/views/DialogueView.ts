@@ -13,7 +13,7 @@ import { InputConfig } from "../../core/constants/InputConfig";
 
 export class DialogueView extends BaseView {
     // Configuration par défaut
-    private static readonly DEFAULT_PORTRAIT = "/assets/ui/icons/default.png";
+    private static readonly DEFAULT_PORTRAIT = "./assets/ui/icons/default.png";
 
     private _container!: Rectangle;
     private _portraitImage!: Image;

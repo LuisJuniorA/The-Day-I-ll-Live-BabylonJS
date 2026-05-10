@@ -106,8 +106,8 @@ const UI_CONFIG = {
             power: "PUISSANCE",
             health: "VITALITÉ",
         },
-        PATH_FRAGMENT_ICON: "/assets/ui/icons/materials/fragment.png",
-        PATH_PLACEHOLDER_ICON: "/assets/ui/icons/default.png",
+        PATH_FRAGMENT_ICON: "./assets/ui/icons/materials/fragment.png",
+        PATH_PLACEHOLDER_ICON: "./assets/ui/icons/default.png",
     },
 };
 

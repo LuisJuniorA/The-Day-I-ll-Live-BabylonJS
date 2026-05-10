@@ -16,7 +16,7 @@ export interface NPCConfig {
 export const NPC_DATA: Record<string, NPCConfig> = {
     MERCHANT_SILAS: {
         name: "Silas le Marchand",
-        assetPath: "/assets/models/characters/npcs/merchant.glb",
+        assetPath: "./assets/models/characters/npcs/merchant.glb",
         texts: [
             "Regarde mes marchandises, voyageur.",
             "L'or pur est la seule langue que je parle.",
@@ -31,7 +31,7 @@ export const NPC_DATA: Record<string, NPCConfig> = {
     },
     BLACKSMITH: {
         name: "Grumdur le Forgeron",
-        assetPath: "/assets/models/characters/npcs/blacksmith.glb",
+        assetPath: "./assets/models/characters/npcs/blacksmith.glb",
         texts: [
             "Le feu de la forge purifie tout.",
             "Apporte les matériaux, je ferai le reste.",

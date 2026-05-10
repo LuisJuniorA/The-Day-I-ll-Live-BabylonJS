@@ -7,7 +7,7 @@ export const ItemData: Record<string, Item> = {
         name: "Fragment d'espoir",
         description:
             "Un vestige d'un monde délabré. Cette monnaie permet d'échanger l'essence des ombres contre de quoi tenir un jour de plus.",
-        iconPath: "/assets/ui/icons/gold_coin.png",
+        iconPath: "./assets/ui/icons/gold_coin.png",
         type: ItemType.CURRENCY,
     },
 
@@ -17,7 +17,7 @@ export const ItemData: Record<string, Item> = {
         name: "Larme du Désespoir",
         description:
             "Cristallisation d'un cri qui fige l'esprit. Lâchée par les Effrois.",
-        iconPath: "/assets/ui/icons/despairs_tear.png",
+        iconPath: "./assets/ui/icons/despairs_tear.png",
         type: ItemType.MATERIAL,
     },
     slime_soul: {
@@ -25,7 +25,7 @@ export const ItemData: Record<string, Item> = {
         name: "Âme de Slime",
         description:
             "Une substance instable prélevée sur des formes inachevées. Elle frémit encore.",
-        iconPath: "/assets/ui/icons/slime_soul.png",
+        iconPath: "./assets/ui/icons/slime_soul.png",
         type: ItemType.MATERIAL,
     },
 
@@ -35,14 +35,14 @@ export const ItemData: Record<string, Item> = {
         name: "Acier Impérial",
         description:
             "Un métal froid et lourd, forgé à partir d'âmes compressées.",
-        iconPath: "/assets/ui/icons/materials/imperial_steel.png",
+        iconPath: "./assets/ui/icons/materials/imperial_steel.png",
         type: ItemType.MATERIAL,
     },
     monster_claw: {
         id: "monster_claw",
         name: "Griffe de Prédateur",
         description: "Une pointe acérée qui semble encore chercher une proie.",
-        iconPath: "/assets/ui/icons/materials/monster_claw.png",
+        iconPath: "./assets/ui/icons/materials/monster_claw.png",
         type: ItemType.MATERIAL,
     },
     dragon_scale: {
@@ -50,7 +50,7 @@ export const ItemData: Record<string, Item> = {
         name: "Écaille de Calamité",
         description:
             "Une plaque protectrice brûlante, issue d'un feu millénaire.",
-        iconPath: "/assets/ui/icons/materials/dragon_scale.png",
+        iconPath: "./assets/ui/icons/materials/dragon_scale.png",
         type: ItemType.MATERIAL,
     },
     dark_feather: {
@@ -58,7 +58,7 @@ export const ItemData: Record<string, Item> = {
         name: "Plume d'Ébène",
         description:
             "Une plume plus lourde que le plomb qui absorbe la lumière.",
-        iconPath: "/assets/ui/icons/materials/dark_feather.png",
+        iconPath: "./assets/ui/icons/materials/dark_feather.png",
         type: ItemType.MATERIAL,
     },
     obsidian_shard: {
@@ -66,7 +66,7 @@ export const ItemData: Record<string, Item> = {
         name: "Éclat d'Obsidienne",
         description:
             "Verre volcanique capable de trancher les ombres elles-mêmes.",
-        iconPath: "/assets/ui/icons/materials/obsidian_shard.png",
+        iconPath: "./assets/ui/icons/materials/obsidian_shard.png",
         type: ItemType.MATERIAL,
     },
     mystic_jade: {
@@ -74,7 +74,7 @@ export const ItemData: Record<string, Item> = {
         name: "Jade Onirique",
         description:
             "Une pierre verte qui semble contenir des paysages en mouvement.",
-        iconPath: "/assets/ui/icons/materials/mystic_jade.png",
+        iconPath: "./assets/ui/icons/materials/mystic_jade.png",
         type: ItemType.MATERIAL,
     },
 };

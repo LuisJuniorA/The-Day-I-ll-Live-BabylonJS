@@ -146,7 +146,7 @@ export class UIManager {
                     name: itemInfo?.name || invItem.id,
                     description: itemInfo?.description || "Aucune description",
                     iconPath:
-                        itemInfo?.iconPath || "/assets/ui/icons/default.png",
+                        itemInfo?.iconPath || "./assets/ui/icons/default.png",
                 };
             });
 
@@ -229,7 +229,7 @@ export class UIManager {
                     // On déplace la logique de nettoyage de path ici
                     iconPath:
                         itemInfo?.iconPath ||
-                        "/assets/ui/icons/default_icon.png",
+                        "./assets/ui/icons/default_icon.png",
                     type: itemInfo?.type || "material",
                     weaponSlot: (itemInfo as any)?.weaponSlot,
                     ownedCount: this._player!.inventory.getItemAmount(

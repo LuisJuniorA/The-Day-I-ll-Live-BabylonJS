@@ -12,8 +12,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
         description: "Perfect for carving meat... and everything else.",
-        iconPath: "/assets/ui/icons/weapons/butcher_dagger.png",
-        meshPath: "/assets/models/weapons/daggers/butcher_dagger.glb",
+        iconPath: "./assets/ui/icons/weapons/butcher_dagger.png",
+        meshPath: "./assets/models/weapons/daggers/butcher_dagger.glb",
         stats: {
             damage: 7,
             range: 1.1,
@@ -29,8 +29,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
         description: "A dark, tapered blade, light as a feather.",
-        iconPath: "/assets/ui/icons/weapons/crow_dagger.png",
-        meshPath: "/assets/models/weapons/daggers/crow_dagger.glb",
+        iconPath: "./assets/ui/icons/weapons/crow_dagger.png",
+        meshPath: "./assets/models/weapons/daggers/crow_dagger.glb",
         stats: {
             damage: 9,
             range: 1.3,
@@ -46,8 +46,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
         description: "A simple sharp knife, designed for scaling.",
-        iconPath: "/assets/ui/icons/weapons/fish_knife.png",
-        meshPath: "/assets/models/weapons/daggers/fish_knife.glb",
+        iconPath: "./assets/ui/icons/weapons/fish_knife.png",
+        meshPath: "./assets/models/weapons/daggers/fish_knife.glb",
         stats: {
             damage: 4,
             range: 1.0,
@@ -63,8 +63,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
         description: "Sturdy and reliable in the heart of the wild.",
-        iconPath: "/assets/ui/icons/weapons/hunter_knife.png",
-        meshPath: "/assets/models/weapons/daggers/hunter_knife.glb",
+        iconPath: "./assets/ui/icons/weapons/hunter_knife.png",
+        meshPath: "./assets/models/weapons/daggers/hunter_knife.glb",
         stats: {
             damage: 8,
             range: 1.2,
@@ -80,8 +80,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
         description: "A most classic and standard knife.",
-        iconPath: "/assets/ui/icons/weapons/knife.png",
-        meshPath: "/assets/models/weapons/daggers/knife.glb",
+        iconPath: "./assets/ui/icons/weapons/knife.png",
+        meshPath: "./assets/models/weapons/daggers/knife.glb",
         stats: {
             damage: 3,
             range: 1.0,
@@ -97,8 +97,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
         description: "Adorned with jewels, as beautiful as it is sharp.",
-        iconPath: "/assets/ui/icons/weapons/noble_dagger.png",
-        meshPath: "/assets/models/weapons/daggers/noble_dagger.glb",
+        iconPath: "./assets/ui/icons/weapons/noble_dagger.png",
+        meshPath: "./assets/models/weapons/daggers/noble_dagger.glb",
         stats: {
             damage: 6,
             range: 1.2,
@@ -118,8 +118,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.SWORD,
         description: "The standard and noble weapon of the chivalry.",
-        iconPath: "/assets/ui/icons/weapons/knight_sword.png",
-        meshPath: "/assets/models/weapons/swords/knight_sword.glb",
+        iconPath: "./assets/ui/icons/weapons/knight_sword.png",
+        meshPath: "./assets/models/weapons/swords/knight_sword.glb",
         stats: {
             damage: 15,
             range: 2.2,
@@ -136,8 +136,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         weaponSlot: WeaponSlot.SWORD,
         description:
             "Forged to uphold a sacred promise and protect its wielder.",
-        iconPath: "/assets/ui/icons/weapons/oath_sword.png",
-        meshPath: "/assets/models/weapons/swords/oath_sword.glb",
+        iconPath: "./assets/ui/icons/weapons/oath_sword.png",
+        meshPath: "./assets/models/weapons/swords/oath_sword.glb",
         stats: {
             damage: 18,
             range: 2.4,
@@ -153,8 +153,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.SWORD,
         description: "Razor-sharp, designed for clean and deadly cuts.",
-        iconPath: "/assets/ui/icons/weapons/sashimi_sword.png",
-        meshPath: "/assets/models/weapons/swords/sashimi_sword.glb",
+        iconPath: "./assets/ui/icons/weapons/sashimi_sword.png",
+        meshPath: "./assets/models/weapons/swords/sashimi_sword.glb",
         stats: {
             damage: 20,
             range: 2.5,
@@ -171,8 +171,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         weaponSlot: WeaponSlot.SWORD,
         description:
             "A textured blade reminiscent of a fierce dragon's scales.",
-        iconPath: "/assets/ui/icons/weapons/scale_sword.png",
-        meshPath: "/assets/models/weapons/swords/Scale_Sword.glb",
+        iconPath: "./assets/ui/icons/weapons/scale_sword.png",
+        meshPath: "./assets/models/weapons/swords/Scale_Sword.glb",
         stats: {
             damage: 16,
             range: 2.3,
@@ -193,9 +193,9 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         weaponSlot: WeaponSlot.GREATSWORD,
         description:
             "A massive, fearsome, and intimidating weapon reserved for the elite.",
-        iconPath: "/assets/ui/icons/weapons/great_imperial_sword.png",
+        iconPath: "./assets/ui/icons/weapons/great_imperial_sword.png",
         meshPath:
-            "/assets/models/weapons/great_swords/Great_Imperial_Sword.glb",
+            "./assets/models/weapons/great_swords/Great_Imperial_Sword.glb",
         stats: {
             damage: 45,
             range: 3.5,
@@ -211,8 +211,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.GREATSWORD,
         description: "Heavy yet mystically balanced, carved from pure jade.",
-        iconPath: "/assets/ui/icons/weapons/great_jade_sword.png",
-        meshPath: "/assets/models/weapons/great_swords/Great_Jade_Sword.glb",
+        iconPath: "./assets/ui/icons/weapons/great_jade_sword.png",
+        meshPath: "./assets/models/weapons/great_swords/Great_Jade_Sword.glb",
         stats: {
             damage: 38,
             range: 3.2,
@@ -228,8 +228,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.GREATSWORD,
         description: "A classic greatsword, forged from heavy-duty steel.",
-        iconPath: "/assets/ui/icons/weapons/great_steel_sword.png",
-        meshPath: "/assets/models/weapons/great_swords/Great_Steel_Sword.glb",
+        iconPath: "./assets/ui/icons/weapons/great_steel_sword.png",
+        meshPath: "./assets/models/weapons/great_swords/Great_Steel_Sword.glb",
         stats: {
             damage: 35,
             range: 3.0,

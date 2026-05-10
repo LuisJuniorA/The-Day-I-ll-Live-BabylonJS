@@ -23,8 +23,8 @@ export class WeaponHUDComponent extends Rectangle {
         COOLDOWN_COLOR: "rgba(0, 0, 0, 0.7)",
     };
 
-    private readonly _ICON_PATH = "/assets/ui/icons/weapons/";
-    private readonly _SPELL_ICON_PATH = "/assets/ui/icons/spells/";
+    private readonly _ICON_PATH = "./assets/ui/icons/weapons/";
+    private readonly _SPELL_ICON_PATH = "./assets/ui/icons/spells/";
 
     constructor(name: string) {
         super(name);
