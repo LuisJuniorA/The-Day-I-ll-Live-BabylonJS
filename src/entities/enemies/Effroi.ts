@@ -15,7 +15,7 @@ import { CollisionLayers } from "../../core/constants/CollisionLayers";
 
 export class Effroi extends Enemy {
     private _claw = new EffroiClaw();
-    private _roar = new EffroiClaw();
+    private _roar = new EffroiRoar();
 
     // Physique & IA
     private readonly GRAVITY = -0.98;
