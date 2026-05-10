@@ -402,7 +402,6 @@ export class Player extends Character {
             else if (this.input.vertical < 0)
                 this.queuedAttackDirection = AttackDirection.DOWN;
             else this.queuedAttackDirection = AttackDirection.SIDE;
-
             this.buffer.trigger("attack");
         }
         if (this.input.isSwitchingWeapon) {

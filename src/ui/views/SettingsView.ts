@@ -220,6 +220,12 @@ export class SettingsView extends BaseView {
         return container;
     }
 
+    public override show(): void {
+        InputConfig.load();
+        this.refreshList();
+        super.show();
+    }
+
     private startRebind(actionId: PlayerAction, button: Button): void {
         this._isRebinding = true;
         this._rebindingAction = actionId;
