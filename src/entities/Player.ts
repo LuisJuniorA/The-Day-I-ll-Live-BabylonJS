@@ -130,7 +130,7 @@ export class Player extends Character {
         // Update UI
         OnHealthChanged.notifyObservers({
             currentHp: this.stats.hp,
-            maxHp: this.stats.maxHp,
+            maxHp: this.effectiveMaxHp,
             entityId: "Player",
         });
     }
@@ -514,7 +514,7 @@ export class Player extends Character {
 
         OnHealthChanged.notifyObservers({
             currentHp: this.stats.hp,
-            maxHp: this.stats.maxHp,
+            maxHp: this.effectiveMaxHp,
             entityId: "Player",
         });
     }
@@ -537,6 +537,12 @@ export class Player extends Character {
                 this.currentWeapon = null;
             }
         }
+
+        OnHealthChanged.notifyObservers({
+            currentHp: this.stats.hp,
+            maxHp: this.effectiveMaxHp,
+            entityId: "Player",
+        });
     }
 
     public switchWeapon(): void {
@@ -637,5 +643,34 @@ export class Player extends Character {
                 }
             });
         }
+    }
+
+    /**
+     * Calcule le Max HP total (Base + Modificateurs passifs des armes équipées)
+     */
+    public get effectiveMaxHp(): number {
+        let totalMaxHp = this.stats.maxHp;
+
+        for (const slot in this.weaponSlots) {
+            const weaponId = this.weaponSlots[slot as WeaponSlot];
+            if (weaponId) {
+                const weaponData = WEAPONS_DB[weaponId];
+                if (
+                    weaponData?.modifiers?.healthBoost?.mode ===
+                    ModifierMode.PASSIVE
+                ) {
+                    totalMaxHp += weaponData.modifiers.healthBoost.value;
+                }
+            }
+        }
+
+        if (
+            this.currentWeapon?.data?.modifiers?.healthBoost?.mode ===
+            ModifierMode.ACTIVE
+        ) {
+            totalMaxHp += this.currentWeapon.data.modifiers.healthBoost.value;
+        }
+
+        return totalMaxHp;
     }
 }
