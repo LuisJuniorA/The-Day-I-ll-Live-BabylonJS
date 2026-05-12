@@ -142,6 +142,19 @@ export abstract class MeleeWeapon extends Weapon {
     ): void {
         let firstTargetPos: Vector3 | null = null;
 
+        // 1. CALCUL DU MULTIPLICATEUR DE DÉGÂTS
+        // On récupère le multiplicateur depuis les modifiers (ex: 1.2 pour +20%)
+        // Si aucun n'est défini, on reste sur une base neutre de 1.0
+        const dmgMultiplier =
+            this.data.modifiers?.damageMultiplier?.value ?? 1.0;
+
+        // 2. CALCUL DES DÉGÂTS DE BASE TOTAUX
+        // (Dégâts propres à l'arme + Stat de force/dégâts du personnage)
+        const baseDamage = this.stats.damage + (owner.stats.damage || 0);
+
+        // 3. RÉSULTAT FINAL
+        const finalDamage = baseDamage * dmgMultiplier;
+
         for (const targetNode of targets) {
             if (!firstTargetPos) {
                 firstTargetPos =
@@ -151,28 +164,32 @@ export abstract class MeleeWeapon extends Weapon {
             const hitStop = this.stats.hitStopDuration ?? 0;
             const knockback = this.stats.knockbackForce ?? 0;
 
+            // Notification de l'événement de dégâts avec le montant calculé
             OnEntityDamaged.notifyObservers({
                 targetId: targetNode.id,
                 attackerId: owner.id,
-                amount: this.stats.damage + (owner.stats.damage || 0),
+                amount: finalDamage,
                 position: owner.transform.position.clone(),
                 attackerFaction: owner.faction,
                 hitStopDuration: hitStop,
                 knockbackForce: knockback,
             });
 
+            // Feedback visuel de debug
             DebugService.getInstance().drawPoint(
-                "hit_" + targetNode.id + Date.now(),
+                "hit_" + targetNode.id + "_" + Date.now(),
                 this.scene,
-                targetNode.getAbsolutePosition(),
+                targetNode.getAbsolutePosition
+                    ? targetNode.getAbsolutePosition()
+                    : targetNode.position,
                 Color3.Green(),
                 0.4,
             );
         }
 
+        // Si au moins un ennemi a été touché, on déclenche le feedback sur l'owner
+        // (Utile pour le hit-stop, le recul de l'attaquant ou les effets de caméra)
         if (firstTargetPos) {
-            // Ici la direction est utile : on transmet l'info au Character
-            // pour qu'il sache comment réagir (knockback vers le haut si UP, etc.)
             owner.onHitTarget(firstTargetPos);
         }
     }
