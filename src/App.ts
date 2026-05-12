@@ -209,6 +209,7 @@ export class App {
         this.engine.runRenderLoop(() => {
             const dt = this.engine.getDeltaTime() / 1000;
             const currentState = this.gameStateManager.getCurrentState();
+            this.uiManager.update(dt);
 
             switch (currentState) {
                 case GameState.MENU:
@@ -242,7 +243,6 @@ export class App {
                     break;
 
                 case GameState.DIALOGUE:
-                    this.uiManager.update(dt);
                     if (this.player) this.player.updateInput(dt);
                     this.scene.render();
                     break;

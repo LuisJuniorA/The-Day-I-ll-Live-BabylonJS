@@ -133,6 +133,36 @@ export class ForgeView extends BaseView {
         this.hide();
     }
 
+    /**
+     * Parcourt tous les items affichés dans la forge et met à jour
+     * leurs compteurs "ownedCount" en fonction de l'état réel du joueur.
+     */
+    public refreshAllRecipesData(player: any): void {
+        // On parcourt les slots de la grille
+        this._itemGridComp.slots.forEach((slot) => {
+            const recipe = slot.itemData as EnrichedForgeRecipe;
+            if (!recipe) return;
+
+            // Mise à jour du nombre possédé de l'item final
+            recipe.ownedCount = player.inventory.getItemAmount(recipe.id);
+
+            // Mise à jour de chaque composant requis dans la recette
+            if (recipe.requirements) {
+                recipe.requirements.forEach((req) => {
+                    req.ownedCount = player.inventory.getItemAmount(req.itemId);
+                });
+            }
+        });
+
+        // Si on a un item sélectionné, on force le rafraîchissement de ses textes
+        if (this._selectedRecipe) {
+            this.updateOwnedDisplay(this._selectedRecipe.ownedCount ?? 0);
+            this.updateRequirementsDisplay(
+                this._selectedRecipe.requirements || [],
+            );
+        }
+    }
+
     protected buildUI(): void {
         this.rootContainer.background = UI_CONFIG.COLORS.OVERLAY;
         this._mainContainer = new Rectangle("ForgeContainer");

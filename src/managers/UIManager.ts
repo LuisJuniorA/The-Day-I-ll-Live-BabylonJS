@@ -25,6 +25,7 @@ import { ItemData } from "../data/ItemData";
 import { ALL_ITEMS } from "../data/ItemDb";
 import { InventoryView } from "../ui/views/InventoryView";
 import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
+import { OnCurrencyChanged } from "../core/interfaces/CurrencyEvent";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
@@ -131,6 +132,10 @@ export class UIManager {
 
         this.dialogueView.onFinishObservable.add(() => {
             this.closeDialogue();
+        });
+
+        OnCurrencyChanged.add((event) => {
+            this.hudView.updateCurrency(event.currentAmount, event.delta);
         });
 
         OnOpenInventory.add((data) => {
@@ -273,29 +278,20 @@ export class UIManager {
             this._player.currency -= recipe.price;
 
             // 3. Ajout de l'item
-            const weaponToGive = WEAPONS_DB[recipe.id];
+            const weaponToGive = ALL_ITEMS[recipe.id];
             const success = this._player.inventory.addItem(weaponToGive, 1);
 
             if (success) {
-                // --- LE FIX VISUEL ---
-
-                // On cast en 'any' ou en 'EnrichedForgeRecipe' pour accéder aux champs de la vue
-                const r = recipe as any;
-
-                // Mise à jour de la "Source de vérité" de cet objet précis
-                r.ownedCount = this._player.inventory.getItemAmount(r.itemId);
-
-                r.requirements.forEach((req: any) => {
-                    req.ownedCount = this._player!.inventory.getItemAmount(
-                        req.itemId,
-                    );
-                });
-
-                // Rafraîchissement de l'UI
+                // 1. Mettre à jour la monnaie et le HUD
+                const pricePaid = recipe.price;
                 this.forgeView.updateCurrency(this._player.currency);
-                this.forgeView.updateOwnedDisplay(r.ownedCount);
-                this.forgeView.updateRequirementsDisplay(r.requirements);
+                this.hudView.updateCurrency(this._player.currency, -pricePaid);
 
+                // 2. IMPORTANT : Mettre à jour TOUTES les recettes enrichies dans la grille
+                // On demande à la forge de rafraîchir les données de ses items à partir de l'inventaire réel
+                this.forgeView.refreshAllRecipesData(this._player);
+
+                // 3. Animation de succès
                 this.forgeView.playBuySuccessAnimation();
             }
         });
@@ -356,5 +352,6 @@ export class UIManager {
 
     public update(dt: number): void {
         this.dialogueView.update(dt);
+        this.hudView._currencyHUD.update(dt);
     }
 }

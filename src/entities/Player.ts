@@ -44,6 +44,7 @@ import type { ShopItem } from "../core/interfaces/ShopEvents";
 import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
 import { WEAPONS_DB } from "../data/WeaponsDb";
 import { ModifierMode } from "../core/types/WeaponStats";
+import { OnCurrencyChanged } from "../core/interfaces/CurrencyEvent";
 
 export class Player extends Character {
     public readonly input: InputHandler;
@@ -69,7 +70,7 @@ export class Player extends Character {
     private readonly FLOAT_AMPLITUDE: number = 0.1;
     private readonly FLOAT_SPEED: number = 2.5;
 
-    public currency: number = 50000000000; // Tes "Fragments"
+    public currency: number = 5000; // Tes "Fragments"
 
     private _currentStatus: StatusType = StatusType.NONE;
     private _statusTimer: number = 0;
@@ -145,7 +146,10 @@ export class Player extends Character {
             );
 
             // Notifier le HUD si tu as une méthode updateCurrency
-            // OnCurrencyChanged.notifyObservers(this.currency);
+            OnCurrencyChanged.notifyObservers({
+                currentAmount: this.currency,
+                delta: loot.amount,
+            });
             return;
         }
 

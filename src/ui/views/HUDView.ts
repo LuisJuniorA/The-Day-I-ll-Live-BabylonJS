@@ -5,12 +5,14 @@ import { HealthBarComponent } from "../components/HealthBarComponent"; // Import
 import type { AbstractMesh } from "@babylonjs/core";
 import { WeaponHUDComponent } from "../components/WeaponHUDComponent";
 import { InputConfig } from "../../core/constants/InputConfig";
+import { CurrencyHUDComponent } from "../components/CurrencyHUDComponent";
 
 export class HUDView extends BaseView {
     private _interactionPrompt!: PromptButtonComponent;
     private _healthBar!: HealthBarComponent; // Référence au composant
     private _shouldShowPrompt: boolean = false;
     private _weaponHUD!: WeaponHUDComponent;
+    public _currencyHUD!: CurrencyHUDComponent;
 
     constructor(advancedTexture: AdvancedDynamicTexture) {
         super(advancedTexture, "HUDView");
@@ -33,6 +35,13 @@ export class HUDView extends BaseView {
             interactKey,
         );
         this.advancedTexture.addControl(this._interactionPrompt);
+
+        this._currencyHUD = new CurrencyHUDComponent("PlayerCurrency", 0);
+        this.advancedTexture.addControl(this._currencyHUD);
+    }
+
+    public updateCurrency(amount: number, delta: number): void {
+        this._currencyHUD.updateCurrency(amount, delta);
     }
 
     /**

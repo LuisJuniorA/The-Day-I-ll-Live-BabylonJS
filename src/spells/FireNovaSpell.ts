@@ -19,11 +19,17 @@ export class FireNovaSpell implements Spell {
     public readonly castDuration = 0.2;
     public lastCast = 0;
 
-    // Cache pour les ressources lourdes
+    // Cache statique pour éviter les lags de création d'objets GPU
     private static _sharedTexture: Texture | null = null;
+    private static _sharedNoise: NoiseProceduralTexture | null = null;
 
     public execute(owner: Player): void {
         const spawnPos = owner.transform.position.clone();
+
+        // 1. On lance le visuel IMMÉDIATEMENT pour éviter la sensation de lag
+        this._createFireEffect(spawnPos, owner._scene);
+
+        // 2. On gère la logique de collision (plus lourde) après
         const pool = PoolManager.getInstance();
         const size = new Vector3(6, 6, 1);
 
@@ -39,8 +45,6 @@ export class FireNovaSpell implements Spell {
                 lastTickTime = 0;
             }
         });
-
-        this._createFireEffect(spawnPos, owner._scene);
     }
 
     private _checkCollisions(hitbox: AbstractMesh, owner: Player): void {
@@ -68,8 +72,7 @@ export class FireNovaSpell implements Spell {
     }
 
     private _createFireEffect(position: Vector3, scene: Scene): void {
-        // --- LA CORRECTION EST ICI ---
-        // On vérifie si la texture est absente OU si elle a été "disposed" (le check .isDisposed() est le plus sûr)
+        // Gestion de la texture de flare (partagée)
         if (
             !FireNovaSpell._sharedTexture ||
             !FireNovaSpell._sharedTexture.getInternalTexture()
@@ -83,17 +86,20 @@ export class FireNovaSpell implements Spell {
             );
         }
 
-        // Le NoiseProceduralTexture est recréé à chaque fois car il dépend du timing système
-        const noiseTexture = new NoiseProceduralTexture(
-            "perlin_nova",
-            256,
-            scene,
-        );
-        noiseTexture.animationSpeedFactor = 3;
-        noiseTexture.persistence = 1.5;
+        // Gestion du bruit procedural (partagé pour éviter le lag de génération de shader)
+        if (!FireNovaSpell._sharedNoise) {
+            FireNovaSpell._sharedNoise = new NoiseProceduralTexture(
+                "perlin_nova_shared",
+                256,
+                scene,
+            );
+            FireNovaSpell._sharedNoise.animationSpeedFactor = 3;
+            FireNovaSpell._sharedNoise.persistence = 1.5;
+        }
 
         const ps = new ParticleSystem("fire_nova_fx", 400, scene);
         ps.particleTexture = FireNovaSpell._sharedTexture;
+        ps.noiseTexture = FireNovaSpell._sharedNoise; // Réutilisation du bruit statique
 
         ps.emitter = position.clone();
         ps.createSphereEmitter(0.5, 0);
@@ -108,24 +114,26 @@ export class FireNovaSpell implements Spell {
         ps.disposeOnStop = true;
         ps.blendMode = ParticleSystem.BLENDMODE_ADD;
 
-        // Gradients
+        // Gradients de couleurs
         ps.addColorGradient(0.0, new Color4(1, 1, 1, 1));
         ps.addColorGradient(0.2, new Color4(1, 0.8, 0, 1));
         ps.addColorGradient(1.0, new Color4(0.5, 0, 0, 0));
 
+        // Gradients de taille
         ps.addSizeGradient(0.0, 0.2);
         ps.addSizeGradient(0.5, 1.5);
         ps.addSizeGradient(1.0, 0.0);
 
+        // Puissance d'émission
         ps.minEmitPower = 5;
         ps.maxEmitPower = 10;
         ps.addVelocityGradient(0, 1.0);
         ps.addVelocityGradient(1.0, 0.1);
 
-        ps.noiseTexture = noiseTexture;
+        // Paramètres de bruit
         ps.noiseStrength = new Vector3(2, 2, 0);
 
-        ps.reset();
+        // Lancement (On ne fait plus de reset() ici pour gagner en performance)
         ps.start();
     }
 }
