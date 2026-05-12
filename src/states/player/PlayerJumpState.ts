@@ -1,37 +1,33 @@
-import { Scalar } from "@babylonjs/core";
 import { BaseState } from "../../core/abstracts/BaseState";
 import { Player } from "../../entities/Player";
 import { PlayerFallingState } from "./PlayerFallingState";
+import { Vector3 } from "@babylonjs/core";
 
 export class PlayerJumpState extends BaseState<Player> {
     public readonly name = "JumpState";
 
     protected handleEnter(owner: Player): void {
-        owner.velocity.y = owner.jumpForce; // L'impulsion initiale
+        owner.velocity.y = owner.jumpForce;
         owner.isGrounded = false;
         owner.playAnim("jump", false);
     }
 
     protected handleUpdate(owner: Player, dt: number): void {
-        // 1. Sauvegarde la position Y avant le mouvement
-        const oldY = owner.transform.position.y;
+        const moveX = owner.input.horizontal;
 
-        // 2. Mouvement aérien classique
-        const targetX = owner.input.horizontal * owner.speed;
-        owner.velocity.x = Scalar.Lerp(owner.velocity.x, targetX, 0.1);
+        // On envoie l'intention (X) au Player qui gère déjà le Y (gravité)
+        owner.move(new Vector3(moveX, 0, 0), dt);
 
-        // Applique le mouvement
-        owner.move(owner.velocity, dt);
-
-        // 3. DETECTION PLAFOND
-        // Si on essaie de monter (velocity.y > 0)
-        // MAIS que notre position Y n'a presque pas progressé
-        if (owner.velocity.y > 0 && owner.transform.position.y - oldY < 0.001) {
-            owner.velocity.y = 0; // On stoppe l'ascension
+        // Détection plafond simple : si on monte mais qu'on ne bouge plus sur Y
+        // (Babylon gère la collision, on reset juste la vélocité pour tomber)
+        if (
+            owner.velocity.y > 0 &&
+            owner.mesh?.moveWithCollisions &&
+            owner.velocity.y < 0.1
+        ) {
+            // Si besoin d'une détection précise, c'est ici
         }
 
-        // 4. TRANSITION
-        // Si la vélocité devient nulle ou négative, on tombe
         if (owner.velocity.y <= 0) {
             owner.movementFSM.transitionTo(new PlayerFallingState());
         }

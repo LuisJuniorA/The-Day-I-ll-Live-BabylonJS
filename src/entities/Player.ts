@@ -9,6 +9,7 @@ import {
     Color3,
     Color4,
     TransformNode,
+    Scalar,
 } from "@babylonjs/core";
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
@@ -41,6 +42,8 @@ import { StatusType } from "../core/types/StatusEffects";
 import type { Spell } from "../core/interfaces/Spell";
 import type { ShopItem } from "../core/interfaces/ShopEvents";
 import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
+import { WEAPONS_DB } from "../data/WeaponsDb";
+import { ModifierMode } from "../core/types/WeaponStats";
 
 export class Player extends Character {
     public readonly input: InputHandler;
@@ -79,7 +82,6 @@ export class Player extends Character {
     private _activeSpell: Spell | null = null;
     private _nextSlotIndex: number = 0;
 
-    public readonly speed: number = 12;
     public readonly gravity: number = -0.9;
     public readonly jumpForce: number = 21;
     public coyoteTimeCounter: number = 0;
@@ -305,6 +307,46 @@ export class Player extends Character {
         this.velocity.z = 0;
     }
 
+    /**
+     * Override du move pour injecter les modificateurs d'équipement
+     */
+
+    public override move(inputVector: Vector3, dt: number): void {
+        if (this.isDead || !this.mesh) return;
+
+        // 1. On calcule la vitesse cible (Stat de base + Equipement)
+        const moveX = inputVector.x; // L'input brut (-1, 0, 1)
+        const bonus = this.getSpeedBonus();
+        const maxSpeed = this.stats.speed + bonus;
+        const targetVelocityX = moveX * maxSpeed;
+
+        // 2. Lissage (Lerp) : On met à jour la vélocité horizontale du joueur
+        // On utilise 0.2 pour un feeling nerveux, baisse à 0.1 pour du "savonneux"
+        this.velocity.x = Scalar.Lerp(this.velocity.x, targetVelocityX, 0.2);
+
+        // 3. Sécurité d'arrêt (Évite de glisser à l'infini)
+        if (Math.abs(moveX) < 0.1 && Math.abs(this.velocity.x) < 0.1) {
+            this.velocity.x = 0;
+        }
+
+        // 4. Orientation (Flip du sprite/mesh)
+        if (Math.abs(this.velocity.x) > 0.1) {
+            this.faceDirection(this.velocity.x);
+        }
+
+        // 5. On prépare le vecteur final pour le parent
+        // On prend le X qu'on vient de lisser et le Y de la gravité géré dans update()
+        const finalMoveVector = new Vector3(
+            this.velocity.x,
+            this.velocity.y,
+            0,
+        );
+
+        // 6. On appelle la physique du Character (Parent)
+        // C'est lui qui fera le .scale(dt) et le moveWithCollisions
+        super.move(finalMoveVector, dt);
+    }
+
     public tryPurchase(item: ShopItem): boolean {
         if (this.currency < item.price) return false;
 
@@ -314,6 +356,29 @@ export class Player extends Character {
             return true;
         }
         return false;
+    }
+
+    public getSpeedBonus(): number {
+        let bonus = 0;
+        for (const slot in this.weaponSlots) {
+            const weaponId = this.weaponSlots[slot as WeaponSlot];
+            if (weaponId) {
+                const weaponData = WEAPONS_DB[weaponId];
+                if (
+                    weaponData?.modifiers?.speedBoost?.mode ===
+                    ModifierMode.PASSIVE
+                ) {
+                    bonus += weaponData.modifiers.speedBoost.value;
+                }
+            }
+        }
+        if (
+            this.currentWeapon?.data?.modifiers?.speedBoost?.mode ===
+            ModifierMode.ACTIVE
+        ) {
+            bonus += this.currentWeapon.data.modifiers.speedBoost.value;
+        }
+        return bonus;
     }
 
     public addCurrency(amount: number): void {

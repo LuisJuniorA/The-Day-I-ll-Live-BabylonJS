@@ -1,4 +1,4 @@
-import { Scalar } from "@babylonjs/core";
+import { Vector3 } from "@babylonjs/core";
 import { BaseState } from "../../core/abstracts/BaseState";
 import { Player } from "../../entities/Player";
 import { PlayerMoveState } from "./PlayerMoveState";
@@ -14,10 +14,9 @@ export class PlayerIdleState extends BaseState<Player> {
 
     protected handleUpdate(owner: Player, dt: number): void {
         // Friction horizontale
-        owner.velocity.x = Scalar.Lerp(owner.velocity.x, 0, 0.2);
+        const moveX = owner.input.horizontal;
 
-        // Application du mouvement
-        owner.move(owner.velocity, dt);
+        owner.move(new Vector3(moveX, 0, 0), dt);
 
         // Transitions
         if (!owner.isGrounded && owner.velocity.y < -0.5) {
