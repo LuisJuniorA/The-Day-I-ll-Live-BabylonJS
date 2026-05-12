@@ -1,10 +1,10 @@
 import { ItemType } from "../core/types/Items";
-import type { WeaponData } from "../core/types/WeaponStats";
+import { ModifierMode, type WeaponData } from "../core/types/WeaponStats";
 import { WeaponSlot } from "../core/types/WeaponTypes";
 
 export const WEAPONS_DB: Record<string, WeaponData> = {
     // ==========================================
-    // DAGGERS
+    // DAGGERS (Vitesse Active / Santé Passive)
     // ==========================================
     butcher_dagger: {
         id: "butcher_dagger",
@@ -21,7 +21,9 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             hitStopDuration: 0.04,
             knockbackForce: 2.0,
         },
-        modifiers: { speedBoost: 1.2 },
+        modifiers: {
+            speedBoost: { value: 1.2, mode: ModifierMode.ACTIVE },
+        },
     },
     crow_dagger: {
         id: "crow_dagger",
@@ -38,24 +40,10 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             hitStopDuration: 0.03,
             knockbackForce: 1.5,
         },
-        modifiers: { speedBoost: 2.0, damageMultiplier: 1.1 },
-    },
-    fish_knife: {
-        id: "fish_knife",
-        name: "Fish Knife",
-        type: ItemType.WEAPON,
-        weaponSlot: WeaponSlot.DAGGER,
-        description: "A simple sharp knife, designed for scaling.",
-        iconPath: "./assets/ui/icons/weapons/fish_knife.png",
-        meshPath: "./assets/models/weapons/daggers/fish_knife.glb",
-        stats: {
-            damage: 4,
-            range: 1.0,
-            attackDuration: 0.2,
-            hitStopDuration: 0.02,
-            knockbackForce: 1.0,
+        modifiers: {
+            speedBoost: { value: 2.0, mode: ModifierMode.ACTIVE },
+            damageMultiplier: { value: 1.1, mode: ModifierMode.ACTIVE },
         },
-        modifiers: { speedBoost: 1.0 },
     },
     hunter_knife: {
         id: "hunter_knife",
@@ -72,24 +60,10 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             hitStopDuration: 0.05,
             knockbackForce: 3.0,
         },
-        modifiers: { speedBoost: 1.5, healthBoost: 10 },
-    },
-    knife: {
-        id: "knife",
-        name: "Basic Knife",
-        type: ItemType.WEAPON,
-        weaponSlot: WeaponSlot.DAGGER,
-        description: "A most classic and standard knife.",
-        iconPath: "./assets/ui/icons/weapons/knife.png",
-        meshPath: "./assets/models/weapons/daggers/knife.glb",
-        stats: {
-            damage: 3,
-            range: 1.0,
-            attackDuration: 0.25,
-            hitStopDuration: 0.03,
-            knockbackForce: 1.5,
+        modifiers: {
+            speedBoost: { value: 1.5, mode: ModifierMode.ACTIVE },
+            healthBoost: { value: 10, mode: ModifierMode.PASSIVE },
         },
-        modifiers: { speedBoost: 1.0 },
     },
     noble_dagger: {
         id: "noble_dagger",
@@ -106,7 +80,10 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             hitStopDuration: 0.04,
             knockbackForce: 2.0,
         },
-        modifiers: { speedBoost: 1.5, healthBoost: 25 },
+        modifiers: {
+            speedBoost: { value: 1.5, mode: ModifierMode.ACTIVE },
+            healthBoost: { value: 25, mode: ModifierMode.PASSIVE },
+        },
     },
 
     // ==========================================
@@ -127,7 +104,10 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             hitStopDuration: 0.08,
             knockbackForce: 6.0,
         },
-        modifiers: { speedBoost: -0.5, healthBoost: 20 },
+        modifiers: {
+            speedBoost: { value: -0.5, mode: ModifierMode.ACTIVE },
+            healthBoost: { value: 20, mode: ModifierMode.PASSIVE },
+        },
     },
     oath_sword: {
         id: "oath_sword",
@@ -145,46 +125,14 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             hitStopDuration: 0.1,
             knockbackForce: 7.0,
         },
-        modifiers: { speedBoost: -0.2, damageMultiplier: 1.05 },
-    },
-    sashimi_sword: {
-        id: "sashimi_sword",
-        name: "Sashimi Sword",
-        type: ItemType.WEAPON,
-        weaponSlot: WeaponSlot.SWORD,
-        description: "Razor-sharp, designed for clean and deadly cuts.",
-        iconPath: "./assets/ui/icons/weapons/sashimi_sword.png",
-        meshPath: "./assets/models/weapons/swords/sashimi_sword.glb",
-        stats: {
-            damage: 20,
-            range: 2.5,
-            attackDuration: 0.4,
-            hitStopDuration: 0.06,
-            knockbackForce: 4.5,
+        modifiers: {
+            speedBoost: { value: -0.2, mode: ModifierMode.ACTIVE },
+            damageMultiplier: { value: 1.05, mode: ModifierMode.ACTIVE },
         },
-        modifiers: { speedBoost: 0.5 },
-    },
-    scale_sword: {
-        id: "scale_sword",
-        name: "Scale Sword",
-        type: ItemType.WEAPON,
-        weaponSlot: WeaponSlot.SWORD,
-        description:
-            "A textured blade reminiscent of a fierce dragon's scales.",
-        iconPath: "./assets/ui/icons/weapons/scale_sword.png",
-        meshPath: "./assets/models/weapons/swords/Scale_Sword.glb",
-        stats: {
-            damage: 16,
-            range: 2.3,
-            attackDuration: 0.65,
-            hitStopDuration: 0.12,
-            knockbackForce: 8.0,
-        },
-        modifiers: { speedBoost: -0.5, damageMultiplier: 1.1 },
     },
 
     // ==========================================
-    // GREAT SWORDS
+    // GREAT SWORDS (Gros malus de vitesse Active, Gros bonus PV Passif)
     // ==========================================
     great_imperial_sword: {
         id: "great_imperial_sword",
@@ -203,7 +151,10 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             hitStopDuration: 0.2,
             knockbackForce: 15.0,
         },
-        modifiers: { speedBoost: -3.0, healthBoost: 50 },
+        modifiers: {
+            speedBoost: { value: -3.0, mode: ModifierMode.ACTIVE },
+            healthBoost: { value: 50, mode: ModifierMode.PASSIVE },
+        },
     },
     great_jade_sword: {
         id: "great_jade_sword",
@@ -220,23 +171,9 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             hitStopDuration: 0.15,
             knockbackForce: 12.0,
         },
-        modifiers: { speedBoost: -2.0, damageMultiplier: 1.15 },
-    },
-    great_steel_sword: {
-        id: "great_steel_sword",
-        name: "Great Steel Sword",
-        type: ItemType.WEAPON,
-        weaponSlot: WeaponSlot.GREATSWORD,
-        description: "A classic greatsword, forged from heavy-duty steel.",
-        iconPath: "./assets/ui/icons/weapons/great_steel_sword.png",
-        meshPath: "./assets/models/weapons/great_swords/Great_Steel_Sword.glb",
-        stats: {
-            damage: 35,
-            range: 3.0,
-            attackDuration: 1.2,
-            hitStopDuration: 0.18,
-            knockbackForce: 13.0,
+        modifiers: {
+            speedBoost: { value: -2.0, mode: ModifierMode.ACTIVE },
+            damageMultiplier: { value: 1.15, mode: ModifierMode.ACTIVE },
         },
-        modifiers: { speedBoost: -2.5 },
     },
 };

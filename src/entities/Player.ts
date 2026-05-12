@@ -66,7 +66,7 @@ export class Player extends Character {
     private readonly FLOAT_AMPLITUDE: number = 0.1;
     private readonly FLOAT_SPEED: number = 2.5;
 
-    public currency: number = 500; // Tes "Fragments"
+    public currency: number = 50000000000; // Tes "Fragments"
 
     private _currentStatus: StatusType = StatusType.NONE;
     private _statusTimer: number = 0;

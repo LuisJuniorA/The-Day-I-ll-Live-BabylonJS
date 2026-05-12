@@ -5,8 +5,6 @@ import {
     Image,
     AdvancedDynamicTexture,
     Button,
-    Grid,
-    StackPanel,
 } from "@babylonjs/gui";
 import { BaseView } from "../../core/abstracts/BaseView";
 import { ItemSlotComponent } from "../components/ItemSlotComponent";
@@ -14,42 +12,70 @@ import { Observable } from "@babylonjs/core";
 import { DescriptionComponent } from "../components/DescriptionComponent";
 import { ItemGridViewComponent } from "../components/ItemGridViewComponent";
 import { CurrencyFooterComponent } from "../components/CurrencyFooterComponent";
+import { WeaponStatsComponent } from "../components/WeaponStatsComponent";
 import { ALL_ITEMS } from "../../data/ItemDb";
 import { WEAPONS_DB } from "../../data/WeaponsDb";
 import type { InventoryItem } from "../../core/interfaces/InventoryEvent";
 import type { ShopItem } from "../../core/interfaces/ShopEvents";
-import type { WeaponOwnerModifiers } from "../../core/types/WeaponStats";
 
-export class InventoryView extends BaseView {
-    // --- Configuration Style (Strictement identique à ForgeView) ---
-    private readonly STYLE = {
-        COLOR_LEFT_BG: "rgba(10, 10, 14, 0.7)",
-        COLOR_RIGHT_BG: "rgba(15, 15, 20, 0.8)",
-        COLOR_BORDER: "rgba(255, 255, 255, 0.1)",
-        COLOR_BTN_PRIMARY: "#4a2a1a",
-        COLOR_BTN_SECONDARY: "rgba(255, 255, 255, 0.3)",
-        LORE_FONT: "Georgia, 'Times New Roman', serif",
+// --- CONFIGURATION (Identique à ForgeView pour la cohérence) ---
+const UI_CONFIG = {
+    LAYOUT: {
+        MAIN_WIDTH: "90%",
+        MAIN_HEIGHT: "85%",
+        LEFT_PANEL_WIDTH: "63%",
+        RIGHT_PANEL_WIDTH: "35%",
+        FOOTER_HEIGHT: "10%",
+        RIGHT_PANEL_PADDING: "20px",
+    },
+    POSITIONS: {
+        HEADER_TOP: "10px",
+        HEADER_HEIGHT: "50px",
+        PREVIEW_TOP: "75px",
+        PREVIEW_HEIGHT: "200px",
+        DESC_TOP: "285px",
+        DESC_HEIGHT: "60px",
+        STATS_TOP: "350px",
+        ACTION_BTN_HEIGHT: "60px",
+        CLOSE_BTN_HEIGHT: "30px",
+    },
+    FONTS: {
+        FAMILY: "Georgia, 'Times New Roman', serif",
+        SIZE_TITLE: 26,
+        SIZE_QTY: 14,
+        SIZE_BTN_MAIN: 20,
+        SIZE_BTN_SUB: 14,
+    },
+    COLORS: {
+        OVERLAY: "rgba(0,0,0,0.6)",
+        LEFT_BG: "rgba(10, 10, 14, 0.7)",
+        LEFT_BORDER: "rgba(255, 255, 255, 0.1)",
+        RIGHT_BG: "rgba(15, 15, 20, 0.8)",
+        RIGHT_BORDER: "rgba(255, 255, 255, 0.1)",
+        FOOTER_BG: "rgba(0, 0, 0, 0.4)",
+        ICON_BOX_BG: "rgba(0, 0, 0, 0.4)",
+        TEXT_MAIN: "white",
+        TEXT_SECONDARY: "rgba(255, 255, 255, 0.5)",
         TEXT_MUTED: "#888888",
+        TEXT_DESC: "rgba(255, 255, 255, 0.7)",
+        TEXT_CURRENCY: "#FFD700",
         TEXT_SUCCESS: "#2ecc71",
         TEXT_ERROR: "#ff4757",
         TEXT_MODIFIER: "#a5bccf",
-        TEXT_CURRENCY: "#FFD700",
-        TEXT_DESC: "rgba(255, 255, 255, 0.7)",
-        RIGHT_PANEL_PADDING: "20px",
-    };
+        BTN_PRIMARY: "#4a2a1a",
+        BTN_CLOSE: "rgba(255, 255, 255, 0.3)",
+    },
+};
 
+export class InventoryView extends BaseView {
     private _gridView!: ItemGridViewComponent;
     private _detailName!: TextBlock;
     private _detailIcon!: Image;
     private _detailQuantity!: TextBlock;
     private _descriptionComp!: DescriptionComponent;
+    private _weaponStatsComp!: WeaponStatsComponent;
     private _actionButton!: Button;
     private _footerComp!: CurrencyFooterComponent;
-
-    // Sections Stats de Combat
-    private _statsTitle!: TextBlock;
-    private _statsGrid!: Grid;
-    private _modifiersStack!: StackPanel;
 
     private _selectedItem: InventoryItem | null = null;
     private _currentEquipment: Record<string, string | null> = {};
@@ -64,11 +90,11 @@ export class InventoryView extends BaseView {
     }
 
     protected buildUI(): void {
-        this.rootContainer.background = "rgba(0,0,0,0.6)";
+        this.rootContainer.background = UI_CONFIG.COLORS.OVERLAY;
 
         const mainContainer = new Rectangle("InventoryContainer");
-        mainContainer.width = "90%";
-        mainContainer.height = "85%";
+        mainContainer.width = UI_CONFIG.LAYOUT.MAIN_WIDTH;
+        mainContainer.height = UI_CONFIG.LAYOUT.MAIN_HEIGHT;
         mainContainer.thickness = 0;
         this.rootContainer.addControl(mainContainer);
 
@@ -78,11 +104,11 @@ export class InventoryView extends BaseView {
 
     private _createLeftPanel(): Rectangle {
         const leftPanel = new Rectangle("LeftPanel");
-        leftPanel.width = "63%";
+        leftPanel.width = UI_CONFIG.LAYOUT.LEFT_PANEL_WIDTH;
         leftPanel.height = "100%";
         leftPanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-        leftPanel.background = this.STYLE.COLOR_LEFT_BG;
-        leftPanel.color = this.STYLE.COLOR_BORDER;
+        leftPanel.background = UI_CONFIG.COLORS.LEFT_BG;
+        leftPanel.color = UI_CONFIG.COLORS.LEFT_BORDER;
         leftPanel.thickness = 1;
 
         this._gridView = new ItemGridViewComponent(
@@ -97,12 +123,12 @@ export class InventoryView extends BaseView {
 
         this._footerComp = new CurrencyFooterComponent(
             "InvFooter",
-            this.STYLE.LORE_FONT,
-            this.STYLE.TEXT_CURRENCY,
+            UI_CONFIG.FONTS.FAMILY,
+            UI_CONFIG.COLORS.TEXT_CURRENCY,
             this._gridView,
             " FRAGMENTS",
-            "rgba(0, 0, 0, 0.4)",
-            "10%",
+            UI_CONFIG.COLORS.FOOTER_BG,
+            UI_CONFIG.LAYOUT.FOOTER_HEIGHT,
         );
         leftPanel.addControl(this._footerComp);
 
@@ -111,48 +137,48 @@ export class InventoryView extends BaseView {
 
     private _createRightPanel(): Rectangle {
         const rightPanel = new Rectangle("RightPanel");
-        rightPanel.width = "35%";
+        rightPanel.width = UI_CONFIG.LAYOUT.RIGHT_PANEL_WIDTH;
         rightPanel.height = "100%";
         rightPanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        rightPanel.background = this.STYLE.COLOR_RIGHT_BG;
-        rightPanel.color = this.STYLE.COLOR_BORDER;
+        rightPanel.background = UI_CONFIG.COLORS.RIGHT_BG;
+        rightPanel.color = UI_CONFIG.COLORS.RIGHT_BORDER;
         rightPanel.thickness = 1;
-        // Padding synchronisé avec ForgeView
         rightPanel.paddingLeft = rightPanel.paddingRight =
-            this.STYLE.RIGHT_PANEL_PADDING;
+            UI_CONFIG.LAYOUT.RIGHT_PANEL_PADDING;
 
-        // Header : Quantité (En haut à droite comme ForgeView)
+        // Header : Quantité (Aligné droite comme dans la Forge)
         this._detailQuantity = new TextBlock("DetailQty", "EN POSSESSION : 0");
-        this._detailQuantity.fontFamily = this.STYLE.LORE_FONT;
-        this._detailQuantity.fontSize = 16;
-        this._detailQuantity.color = "rgba(255, 255, 255, 0.5)";
-        this._detailQuantity.height = "50px";
-        this._detailQuantity.top = "20px";
+        this._detailQuantity.fontFamily = UI_CONFIG.FONTS.FAMILY;
+        this._detailQuantity.fontSize = UI_CONFIG.FONTS.SIZE_QTY;
+        this._detailQuantity.color = UI_CONFIG.COLORS.TEXT_SECONDARY;
+        this._detailQuantity.height = UI_CONFIG.POSITIONS.HEADER_HEIGHT;
+        this._detailQuantity.top =
+            parseInt(UI_CONFIG.POSITIONS.HEADER_TOP) + 10 + "px";
         this._detailQuantity.paddingRight = "20px";
-        this._detailQuantity.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         this._detailQuantity.textHorizontalAlignment =
             Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        this._detailQuantity.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         rightPanel.addControl(this._detailQuantity);
 
-        // Header : Nom
+        // Header : Nom (Aligné gauche)
         this._detailName = new TextBlock("DetailName", "");
-        this._detailName.fontFamily = this.STYLE.LORE_FONT;
-        this._detailName.color = "white";
-        this._detailName.fontSize = 26;
-        this._detailName.height = "50px";
-        this._detailName.top = "10px";
+        this._detailName.fontFamily = UI_CONFIG.FONTS.FAMILY;
+        this._detailName.color = UI_CONFIG.COLORS.TEXT_MAIN;
+        this._detailName.fontSize = UI_CONFIG.FONTS.SIZE_TITLE;
+        this._detailName.height = UI_CONFIG.POSITIONS.HEADER_HEIGHT;
+        this._detailName.top = UI_CONFIG.POSITIONS.HEADER_TOP;
         this._detailName.paddingLeft = "20px";
-        this._detailName.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         this._detailName.textHorizontalAlignment =
             Control.HORIZONTAL_ALIGNMENT_LEFT;
+        this._detailName.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         rightPanel.addControl(this._detailName);
 
         // Preview de l'Icone
         const iconBox = new Rectangle("IconBox");
         iconBox.width = "100%";
-        iconBox.height = "200px";
-        iconBox.top = "75px";
-        iconBox.background = "rgba(0,0,0,0.4)";
+        iconBox.height = UI_CONFIG.POSITIONS.PREVIEW_HEIGHT;
+        iconBox.top = UI_CONFIG.POSITIONS.PREVIEW_TOP;
+        iconBox.background = UI_CONFIG.COLORS.ICON_BOX_BG;
         iconBox.thickness = 0;
         iconBox.paddingLeft = iconBox.paddingRight = "20px";
         iconBox.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
@@ -165,56 +191,46 @@ export class InventoryView extends BaseView {
         // Description
         this._descriptionComp = new DescriptionComponent(
             "InvDesc",
-            this.STYLE.LORE_FONT,
+            UI_CONFIG.FONTS.FAMILY,
         );
-        this._descriptionComp.top = "285px";
-        this._descriptionComp.height = "60px";
+        this._descriptionComp.top = UI_CONFIG.POSITIONS.DESC_TOP;
+        this._descriptionComp.height = UI_CONFIG.POSITIONS.DESC_HEIGHT;
         this._descriptionComp.verticalAlignment =
             Control.VERTICAL_ALIGNMENT_TOP;
         rightPanel.addControl(this._descriptionComp);
 
-        // Sections Stats
-        this._statsTitle = new TextBlock("StatsTitle", "CARACTÉRISTIQUES");
-        this._statsTitle.fontFamily = this.STYLE.LORE_FONT;
-        this._statsTitle.fontSize = 13;
-        this._statsTitle.color = this.STYLE.TEXT_MUTED;
-        this._statsTitle.height = "20px";
-        this._statsTitle.top = "350px";
-        this._statsTitle.paddingLeft = "20px";
-        this._statsTitle.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        this._statsTitle.textHorizontalAlignment =
-            Control.HORIZONTAL_ALIGNMENT_LEFT;
-        rightPanel.addControl(this._statsTitle);
+        // Composant Stats (utilisant les couleurs et le padding de la Forge)
+        this._weaponStatsComp = new WeaponStatsComponent(
+            "InvStats",
+            UI_CONFIG.FONTS.FAMILY,
+            {
+                main: UI_CONFIG.COLORS.TEXT_MAIN,
+                success: UI_CONFIG.COLORS.TEXT_SUCCESS,
+                error: UI_CONFIG.COLORS.TEXT_ERROR,
+                desc: UI_CONFIG.COLORS.TEXT_DESC,
+                muted: UI_CONFIG.COLORS.TEXT_MUTED,
+                active: UI_CONFIG.COLORS.TEXT_CURRENCY,
+                passive: UI_CONFIG.COLORS.TEXT_MODIFIER,
+            },
+        );
+        this._weaponStatsComp.top = UI_CONFIG.POSITIONS.STATS_TOP;
+        this._weaponStatsComp.paddingLeft = "20px";
+        this._weaponStatsComp.paddingRight = "20px";
+        this._weaponStatsComp.verticalAlignment =
+            Control.VERTICAL_ALIGNMENT_TOP;
+        rightPanel.addControl(this._weaponStatsComp);
 
-        this._statsGrid = new Grid("StatsGrid");
-        this._statsGrid.width = "100%";
-        this._statsGrid.height = "70px";
-        this._statsGrid.top = "375px";
-        this._statsGrid.paddingLeft = "35px";
-        this._statsGrid.paddingRight = "20px";
-        this._statsGrid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        for (let i = 0; i < 4; i++) this._statsGrid.addColumnDefinition(0.25);
-        rightPanel.addControl(this._statsGrid);
-
-        this._modifiersStack = new StackPanel("ModifiersStack");
-        this._modifiersStack.width = "100%";
-        this._modifiersStack.top = "445px";
-        this._modifiersStack.paddingLeft = this._modifiersStack.paddingRight =
-            "10px";
-        this._modifiersStack.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        rightPanel.addControl(this._modifiersStack);
-
-        // Bouton Action (Equiper / Utiliser)
+        // Bouton Action (Equiper/Utiliser)
         this._actionButton = Button.CreateSimpleButton(
             "ActionBtn",
             "UTILISER L'OBJET",
         );
         this._actionButton.width = "100%";
-        this._actionButton.height = "60px";
-        this._actionButton.background = this.STYLE.COLOR_BTN_PRIMARY;
-        this._actionButton.color = "white";
-        this._actionButton.fontFamily = this.STYLE.LORE_FONT;
-        this._actionButton.fontSize = 20;
+        this._actionButton.height = UI_CONFIG.POSITIONS.ACTION_BTN_HEIGHT;
+        this._actionButton.background = UI_CONFIG.COLORS.BTN_PRIMARY;
+        this._actionButton.color = UI_CONFIG.COLORS.TEXT_MAIN;
+        this._actionButton.fontFamily = UI_CONFIG.FONTS.FAMILY;
+        this._actionButton.fontSize = UI_CONFIG.FONTS.SIZE_BTN_MAIN;
         this._actionButton.verticalAlignment =
             Control.VERTICAL_ALIGNMENT_BOTTOM;
         this._actionButton.onPointerUpObservable.add(() => {
@@ -226,12 +242,13 @@ export class InventoryView extends BaseView {
         // Bouton Retour
         const closeBtn = Button.CreateSimpleButton("CloseBtn", "RETOUR AU JEU");
         closeBtn.width = "100%";
-        closeBtn.height = "30px";
-        closeBtn.color = this.STYLE.COLOR_BTN_SECONDARY;
+        closeBtn.height = UI_CONFIG.POSITIONS.CLOSE_BTN_HEIGHT;
+        closeBtn.color = UI_CONFIG.COLORS.BTN_CLOSE;
         closeBtn.thickness = 1;
-        closeBtn.fontFamily = this.STYLE.LORE_FONT;
-        closeBtn.fontSize = 16;
-        closeBtn.top = "-70px";
+        closeBtn.fontFamily = UI_CONFIG.FONTS.FAMILY;
+        closeBtn.fontSize = UI_CONFIG.FONTS.SIZE_BTN_SUB;
+        closeBtn.top =
+            "-" + (parseInt(UI_CONFIG.POSITIONS.ACTION_BTN_HEIGHT) + 10) + "px";
         closeBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
         closeBtn.onPointerUpObservable.add(() => {
             this.hide();
@@ -253,14 +270,13 @@ export class InventoryView extends BaseView {
 
         this._detailName.text =
             itemData?.name?.toUpperCase() || item.id.toUpperCase();
-        // Mise à jour du libellé demandé
         this._detailQuantity.text = `EN POSSESSION : ${item.quantity}`;
         this._detailIcon.source = itemData?.iconPath || "";
         this._descriptionComp.setText(
             itemData?.description || "Aucune description.",
         );
 
-        this._toggleCombatUI(isWeapon);
+        this._weaponStatsComp.isVisible = isWeapon;
         if (isWeapon) {
             this._updateStatsComparison(item.id);
         }
@@ -272,208 +288,75 @@ export class InventoryView extends BaseView {
         }
     }
 
-    private _toggleCombatUI(isWeapon: boolean): void {
-        this._statsTitle.isVisible = isWeapon;
-        this._statsGrid.isVisible = isWeapon;
-        this._modifiersStack.isVisible = isWeapon;
-    }
-
-    // --- REMPLACE CES MÉTHODES DANS INVENTORYVIEW.TS ---
-
     private _updateStatsComparison(itemId: string): void {
-        this._statsGrid.clearControls();
-        this._modifiersStack.clearControls();
-
         const targetWeapon = WEAPONS_DB[itemId];
         if (!targetWeapon) return;
 
-        const currentWeaponId = targetWeapon.weaponSlot
+        const currentId = targetWeapon.weaponSlot
             ? this._currentEquipment[targetWeapon.weaponSlot]
             : null;
-        const currentWeapon = currentWeaponId
-            ? WEAPONS_DB[currentWeaponId]
-            : null;
-        const cStats = (currentWeapon?.stats || {}) as Record<string, number>;
+        const currentWeapon = currentId ? WEAPONS_DB[currentId] : null;
 
-        // Configuration des stats de base
-        const statsCfg = [
-            {
-                id: "damage",
-                label: "DÉGÂTS",
-                val: targetWeapon.stats.damage ?? 0,
-            },
-            {
-                id: "range",
-                label: "PORTÉE",
-                val: targetWeapon.stats.range ?? 0,
-            },
+        const statsCfg: any[] = [
+            { id: "damage", label: "DÉGÂTS" },
+            { id: "range", label: "PORTÉE" },
             {
                 id: "attackDuration",
                 label: "COOLDOWN",
-                val: targetWeapon.stats.attackDuration ?? 0,
                 suffix: "s",
                 invert: true,
             },
-            {
-                id: "knockbackForce",
-                label: "RECUL",
-                val: targetWeapon.stats.knockbackForce ?? 0,
-            },
+            { id: "knockbackForce", label: "RECUL" },
         ];
 
-        this._statsGrid.addRowDefinition(30, true);
-        this._statsGrid.addRowDefinition(30, true);
-
-        statsCfg.forEach((stat, idx) => {
-            const isRight = idx % 2 === 1;
-            const diff = stat.val - (cStats[stat.id] ?? 0);
-
-            // Label (Gauche de la colonne)
-            const label = new TextBlock(`lbl_${stat.id}`, stat.label);
-            label.color = this.STYLE.TEXT_DESC;
-            label.fontSize = 16;
-            label.fontFamily = this.STYLE.LORE_FONT;
-            label.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-            this._statsGrid.addControl(
-                label,
-                Math.floor(idx / 2),
-                isRight ? 2 : 0,
-            );
-
-            // Valeur + Diff (Droite de la colonne)
-            const isBetter = stat.invert ? diff < 0 : diff > 0;
-            const color =
-                diff === 0
-                    ? "white"
-                    : isBetter
-                      ? this.STYLE.TEXT_SUCCESS
-                      : this.STYLE.TEXT_ERROR;
-
-            const valStr =
-                stat.id === "attackDuration"
-                    ? stat.val.toFixed(2)
-                    : Math.round(stat.val);
-            const diffStr =
-                stat.id === "attackDuration"
-                    ? Math.abs(diff).toFixed(2)
-                    : Math.round(Math.abs(diff));
-
-            const valueText = new TextBlock(
-                `val_${stat.id}`,
-                `${valStr}${stat.suffix ?? ""} (${diff >= 0 ? "+" : "-"}${diffStr})`,
-            );
-            valueText.color = color;
-            valueText.fontSize = 13;
-            valueText.fontWeight = "bold";
-            valueText.textHorizontalAlignment =
-                Control.HORIZONTAL_ALIGNMENT_RIGHT;
-            valueText.paddingRight = "10px";
-            this._statsGrid.addControl(
-                valueText,
-                Math.floor(idx / 2),
-                isRight ? 3 : 1,
-            );
-        });
-
-        // Affichage des Modificateurs (Passifs)
         if (targetWeapon.modifiers) {
-            this._renderModifiersGrid(
-                targetWeapon.modifiers,
-                currentWeapon?.modifiers,
+            Object.entries(targetWeapon.modifiers).forEach(
+                ([key, mod]: [string, any]) => {
+                    let label = key.toUpperCase();
+                    let suffix = "";
+                    if (key === "speedBoost") {
+                        label = "VITESSE";
+                        suffix = "%";
+                    } else if (key === "damageMultiplier") {
+                        label = "PUISSANCE";
+                        suffix = "x";
+                    } else if (key === "healthBoost") {
+                        label = "VIE MAX";
+                    }
+
+                    statsCfg.push({
+                        id: key,
+                        label: label,
+                        suffix: suffix,
+                        mode: mod.mode,
+                    });
+                },
             );
         }
-    }
 
-    private _renderModifiersGrid(
-        targetMods: WeaponOwnerModifiers,
-        currentMods?: WeaponOwnerModifiers,
-    ): void {
-        const entries = Object.entries(targetMods);
-        if (entries.length === 0) return;
+        const flatten = (w: any) => {
+            if (!w) return {};
+            const f: any = { ...w.stats };
+            if (w.modifiers) {
+                for (const k in w.modifiers) {
+                    f[k] =
+                        k === "speedBoost"
+                            ? w.modifiers[k].value * 100
+                            : w.modifiers[k].value;
+                }
+            }
+            return f;
+        };
 
-        const modsGrid = new Grid("ModsGrid");
-        modsGrid.width = "100%";
-        const rowCount = Math.ceil(entries.length / 2);
-        modsGrid.height = `${rowCount * 35}px`;
-        modsGrid.addColumnDefinition(0.5);
-        modsGrid.addColumnDefinition(0.5);
-        for (let i = 0; i < rowCount; i++) modsGrid.addRowDefinition(1, false);
-
-        entries.forEach(([key, val], index) => {
-            const targetValue = val as number;
-            const currentValue = currentMods
-                ? (currentMods as any)[key] || 0
-                : 0;
-            const diff = targetValue - currentValue;
-
-            const container = new StackPanel(`mod_cont_${key}`);
-            container.isVertical = false;
-            container.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-            container.paddingLeft = "10px";
-
-            // Label principal
-            const modText = new TextBlock(
-                `mod_${key}`,
-                this._getModifierLabel(key, targetValue),
-            );
-            modText.resizeToFit = true;
-            modText.fontFamily = this.STYLE.LORE_FONT;
-            modText.fontSize = 16;
-            modText.color = this.STYLE.TEXT_MODIFIER;
-            modText.paddingRight = "8px";
-            container.addControl(modText);
-
-            // Delta (+/-)
-            const sign = diff >= 0 ? "+" : "";
-            const color =
-                diff < 0
-                    ? this.STYLE.TEXT_ERROR
-                    : diff > 0
-                      ? this.STYLE.TEXT_SUCCESS
-                      : "rgba(255,255,255,0.3)";
-
-            let diffStr = "";
-            if (key === "speedBoost")
-                diffStr = `${sign}${Math.round(diff * 100)}%`;
-            else if (key === "damageMultiplier")
-                diffStr = `${sign}${diff.toFixed(1)}`;
-            else diffStr = `${sign}${Math.round(diff)}`;
-
-            const deltaText = new TextBlock(`delta_${key}`, `(${diffStr})`);
-            deltaText.resizeToFit = true;
-            deltaText.fontFamily = this.STYLE.LORE_FONT;
-            deltaText.fontSize = 16;
-            deltaText.color = color;
-            container.addControl(deltaText);
-
-            modsGrid.addControl(container, Math.floor(index / 2), index % 2);
-        });
-
-        this._modifiersStack.addControl(modsGrid);
-    }
-
-    private _getModifierLabel(key: string, value: number): string {
-        const plus = value > 0 ? "+" : "";
-        let label = key.toUpperCase();
-        let valStr = `${plus}${value}`;
-
-        if (key === "speedBoost") {
-            label = "VITESSE";
-            valStr = `${plus}${Math.round(value * 100)}%`;
-        } else if (key === "damageMultiplier") {
-            label = "PUISSANCE";
-            valStr = `x${value}`;
-        } else if (key === "healthBoost") {
-            label = "VIE MAX";
-        }
-
-        return `✦ ${label} : ${valStr}`;
+        this._weaponStatsComp.updateStats(
+            flatten(targetWeapon),
+            flatten(currentWeapon),
+            statsCfg,
+        );
     }
 
     public updateCurrency(amount: number): void {
-        if (this._footerComp) {
-            this._footerComp.updateAmount(amount);
-        }
+        if (this._footerComp) this._footerComp.updateAmount(amount);
     }
 
     public populateInventory(items: InventoryItem[], fragments?: number): void {
@@ -486,7 +369,7 @@ export class InventoryView extends BaseView {
 
     public setCurrentEquipment(equipment: Record<string, string | null>): void {
         this._currentEquipment = equipment;
-        if (this._selectedItem && this._selectedItem.type === "weapon") {
+        if (this._selectedItem?.type === "weapon") {
             this._updateStatsComparison(this._selectedItem.id);
         }
     }

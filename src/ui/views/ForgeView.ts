@@ -5,7 +5,6 @@ import {
     Image,
     AdvancedDynamicTexture,
     Button,
-    Grid,
     StackPanel,
 } from "@babylonjs/gui";
 import { BaseView } from "../../core/abstracts/BaseView";
@@ -19,11 +18,10 @@ import { Observable } from "@babylonjs/core";
 import { WEAPONS_DB } from "../../data/WeaponsDb";
 import { DescriptionComponent } from "../components/DescriptionComponent";
 import { RequirementRowComponent } from "../components/RequirementRowComponent";
-import { CurrencyFooterComponent } from "../components/CurrencyFooterComponent"; // Ajout de l'import
-import type { WeaponOwnerModifiers } from "../../core/types/WeaponStats";
+import { CurrencyFooterComponent } from "../components/CurrencyFooterComponent";
+import { WeaponStatsComponent } from "../components/WeaponStatsComponent";
 import { ALL_ITEMS } from "../../data/ItemDb";
 import { ItemGridViewComponent } from "../components/ItemGridViewComponent";
-import type { ShopItem } from "../../core/interfaces/ShopEvents";
 
 // --- CONFIGURATION ---
 const UI_CONFIG = {
@@ -33,8 +31,6 @@ const UI_CONFIG = {
         LEFT_PANEL_WIDTH: "63%",
         RIGHT_PANEL_WIDTH: "35%",
         FOOTER_HEIGHT: "10%",
-        GRID_COLUMNS: 5,
-        GRID_SPACING: 8,
         RIGHT_PANEL_PADDING: "20px",
     },
     POSITIONS: {
@@ -45,9 +41,7 @@ const UI_CONFIG = {
         DESC_TOP: "285px",
         DESC_HEIGHT: "60px",
         STATS_TOP: "350px",
-        STATS_HEIGHT: "70px",
-        MODS_TOP: "445px",
-        REQ_TOP_DEFAULT: "490px",
+        REQ_TOP_DEFAULT: "510px", // Descendu pour laisser de la place aux stats + mods
         REQ_TOP_MATERIAL: "350px",
         REQ_HEIGHT: "150px",
         CRAFT_BTN_HEIGHT: "60px",
@@ -59,9 +53,7 @@ const UI_CONFIG = {
         SIZE_TITLE: 26,
         SIZE_OWNED: 14,
         SIZE_SECTION_LABEL: 13,
-        SIZE_STATS_VALUE: 13,
         SIZE_MODIFIERS: 16,
-        SIZE_CURRENCY: 22,
         SIZE_BTN_MAIN: 20,
         SIZE_BTN_SUB: 14,
     },
@@ -96,7 +88,6 @@ const UI_CONFIG = {
         BTN_CANCEL: "ANNULER / QUITTER",
         FEEDBACK_SUCCESS: "FORGÉ !",
         NO_DESCRIPTION: "Aucune description disponible.",
-        MODIFIER_PREFIX: "✦ ",
         STATS_LABELS: {
             damage: "DÉGÂTS",
             range: "PORTÉE",
@@ -123,14 +114,10 @@ export class ForgeView extends BaseView {
     private _detailIcon!: Image;
     private _detailOwned!: TextBlock;
     private _descriptionComp!: DescriptionComponent;
-    private _statsTitle!: TextBlock;
-    private _statsGrid!: Grid;
-    private _modifiersStack!: StackPanel;
+    private _weaponStatsComp!: WeaponStatsComponent;
     private _reqTitle!: TextBlock;
     private _reqStack!: StackPanel;
     private _craftButton!: Button;
-
-    // Utilisation du composant Footer
     private _footerComp!: CurrencyFooterComponent;
 
     private _selectedRecipe: EnrichedForgeRecipe | null = null;
@@ -173,13 +160,11 @@ export class ForgeView extends BaseView {
         );
         this._itemGridComp.height = "90%";
         this._itemGridComp.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        this._itemGridComp.onItemClicked = (item, slot) => {
-            this.selectRecipe(item as unknown as EnrichedForgeRecipe, slot);
-        };
+        this._itemGridComp.onItemClicked = (item, slot) =>
+            this.selectRecipe(item as any, slot);
 
         leftPanel.addControl(this._itemGridComp);
 
-        // --- Nouveau Footer via Composant ---
         this._footerComp = new CurrencyFooterComponent(
             "ForgeFooter",
             UI_CONFIG.FONTS.FAMILY,
@@ -219,15 +204,6 @@ export class ForgeView extends BaseView {
         rightPanel.addControl(this._descriptionComp);
 
         this._addStatsSection(rightPanel);
-
-        this._modifiersStack = new StackPanel("ModifiersStack");
-        this._modifiersStack.width = "100%";
-        this._modifiersStack.top = UI_CONFIG.POSITIONS.MODS_TOP;
-        this._modifiersStack.paddingLeft = this._modifiersStack.paddingRight =
-            "10px";
-        this._modifiersStack.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        rightPanel.addControl(this._modifiersStack);
-
         this._addRequirementsSection(rightPanel);
         this._addActionButtons(rightPanel);
 
@@ -282,33 +258,25 @@ export class ForgeView extends BaseView {
     }
 
     private _addStatsSection(container: Rectangle): void {
-        this._statsTitle = new TextBlock(
-            "StatsTitle",
-            UI_CONFIG.TEXTS.SECTION_STATS,
+        this._weaponStatsComp = new WeaponStatsComponent(
+            "WeaponStats",
+            UI_CONFIG.FONTS.FAMILY,
+            {
+                main: UI_CONFIG.COLORS.TEXT_MAIN,
+                success: UI_CONFIG.COLORS.TEXT_SUCCESS,
+                error: UI_CONFIG.COLORS.TEXT_ERROR,
+                desc: UI_CONFIG.COLORS.TEXT_DESC,
+                muted: UI_CONFIG.COLORS.TEXT_MUTED, // Passe la couleur muted pour les titres internes
+            },
         );
-        this._statsTitle.fontFamily = UI_CONFIG.FONTS.FAMILY;
-        this._statsTitle.fontSize = UI_CONFIG.FONTS.SIZE_SECTION_LABEL;
-        this._statsTitle.color = UI_CONFIG.COLORS.TEXT_MUTED;
-        this._statsTitle.height = "20px";
-        this._statsTitle.top = UI_CONFIG.POSITIONS.STATS_TOP;
-        this._statsTitle.paddingLeft = "20px";
-        this._statsTitle.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        this._statsTitle.textHorizontalAlignment =
-            Control.HORIZONTAL_ALIGNMENT_LEFT;
-        container.addControl(this._statsTitle);
 
-        this._statsGrid = new Grid("StatsGrid");
-        this._statsGrid.width = "100%";
-        this._statsGrid.height = UI_CONFIG.POSITIONS.STATS_HEIGHT;
-        this._statsGrid.top =
-            parseInt(UI_CONFIG.POSITIONS.STATS_TOP) +
-            UI_CONFIG.POSITIONS.SECTION_GAP +
-            "px";
-        this._statsGrid.paddingLeft = "35px";
-        this._statsGrid.paddingRight = "20px";
-        this._statsGrid.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        for (let i = 0; i < 4; i++) this._statsGrid.addColumnDefinition(0.25);
-        container.addControl(this._statsGrid);
+        // On remonte un peu le composant car il contient ses propres titres
+        this._weaponStatsComp.top = UI_CONFIG.POSITIONS.STATS_TOP;
+        this._weaponStatsComp.paddingLeft = "20px";
+        this._weaponStatsComp.paddingRight = "20px";
+        this._weaponStatsComp.verticalAlignment =
+            Control.VERTICAL_ALIGNMENT_TOP;
+        container.addControl(this._weaponStatsComp);
     }
 
     private _addRequirementsSection(container: Rectangle): void {
@@ -392,7 +360,6 @@ export class ForgeView extends BaseView {
 
         const isWeapon = recipe.type === "weapon";
         const itemData = ALL_ITEMS[recipe.id];
-        const targetWeapon = WEAPONS_DB[recipe.id];
 
         this._detailName.text =
             itemData?.name?.toUpperCase() || recipe.id.toUpperCase();
@@ -403,75 +370,109 @@ export class ForgeView extends BaseView {
         );
         this._detailIcon.source = itemData?.iconPath || recipe.iconPath;
 
+        this._toggleCombatUI(isWeapon);
         if (isWeapon) {
-            this._toggleCombatUI(true);
             this._updateStatsComparison(recipe);
-            const currentWeaponId = targetWeapon?.weaponSlot
-                ? this._currentEquipment[targetWeapon.weaponSlot]
-                : null;
-            this._updateModifiersDisplay(
-                targetWeapon?.modifiers,
-                currentWeaponId
-                    ? WEAPONS_DB[currentWeaponId]?.modifiers
-                    : undefined,
-            );
-        } else {
-            this._toggleCombatUI(false);
         }
 
         this.updateOwnedDisplay(recipe.ownedCount ?? 0);
         this.updateRequirementsDisplay(recipe.requirements || []);
     }
 
+    // --- ForgeView.ts ---
+
     private _toggleCombatUI(isWeapon: boolean): void {
-        this._statsTitle.isVisible =
-            this._statsGrid.isVisible =
-            this._modifiersStack.isVisible =
-                isWeapon;
+        this._weaponStatsComp.isVisible = isWeapon;
+
         const reqTop = isWeapon
-            ? UI_CONFIG.POSITIONS.REQ_TOP_DEFAULT
+            ? "530px"
             : UI_CONFIG.POSITIONS.REQ_TOP_MATERIAL;
+
         this._reqTitle.top = reqTop;
         this._reqStack.top =
             parseInt(reqTop) + UI_CONFIG.POSITIONS.SECTION_GAP + "px";
     }
 
-    public populateForge(recipes: EnrichedForgeRecipe[]): void {
-        const sortedRecipes = [...recipes].sort((a, b) => {
-            const typeOrder: Record<string, number> = {
-                material: 0,
-                weapon: 1,
-            };
-            const typeA = typeOrder[a.type || ""] ?? 99;
-            const typeB = typeOrder[b.type || ""] ?? 99;
-            return typeA !== typeB
-                ? typeA - typeB
-                : (a.name || "").localeCompare(b.name || "");
-        });
-        this._itemGridComp.populate(sortedRecipes as unknown as ShopItem[], 20);
-        const slots = this._itemGridComp.slots;
-        if (slots.length > 0) {
-            this.selectRecipe(
-                slots[0].itemData as unknown as EnrichedForgeRecipe,
-                slots[0],
+    private _updateStatsComparison(recipe: EnrichedForgeRecipe): void {
+        const targetWeapon = WEAPONS_DB[recipe.id];
+        if (!targetWeapon) return;
+
+        const currentId = targetWeapon.weaponSlot
+            ? this._currentEquipment[targetWeapon.weaponSlot]
+            : null;
+        const currentWeapon = currentId ? WEAPONS_DB[currentId] : null;
+
+        // 1. Définition des lignes de stats (Base + Modifiers)
+        const statsConfig: any[] = [
+            { id: "damage", label: UI_CONFIG.TEXTS.STATS_LABELS.damage },
+            { id: "range", label: UI_CONFIG.TEXTS.STATS_LABELS.range },
+            {
+                id: "attackDuration",
+                label: UI_CONFIG.TEXTS.STATS_LABELS.attackDuration,
+                suffix: "s",
+                invert: true,
+            },
+            {
+                id: "knockbackForce",
+                label: UI_CONFIG.TEXTS.STATS_LABELS.knockbackForce,
+            },
+        ];
+
+        // Ajout des modificateurs à la config
+        if (targetWeapon.modifiers) {
+            Object.entries(targetWeapon.modifiers).forEach(
+                ([key, mod]: [string, any]) => {
+                    let label = key.toUpperCase();
+                    let suffix = "";
+                    if (key === "speedBoost") {
+                        label = UI_CONFIG.TEXTS.STATS_LABELS.speed;
+                        suffix = "%";
+                    } else if (key === "damageMultiplier") {
+                        label = UI_CONFIG.TEXTS.STATS_LABELS.power;
+                        suffix = "x";
+                    } else if (key === "healthBoost") {
+                        label = UI_CONFIG.TEXTS.STATS_LABELS.health;
+                    }
+
+                    statsConfig.push({
+                        id: key,
+                        label: label,
+                        suffix: suffix,
+                        mode: mod.mode, // Transmet le mode (Actif/Passif) au composant
+                    });
+                },
             );
         }
+
+        // 2. Préparation des données brutes pour le calcul des diffs
+        const flattenData = (weapon: any) => {
+            if (!weapon) return {};
+            const baseStats = weapon.stats || {};
+            const mods = weapon.modifiers || {};
+            const flat: any = { ...baseStats };
+            for (const key in mods) {
+                // On extrait la valeur numérique (ex: 0.1) pour le calcul
+                let val = mods[key].value;
+                if (key === "speedBoost") val *= 100;
+                flat[key] = val;
+            }
+            return flat;
+        };
+
+        this._weaponStatsComp.updateStats(
+            flattenData(targetWeapon),
+            flattenData(currentWeapon),
+            statsConfig,
+        );
     }
 
-    // --- MISE A JOUR CORRIGÉE ---
     public updateCurrency(amount: number): void {
         this._currentFragments = amount;
-
-        // On utilise le composant pour l'affichage
-        if (this._footerComp) {
-            this._footerComp.updateAmount(amount);
-        }
-
-        if (this._selectedRecipe) {
+        if (this._footerComp) this._footerComp.updateAmount(amount);
+        if (this._selectedRecipe)
             this.updateRequirementsDisplay(
                 this._selectedRecipe.requirements || [],
             );
-        }
     }
 
     public updateOwnedDisplay(amount: number): void {
@@ -494,7 +495,6 @@ export class ForgeView extends BaseView {
                 ),
             );
         }
-
         [...requirements]
             .sort((a, b) => a.itemId.localeCompare(b.itemId))
             .forEach((req) => {
@@ -511,177 +511,6 @@ export class ForgeView extends BaseView {
                     ),
                 );
             });
-    }
-
-    private _updateStatsComparison(recipe: EnrichedForgeRecipe): void {
-        if (!this._statsGrid) return;
-        this._statsGrid.clearControls();
-        const targetWeapon = WEAPONS_DB[recipe.id];
-        if (!targetWeapon || !targetWeapon.stats) return;
-        const currentWeaponId = targetWeapon.weaponSlot
-            ? this._currentEquipment[targetWeapon.weaponSlot]
-            : null;
-        const currentWeapon = currentWeaponId
-            ? WEAPONS_DB[currentWeaponId]
-            : null;
-        const cStats = (currentWeapon?.stats || {}) as Record<string, number>;
-
-        const statsCfg = [
-            {
-                id: "damage",
-                label: UI_CONFIG.TEXTS.STATS_LABELS.damage,
-                val: targetWeapon.stats.damage ?? 0,
-            },
-            {
-                id: "range",
-                label: UI_CONFIG.TEXTS.STATS_LABELS.range,
-                val: targetWeapon.stats.range ?? 0,
-            },
-            {
-                id: "attackDuration",
-                label: UI_CONFIG.TEXTS.STATS_LABELS.attackDuration,
-                val: targetWeapon.stats.attackDuration ?? 0,
-                suffix: "s",
-                invert: true,
-            },
-            {
-                id: "knockbackForce",
-                label: UI_CONFIG.TEXTS.STATS_LABELS.knockbackForce,
-                val: targetWeapon.stats.knockbackForce ?? 0,
-            },
-        ];
-
-        this._statsGrid.addRowDefinition(30, true);
-        this._statsGrid.addRowDefinition(30, true);
-
-        statsCfg.forEach((stat, idx) => {
-            const isRight = idx % 2 === 1;
-            const diff = stat.val - (cStats[stat.id] ?? 0);
-            const label = new TextBlock(`lbl_${stat.id}`, stat.label);
-            label.color = UI_CONFIG.COLORS.TEXT_DESC;
-            label.fontSize = 12;
-            label.fontFamily = UI_CONFIG.FONTS.FAMILY;
-            label.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-            this._statsGrid.addControl(
-                label,
-                Math.floor(idx / 2),
-                isRight ? 2 : 0,
-            );
-
-            const isBetter = stat.invert ? diff < 0 : diff > 0;
-            const color = isBetter
-                ? UI_CONFIG.COLORS.TEXT_SUCCESS
-                : diff === 0
-                  ? UI_CONFIG.COLORS.TEXT_MAIN
-                  : UI_CONFIG.COLORS.TEXT_ERROR;
-            const valStr =
-                stat.id === "attackDuration"
-                    ? stat.val.toFixed(2)
-                    : Math.round(stat.val);
-            const diffStr =
-                stat.id === "attackDuration"
-                    ? Math.abs(diff).toFixed(2)
-                    : Math.round(Math.abs(diff));
-
-            const valueText = new TextBlock(
-                `val_${stat.id}`,
-                `${valStr}${stat.suffix ?? ""} (${diff >= 0 ? "+" : "-"}${diffStr})`,
-            );
-            valueText.color = color;
-            valueText.fontSize = UI_CONFIG.FONTS.SIZE_STATS_VALUE;
-            valueText.fontWeight = "bold";
-            valueText.textHorizontalAlignment =
-                Control.HORIZONTAL_ALIGNMENT_RIGHT;
-            valueText.paddingRight = "10px";
-            this._statsGrid.addControl(
-                valueText,
-                Math.floor(idx / 2),
-                isRight ? 3 : 1,
-            );
-        });
-    }
-
-    private _updateModifiersDisplay(
-        targetMods?: WeaponOwnerModifiers,
-        currentMods?: WeaponOwnerModifiers,
-    ): void {
-        this._modifiersStack.clearControls();
-        if (!targetMods) return;
-        const entries = Object.entries(targetMods);
-        if (entries.length === 0) return;
-
-        const modsGrid = new Grid("ModsGrid");
-        modsGrid.width = "100%";
-        const rowCount = Math.ceil(entries.length / 2);
-        modsGrid.height = `${rowCount * 35}px`;
-        modsGrid.addColumnDefinition(0.5);
-        modsGrid.addColumnDefinition(0.5);
-        for (let i = 0; i < rowCount; i++) modsGrid.addRowDefinition(1, false);
-
-        entries.forEach(([key, val], index) => {
-            const targetValue = val as number;
-            const currentValue =
-                currentMods && (currentMods as any)[key] !== undefined
-                    ? (currentMods as any)[key]
-                    : 0;
-            const diff = targetValue - currentValue;
-
-            const container = new StackPanel(`mod_cont_${key}`);
-            container.isVertical = false;
-            container.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-            container.paddingLeft = index % 2 === 0 ? "10px" : "5px";
-
-            const modText = new TextBlock(
-                `mod_${key}`,
-                this._getModifierLabel(key, targetValue),
-            );
-            modText.resizeToFit = true;
-            modText.fontFamily = UI_CONFIG.FONTS.FAMILY;
-            modText.fontSize = UI_CONFIG.FONTS.SIZE_MODIFIERS;
-            modText.color = UI_CONFIG.COLORS.TEXT_MODIFIER;
-            modText.paddingRight = "12px";
-            container.addControl(modText);
-
-            const sign = diff >= 0 ? "+" : "";
-            const color =
-                diff < 0
-                    ? UI_CONFIG.COLORS.TEXT_ERROR
-                    : diff > 0
-                      ? UI_CONFIG.COLORS.TEXT_SUCCESS
-                      : UI_CONFIG.COLORS.TEXT_SECONDARY;
-            const diffStr =
-                key === "speedBoost"
-                    ? `${sign}${Math.round(diff * 100)}%`
-                    : key === "damageMultiplier"
-                      ? `${sign}${diff.toFixed(1)}`
-                      : `${sign}${diff}`;
-
-            const deltaText = new TextBlock(`delta_${key}`, `(${diffStr})`);
-            deltaText.resizeToFit = true;
-            deltaText.fontFamily = UI_CONFIG.FONTS.FAMILY;
-            deltaText.fontSize = UI_CONFIG.FONTS.SIZE_MODIFIERS;
-            deltaText.color = color;
-            container.addControl(deltaText);
-
-            modsGrid.addControl(container, Math.floor(index / 2), index % 2);
-        });
-        this._modifiersStack.addControl(modsGrid);
-    }
-
-    private _getModifierLabel(key: string, value: number): string {
-        const plus = value > 0 ? "+" : "";
-        let label = key.toUpperCase();
-        let valStr = `${plus}${value}`;
-        if (key === "speedBoost") {
-            label = UI_CONFIG.TEXTS.STATS_LABELS.speed;
-            valStr = `${plus}${Math.round(value * 100)}%`;
-        } else if (key === "damageMultiplier") {
-            label = UI_CONFIG.TEXTS.STATS_LABELS.power;
-            valStr = `x${value}`;
-        } else if (key === "healthBoost") {
-            label = UI_CONFIG.TEXTS.STATS_LABELS.health;
-        }
-        return `${UI_CONFIG.TEXTS.MODIFIER_PREFIX}${label} : ${valStr}`;
     }
 
     public playBuySuccessAnimation(): void {
@@ -716,5 +545,26 @@ export class ForgeView extends BaseView {
         this._currentEquipment = equipment;
         if (this._selectedRecipe)
             this._updateStatsComparison(this._selectedRecipe);
+    }
+
+    public populateForge(recipes: EnrichedForgeRecipe[]): void {
+        const sortedRecipes = [...recipes].sort((a, b) => {
+            const typeOrder: Record<string, number> = {
+                material: 0,
+                weapon: 1,
+            };
+            const typeA = typeOrder[a.type || ""] ?? 99;
+            const typeB = typeOrder[b.type || ""] ?? 99;
+            return typeA !== typeB
+                ? typeA - typeB
+                : (a.name || "").localeCompare(b.name || "");
+        });
+        this._itemGridComp.populate(sortedRecipes as any, 20);
+        if (this._itemGridComp.slots.length > 0) {
+            this.selectRecipe(
+                this._itemGridComp.slots[0].itemData as any,
+                this._itemGridComp.slots[0],
+            );
+        }
     }
 }
