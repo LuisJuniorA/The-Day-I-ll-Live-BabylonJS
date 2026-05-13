@@ -1,4 +1,10 @@
-import { Engine, Scene, Vector3, UniversalCamera } from "@babylonjs/core";
+import {
+    Engine,
+    Scene,
+    Vector3,
+    UniversalCamera,
+    GlowLayer,
+} from "@babylonjs/core";
 
 import "@babylonjs/loaders/glTF";
 
@@ -71,6 +77,9 @@ export class App {
 
         this.initMenu();
         this.startRenderLoop();
+
+        const glow = new GlowLayer("glow", this.scene);
+        glow.intensity = 0.1; // Ajuste selon tes goûts
     }
 
     /**

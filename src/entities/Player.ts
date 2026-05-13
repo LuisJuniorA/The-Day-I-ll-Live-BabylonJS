@@ -45,6 +45,7 @@ import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
 import { WEAPONS_DB } from "../data/WeaponsDb";
 import { ModifierMode } from "../core/types/WeaponStats";
 import { OnCurrencyChanged } from "../core/interfaces/CurrencyEvent";
+import { OnLootReceived } from "../core/interfaces/LootEvents";
 
 export class Player extends Character {
     public readonly input: InputHandler;
@@ -156,9 +157,13 @@ export class Player extends Character {
         // 2. Logique normale pour les autres items
         const success = this.inventory.addItem(loot.item, loot.amount);
         if (success) {
-            console.log(`Inventaire : +${loot.amount} ${loot.item.name}`);
+            // Déclenche l'event de notification
+            OnLootReceived.notifyObservers({
+                item: loot.item,
+                amount: loot.amount,
+            });
         } else {
-            console.log("Inventaire plein !");
+            console.warn("Inventaire plein !");
         }
     }
 

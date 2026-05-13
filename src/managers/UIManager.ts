@@ -26,6 +26,7 @@ import { ALL_ITEMS } from "../data/ItemDb";
 import { InventoryView } from "../ui/views/InventoryView";
 import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
 import { OnCurrencyChanged } from "../core/interfaces/CurrencyEvent";
+import { OnLootReceived } from "../core/interfaces/LootEvents";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
@@ -101,6 +102,10 @@ export class UIManager {
 
         this.pauseMenuView.onMainMenuObservable.add(() => {
             this._gameStateManager.setMenu();
+        });
+
+        OnLootReceived.add((eventData) => {
+            this.hudView.displayLoot(eventData.item, eventData.amount);
         });
 
         // --- EVENTS SETTINGS (RETOUR) ---

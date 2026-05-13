@@ -10,7 +10,6 @@ import {
     StandardMaterial,
     Color3,
     PBRMaterial,
-    PointLight,
 } from "@babylonjs/core";
 
 import { Entity } from "../core/abstracts/Entity";
@@ -124,13 +123,18 @@ export class EntityFactory {
                 break;
 
             case "SLIME": {
+                // On nettoie le root chargé par défaut (car on crée un mesh procédural)
                 assets.root.dispose();
-                if (!enemyData)
-                    throw new Error(`Config pour le slime introuvable.`);
 
+                if (!enemyData) {
+                    throw new Error(`Config pour le slime introuvable.`);
+                }
+
+                // --- 1. LE CORPS (BODY) ---
+                // updatable: true est indispensable pour ton _applyVertexDeformation
                 const slimeMesh = MeshBuilder.CreateSphere(
                     `slime_body_${Date.now()}`,
-                    { diameter: 2, segments: 8, updatable: true },
+                    { diameter: 2, segments: 16, updatable: true },
                     scene,
                 );
 
@@ -143,17 +147,19 @@ export class EntityFactory {
                 slimeMat.roughness = 0.1;
                 slimeMat.alpha = 0.6;
                 slimeMat.transparencyMode = 2;
+
+                // Effet de subsurface pour que le corps réagisse à la lueur interne
                 slimeMat.subSurface.isTranslucencyEnabled = true;
                 slimeMat.subSurface.translucencyIntensity = 1.0;
-                slimeMat.subSurface.minimumThickness = 0.3;
-                slimeMat.subSurface.maximumThickness = 1.5;
                 slimeMat.subSurface.isRefractionEnabled = true;
                 slimeMat.subSurface.indexOfRefraction = 1.05;
-                slimeMesh.material = slimeMat;
-                slimeMat.subSurface.tintColor = Color3.Black();
+                slimeMat.subSurface.tintColor = new Color3(0.1, 0.4, 0.1); // Teinte verte dans la masse
 
+                slimeMesh.material = slimeMat;
+
+                // --- 2. LES YEUX ---
                 const eyeMat = new StandardMaterial("eyeMat", scene);
-                eyeMat.emissiveColor = new Color3(0.5, 0.5, 0.5);
+                eyeMat.emissiveColor = new Color3(0.8, 0.8, 0.8); // Brillance blanche
                 eyeMat.disableLighting = true;
 
                 const eyeL = MeshBuilder.CreateSphere(
@@ -174,33 +180,22 @@ export class EntityFactory {
                 eyeR.material = eyeMat;
                 eyeR.parent = slimeMesh;
 
+                // --- 3. LE NOYAU (SOUL) ---
+                // updatable: true ici aussi pour l'animation de la soul
                 const soul = MeshBuilder.CreateSphere(
                     "soul",
-                    { diameter: 0.6, updatable: true },
+                    { diameter: 0.6, segments: 8, updatable: true },
                     scene,
                 );
+
                 const soulMat = new StandardMaterial("soulMat", scene);
-                soulMat.emissiveColor = new Color3(0, 0, 0);
+                // On remplace la PointLight par une emissive forte + GlowLayer de scène
+                soulMat.emissiveColor = new Color3(0.2, 0.2, 0.2);
                 soulMat.disableLighting = true;
                 soul.material = soulMat;
 
-                const innerLight = new PointLight(
-                    "innerLight",
-                    Vector3.Zero(),
-                    scene,
-                );
-                innerLight.diffuse = new Color3(0.01, 0.01, 0.01);
-                innerLight.intensity = 5;
-                innerLight.range = 1;
-                innerLight.parent = soul;
-
-                this._setupVisualPivot(
-                    slimeMesh,
-                    1,
-                    new Vector3(0, 0, 0),
-                    new Vector3(0, 1.5, 0),
-                );
-
+                // --- 4. INITIALISATION DE L'ENTITÉ ---
+                // On passe bien slimeMesh et soul au constructeur
                 const slimeEntity = new Slime(
                     scene,
                     enemyData,
@@ -208,11 +203,23 @@ export class EntityFactory {
                     slimeMesh,
                     soul,
                 );
+
+                // On attache les meshs au transform de l'entité
                 slimeMesh.parent = slimeEntity.transform;
-                slimeMesh.checkCollisions = true;
-                entity = slimeEntity;
                 soul.parent = slimeEntity.transform;
 
+                // Positionnement du pivot visuel (compensation Y)
+                this._setupVisualPivot(
+                    slimeMesh,
+                    1,
+                    new Vector3(0, 0, 0),
+                    new Vector3(0, 1.0, 0), // Ajuste selon la hauteur souhaitée
+                );
+
+                slimeMesh.checkCollisions = true;
+                entity = slimeEntity;
+
+                // Hitbox pour les clics et interactions
                 this._addHitboxWrap(entity, scene, 1.5, 1.5, 0.75);
                 break;
             }

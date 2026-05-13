@@ -25,7 +25,7 @@ export const ItemData: Record<string, Item> = {
         name: "Âme de Slime",
         description:
             "Une substance instable prélevée sur des formes inachevées. Elle frémit encore.",
-        iconPath: "./assets/ui/icons/slime_soul.png",
+        iconPath: "./assets/ui/icons/default.png",
         type: ItemType.MATERIAL,
     },
 
