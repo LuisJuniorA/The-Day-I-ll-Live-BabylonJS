@@ -14,6 +14,7 @@ import {
 import type { WeaponData } from "../core/types/WeaponStats";
 import { DebugService } from "../core/engines/DebugService";
 import { PoolManager } from "../managers/PoolManager";
+import { Player } from "../entities/Player";
 
 /**
  * Classe de base pour toutes les armes de mêlée.
@@ -142,18 +143,25 @@ export abstract class MeleeWeapon extends Weapon {
     ): void {
         let firstTargetPos: Vector3 | null = null;
 
-        // 1. CALCUL DU MULTIPLICATEUR DE DÉGÂTS
-        // On récupère le multiplicateur depuis les modifiers (ex: 1.2 pour +20%)
-        // Si aucun n'est défini, on reste sur une base neutre de 1.0
-        const dmgMultiplier =
-            this.data.modifiers?.damageMultiplier?.value ?? 1.0;
+        // 1. CALCUL DU MULTIPLICATEUR TOTAL
+        // On part d'une base de 100% (1.0)
+        let totalDamageMultiplier = 1.0;
 
-        // 2. CALCUL DES DÉGÂTS DE BASE TOTAUX
-        // (Dégâts propres à l'arme + Stat de force/dégâts du personnage)
+        // A. Bonus de l'arme (ex: 0.1 pour +10%)
+        const weaponBonus = this.data.modifiers?.damageMultiplier?.value ?? 0;
+        totalDamageMultiplier += weaponBonus;
+
+        // B. Bonus des consommables/potions (via le dictionnaire du Player)
+        if (owner instanceof Player) {
+            totalDamageMultiplier += owner.getModifier("damage");
+        }
+
+        // 2. CALCUL DES DÉGÂTS DE BASE
+        // Dégâts fixes de l'arme + force intrinsèque du perso
         const baseDamage = this.stats.damage + (owner.stats.damage || 0);
 
         // 3. RÉSULTAT FINAL
-        const finalDamage = baseDamage * dmgMultiplier;
+        const finalDamage = baseDamage * totalDamageMultiplier;
 
         for (const targetNode of targets) {
             if (!firstTargetPos) {
@@ -164,7 +172,7 @@ export abstract class MeleeWeapon extends Weapon {
             const hitStop = this.stats.hitStopDuration ?? 0;
             const knockback = this.stats.knockbackForce ?? 0;
 
-            // Notification de l'événement de dégâts avec le montant calculé
+            // Notification avec le montant calculé
             OnEntityDamaged.notifyObservers({
                 targetId: targetNode.id,
                 attackerId: owner.id,
@@ -187,8 +195,6 @@ export abstract class MeleeWeapon extends Weapon {
             );
         }
 
-        // Si au moins un ennemi a été touché, on déclenche le feedback sur l'owner
-        // (Utile pour le hit-stop, le recul de l'attaquant ou les effets de caméra)
         if (firstTargetPos) {
             owner.onHitTarget(firstTargetPos);
         }

@@ -15,8 +15,14 @@ import { CurrencyFooterComponent } from "../components/CurrencyFooterComponent";
 import { WeaponStatsComponent } from "../components/WeaponStatsComponent";
 import { ALL_ITEMS } from "../../data/ItemDb";
 import { WEAPONS_DB } from "../../data/WeaponsDb";
-import type { InventoryItem } from "../../core/interfaces/InventoryEvent";
+import {
+    OnRequestConsumableUse,
+    type InventoryItem,
+} from "../../core/interfaces/InventoryEvent";
 import type { ShopItem } from "../../core/interfaces/ShopEvents";
+import { ItemType } from "../../core/types/Items";
+import type { Character } from "../../core/abstracts/Character";
+import { OnRequestWeaponEquip } from "../../core/interfaces/CombatEvent";
 
 // --- CONFIGURATION (Identique à ForgeView pour la cohérence) ---
 const UI_CONFIG = {
@@ -266,25 +272,40 @@ export class InventoryView extends BaseView {
         slot.setSelected(true);
 
         const itemData = ALL_ITEMS[item.id];
-        const isWeapon = item.type === "weapon";
+        const type = item.type;
 
         this._detailName.text =
             itemData?.name?.toUpperCase() || item.id.toUpperCase();
-        this._detailQuantity.text = `EN POSSESSION : ${item.quantity}`;
+        this._detailQuantity.text = `EN POSSESSION : ${item.quantity || 0}`;
         this._detailIcon.source = itemData?.iconPath || "";
         this._descriptionComp.setText(
             itemData?.description || "Aucune description.",
         );
 
-        this._weaponStatsComp.isVisible = isWeapon;
-        if (isWeapon) {
-            this._updateStatsComparison(item.id);
-        }
+        // --- GESTION DYNAMIQUE DU BOUTON ET DES STATS ---
+
+        // On cache les stats par défaut, on ne les montre que pour les armes
+        this._weaponStatsComp.isVisible = type === ItemType.WEAPON;
 
         if (this._actionButton.textBlock) {
-            this._actionButton.textBlock.text = isWeapon
-                ? "ÉQUIPER L'OBJET"
-                : "UTILISER L'OBJET";
+            switch (type) {
+                case ItemType.WEAPON:
+                    this._actionButton.textBlock.text = "ÉQUIPER L'ARME";
+                    this._actionButton.background =
+                        UI_CONFIG.COLORS.BTN_PRIMARY; // Marron/Rouge
+                    this._updateStatsComparison(item.id);
+                    break;
+
+                case ItemType.CONSUMABLE:
+                    this._actionButton.textBlock.text = "UTILISER L'OBJET";
+                    this._actionButton.background = "#27ae60"; // Vert pour l'utilisation
+                    break;
+
+                case ItemType.MATERIAL:
+                    this._actionButton.textBlock.text = "JETER L'OBJET";
+                    this._actionButton.background = "#c0392b"; // Rouge pour le drop
+                    break;
+            }
         }
     }
 
@@ -359,9 +380,48 @@ export class InventoryView extends BaseView {
         if (this._footerComp) this._footerComp.updateAmount(amount);
     }
 
+    public _setupActionClick(owner: Character) {
+        this._actionButton.onPointerUpObservable.clear(); // On nettoie les anciens listeners
+        this._actionButton.onPointerUpObservable.add(() => {
+            if (!this._selectedItem || this._selectedItem.quantity == 0) return;
+
+            const id = this._selectedItem.id;
+            const type = this._selectedItem.type;
+
+            if (type === ItemType.WEAPON) {
+                // On déclenche l'équipement via ton WeaponManager
+                OnRequestWeaponEquip.notifyObservers({
+                    character: owner,
+                    weaponId: id,
+                });
+            } else if (type === ItemType.CONSUMABLE) {
+                // On déclenche l'usage (potions etc)
+                OnRequestConsumableUse.notifyObservers({
+                    character: owner,
+                    itemId: id,
+                });
+            } else if (type === ItemType.MATERIAL) {
+                // Logique de Drop
+                this._showDropConfirmation(id);
+            }
+        });
+    }
+
+    public refresh(items: InventoryItem[], fragments: number): void {
+        this.populateInventory(items, fragments);
+    }
+
+    private _showDropConfirmation(itemId: string) {
+        // Optionnel : Tu pourrais changer le texte du bouton en "CONFIRMER ?"
+        // ou ouvrir une petite popup Babylon GUI ici.
+        console.log("Demande de suppression de l'objet : " + itemId);
+    }
+
     public populateInventory(items: InventoryItem[], fragments?: number): void {
         if (fragments !== undefined) this.updateCurrency(fragments);
         this._gridView.populate(items as unknown as ShopItem[], 25);
+        console.log(items as unknown as ShopItem[]);
+
         if (items.length > 0) {
             this.selectItem(items[0], this._gridView.slots[0]);
         }

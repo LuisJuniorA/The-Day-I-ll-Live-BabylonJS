@@ -77,4 +77,40 @@ export const ItemData: Record<string, Item> = {
         iconPath: "./assets/ui/icons/materials/mystic_jade.png",
         type: ItemType.MATERIAL,
     },
+
+    // CONSUMABLES
+
+    // POTION DE SOIN (Immédiat)
+    health_potion: {
+        id: "health_potion",
+        name: "Potion de Vie",
+        description: "Rend instantanément 50 HP.",
+        iconPath: "./assets/ui/icons/default.png",
+        type: ItemType.CONSUMABLE,
+        effects: [{ type: "heal", value: 50 }],
+    },
+
+    // POTION DE VITESSE (Buff temporaire)
+    speed_elixir: {
+        id: "speed_elixir",
+        name: "Élixir de célérité",
+        description: "Augmente la vitesse de 30% pendant 10 minutes.",
+        iconPath: "./assets/ui/icons/default.png",
+        type: ItemType.CONSUMABLE,
+        effects: [{ type: "speed", value: 0.3, duration: 10 * 60 }],
+    },
+
+    // POTION DE COMBAT (Multi-effets : Soin + Dégâts)
+    berserker_brew: {
+        id: "berserker_brew",
+        name: "Breuvage du Berserker",
+        description:
+            "Rend 20 HP et augmente les dégâts de 20% pendant 1 minute.",
+        iconPath: "./assets/ui/icons/default.png",
+        type: ItemType.CONSUMABLE,
+        effects: [
+            { type: "heal", value: 20 },
+            { type: "damage", value: 0.2, duration: 60 },
+        ],
+    },
 };

@@ -37,15 +37,26 @@ import { Weapon } from "../core/abstracts/Weapon";
 import { WeaponSlot } from "../core/types/WeaponTypes";
 import { InventoryManager } from "../managers/InventoryManager";
 import { ExperienceManager } from "../managers/ExperienceManager";
-import type { LootDrop } from "../core/types/Items";
+import {
+    ItemType,
+    type EffectType,
+    type ItemEffect,
+    type LootDrop,
+} from "../core/types/Items";
 import { StatusType } from "../core/types/StatusEffects";
 import type { Spell } from "../core/interfaces/Spell";
 import type { ShopItem } from "../core/interfaces/ShopEvents";
-import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
+import {
+    OnInventoryUpdated,
+    OnOpenInventory,
+    OnRequestConsumableUse,
+} from "../core/interfaces/InventoryEvent";
 import { WEAPONS_DB } from "../data/WeaponsDb";
 import { ModifierMode } from "../core/types/WeaponStats";
 import { OnCurrencyChanged } from "../core/interfaces/CurrencyEvent";
 import { OnLootReceived } from "../core/interfaces/LootEvents";
+import { ItemData } from "../data/ItemData";
+import { ALL_ITEMS } from "../data/ItemDb";
 
 export class Player extends Character {
     public readonly input: InputHandler;
@@ -75,6 +86,7 @@ export class Player extends Character {
 
     private _currentStatus: StatusType = StatusType.NONE;
     private _statusTimer: number = 0;
+    private _activeModifiers: Map<string, number> = new Map();
 
     private _currentSlots: Record<WeaponSlot, string | null> = {
         [WeaponSlot.DAGGER]: null,
@@ -105,7 +117,7 @@ export class Player extends Character {
         this.attackFSM = new FSM<Player>(this);
 
         this._initObservers();
-
+        this.inventory.addItem(ALL_ITEMS["health_potion"], 1);
         this.movementFSM.transitionTo(new PlayerMoveState());
         this.attackFSM.transitionTo(new PlayerCombatIdleState());
     }
@@ -135,6 +147,106 @@ export class Player extends Character {
             maxHp: this.effectiveMaxHp,
             entityId: "Player",
         });
+    }
+
+    /**
+     * Méthode principale pour consommer un objet.
+     * Appelle-la depuis ton UI d'inventaire.
+     */
+    public consumeItem(itemId: string): void {
+        if (this.inventory.getItemAmount(itemId) == 0) return;
+        const item = ItemData[itemId];
+        if (!item || item.type !== ItemType.CONSUMABLE || !item.effects) return;
+
+        console.log(
+            `%c [ITEM] Utilisation de : ${item.name}`,
+            "color: #4cd137; font-weight: bold;",
+        );
+
+        // 1. Appliquer chaque effet défini dans l'item
+        item.effects.forEach((effect) => this._applyEffect(effect));
+
+        // 2. Retirer l'item de l'inventaire
+        this.inventory.removeItem(itemId, 1);
+        OnInventoryUpdated.notifyObservers();
+    }
+
+    /**
+     * Oriente l'effet vers la bonne logique (Soin vs Buff)
+     */
+    private _applyEffect(effect: ItemEffect): void {
+        switch (effect.type) {
+            case "heal":
+                this.heal(effect.value);
+                break;
+            case "speed":
+                this._applyTemporaryBuff(
+                    "speed",
+                    effect.value,
+                    effect.duration ?? 0,
+                );
+                break;
+            case "damage":
+                this._applyTemporaryBuff(
+                    "damage",
+                    effect.value,
+                    effect.duration ?? 0,
+                );
+                break;
+        }
+    }
+
+    /**
+     * Soigne le joueur et notifie l'UI
+     */
+    public heal(amount: number): void {
+        if (this.isDead) return;
+
+        const previousHp = this.stats.hp;
+        this.stats.hp = Math.min(this.stats.hp + amount, this.effectiveMaxHp);
+
+        console.log(
+            `%c [HEAL] +${this.stats.hp - previousHp} HP`,
+            "color: #ff4757",
+        );
+
+        OnHealthChanged.notifyObservers({
+            currentHp: this.stats.hp,
+            maxHp: this.effectiveMaxHp,
+            entityId: "Player",
+        });
+    }
+
+    /**
+     * Gère les bonus temporaires (Speed, Damage, etc.)
+     * Utilise un modificateur temporaire sur les stats
+     */
+    private _applyTemporaryBuff(
+        statType: EffectType,
+        value: number,
+        duration: number,
+    ): void {
+        if (duration <= 0) return;
+
+        // On applique le buff (ex: on ajoute directement à la stat de base)
+        if (statType === "speed") this.stats.speed += value;
+        if (statType === "damage") this.stats.damage += value;
+
+        console.log(
+            `%c [BUFF] ${statType.toUpperCase()} +${value} pendant ${duration}s`,
+            "color: #eccc68",
+        );
+
+        // On programme la fin du buff
+        setTimeout(() => {
+            if (statType === "speed") this.stats.speed -= value;
+            if (statType === "damage") this.stats.damage -= value;
+
+            console.log(
+                `%c [BUFF] Fin de l'effet ${statType}`,
+                "color: #70a1ff",
+            );
+        }, duration * 1000);
     }
 
     public pickUp(loot: LootDrop): void {
@@ -326,7 +438,7 @@ export class Player extends Character {
         // 1. On calcule la vitesse cible (Stat de base + Equipement)
         const moveX = inputVector.x; // L'input brut (-1, 0, 1)
         const bonus = this.getSpeedBonus();
-        const maxSpeed = this.stats.speed + bonus;
+        const maxSpeed = this.stats.speed * bonus;
         const targetVelocityX = moveX * maxSpeed;
 
         // 2. Lissage (Lerp) : On met à jour la vélocité horizontale du joueur
@@ -368,7 +480,10 @@ export class Player extends Character {
     }
 
     public getSpeedBonus(): number {
-        let bonus = 0;
+        // On commence à 100% de la vitesse
+        let multiplier = 1.0;
+
+        // 1. Bonus des Armes (Passifs et Actifs)
         for (const slot in this.weaponSlots) {
             const weaponId = this.weaponSlots[slot as WeaponSlot];
             if (weaponId) {
@@ -377,17 +492,25 @@ export class Player extends Character {
                     weaponData?.modifiers?.speedBoost?.mode ===
                     ModifierMode.PASSIVE
                 ) {
-                    bonus += weaponData.modifiers.speedBoost.value;
+                    // Si ton arme donne +0.2 (20%), on l'ajoute
+                    multiplier += weaponData.modifiers.speedBoost.value;
                 }
             }
         }
+
         if (
             this.currentWeapon?.data?.modifiers?.speedBoost?.mode ===
             ModifierMode.ACTIVE
         ) {
-            bonus += this.currentWeapon.data.modifiers.speedBoost.value;
+            multiplier += this.currentWeapon.data.modifiers.speedBoost.value;
         }
-        return bonus;
+
+        // 2. Bonus des Potions (via le dictionnaire)
+        // Ici, getModifier("speed") retournera par exemple 0.3 pour une potion +30%
+        multiplier += this.getModifier("speed");
+
+        // On retourne le multiplicateur final
+        return multiplier;
     }
 
     public addCurrency(amount: number): void {
@@ -403,6 +526,12 @@ export class Player extends Character {
             if (event.isNear) this._targetInteractable = event.interactable;
             else if (this._targetInteractable === event.interactable)
                 this._targetInteractable = null;
+        });
+        OnRequestConsumableUse.add((event) => {
+            // On vérifie que c'est bien ce joueur qui est concerné
+            if (event.character.id === this.id) {
+                this.consumeItem(event.itemId);
+            }
         });
 
         OnWeaponChanged.add((event) => {
@@ -681,5 +810,9 @@ export class Player extends Character {
         }
 
         return totalMaxHp;
+    }
+
+    public getModifier(key: string): number {
+        return this._activeModifiers.get(key) ?? 0;
     }
 }

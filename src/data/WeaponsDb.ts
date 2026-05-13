@@ -4,7 +4,7 @@ import { WeaponSlot } from "../core/types/WeaponTypes";
 
 export const WEAPONS_DB: Record<string, WeaponData> = {
     // ==========================================
-    // DAGGERS (Vitesse Active / Santé Passive)
+    // DAGGERS (Bonus de vitesse significatifs)
     // ==========================================
     butcher_dagger: {
         id: "butcher_dagger",
@@ -22,7 +22,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             knockbackForce: 2.0,
         },
         modifiers: {
-            speedBoost: { value: 1.2, mode: ModifierMode.ACTIVE },
+            // +15% de vitesse quand équipée
+            speedBoost: { value: 0.15, mode: ModifierMode.ACTIVE },
         },
     },
     crow_dagger: {
@@ -41,8 +42,9 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             knockbackForce: 1.5,
         },
         modifiers: {
-            speedBoost: { value: 2.0, mode: ModifierMode.ACTIVE },
-            damageMultiplier: { value: 1.1, mode: ModifierMode.ACTIVE },
+            // +30% de vitesse (très rapide) et +10% dégâts
+            speedBoost: { value: 0.3, mode: ModifierMode.ACTIVE },
+            damageMultiplier: { value: 0.1, mode: ModifierMode.ACTIVE },
         },
     },
     hunter_knife: {
@@ -61,7 +63,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             knockbackForce: 3.0,
         },
         modifiers: {
-            speedBoost: { value: 1.5, mode: ModifierMode.ACTIVE },
+            speedBoost: { value: 0.1, mode: ModifierMode.ACTIVE },
             healthBoost: { value: 10, mode: ModifierMode.PASSIVE },
         },
     },
@@ -81,13 +83,13 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             knockbackForce: 2.0,
         },
         modifiers: {
-            speedBoost: { value: 1.5, mode: ModifierMode.ACTIVE },
+            speedBoost: { value: 0.05, mode: ModifierMode.ACTIVE },
             healthBoost: { value: 25, mode: ModifierMode.PASSIVE },
         },
     },
 
     // ==========================================
-    // SWORDS
+    // SWORDS (Équilibrées, léger malus de poids)
     // ==========================================
     knight_sword: {
         id: "knight_sword",
@@ -105,7 +107,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             knockbackForce: 6.0,
         },
         modifiers: {
-            speedBoost: { value: -0.5, mode: ModifierMode.ACTIVE },
+            // -10% de vitesse (poids de l'acier)
+            speedBoost: { value: -0.1, mode: ModifierMode.ACTIVE },
             healthBoost: { value: 20, mode: ModifierMode.PASSIVE },
         },
     },
@@ -114,8 +117,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Oathkeeper Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.SWORD,
-        description:
-            "Forged to uphold a sacred promise and protect its wielder.",
+        description: "Forged to uphold a sacred promise.",
         iconPath: "./assets/ui/icons/weapons/oath_sword.png",
         meshPath: "./assets/models/weapons/swords/oath_sword.glb",
         stats: {
@@ -126,21 +128,20 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             knockbackForce: 7.0,
         },
         modifiers: {
-            speedBoost: { value: -0.2, mode: ModifierMode.ACTIVE },
-            damageMultiplier: { value: 1.05, mode: ModifierMode.ACTIVE },
+            speedBoost: { value: -0.05, mode: ModifierMode.ACTIVE },
+            damageMultiplier: { value: 0.05, mode: ModifierMode.ACTIVE },
         },
     },
 
     // ==========================================
-    // GREAT SWORDS (Gros malus de vitesse Active, Gros bonus PV Passif)
+    // GREAT SWORDS (Lourdes : -30% à -40% de vitesse)
     // ==========================================
     great_imperial_sword: {
         id: "great_imperial_sword",
         name: "Great Imperial Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.GREATSWORD,
-        description:
-            "A massive, fearsome, and intimidating weapon reserved for the elite.",
+        description: "A massive weapon reserved for the elite.",
         iconPath: "./assets/ui/icons/weapons/great_imperial_sword.png",
         meshPath:
             "./assets/models/weapons/great_swords/Great_Imperial_Sword.glb",
@@ -152,7 +153,8 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             knockbackForce: 15.0,
         },
         modifiers: {
-            speedBoost: { value: -3.0, mode: ModifierMode.ACTIVE },
+            // -40% de vitesse (très lourd)
+            speedBoost: { value: -0.4, mode: ModifierMode.ACTIVE },
             healthBoost: { value: 50, mode: ModifierMode.PASSIVE },
         },
     },
@@ -161,7 +163,7 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Great Jade Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.GREATSWORD,
-        description: "Heavy yet mystically balanced, carved from pure jade.",
+        description: "Heavy yet mystically balanced.",
         iconPath: "./assets/ui/icons/weapons/great_jade_sword.png",
         meshPath: "./assets/models/weapons/great_swords/Great_Jade_Sword.glb",
         stats: {
@@ -172,8 +174,9 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
             knockbackForce: 12.0,
         },
         modifiers: {
-            speedBoost: { value: -2.0, mode: ModifierMode.ACTIVE },
-            damageMultiplier: { value: 1.15, mode: ModifierMode.ACTIVE },
+            // -30% de vitesse
+            speedBoost: { value: -0.3, mode: ModifierMode.ACTIVE },
+            damageMultiplier: { value: 0.15, mode: ModifierMode.ACTIVE },
         },
     },
 };

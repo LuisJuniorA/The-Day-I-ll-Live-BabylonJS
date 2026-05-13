@@ -1,5 +1,7 @@
 import { Scene, AbstractMesh } from "@babylonjs/core";
 import { AdvancedDynamicTexture } from "@babylonjs/gui";
+
+// Vues
 import { MainMenuView } from "../ui/views/MainMenuView";
 import { PauseMenuView } from "../ui/views/PauseMenuView";
 import { HUDView } from "../ui/views/HUDView";
@@ -7,9 +9,17 @@ import { DialogueView } from "../ui/views/DialogueView";
 import { SettingsView } from "../ui/views/SettingsView";
 import { ShopView } from "../ui/views/ShopView";
 import { ForgeView } from "../ui/views/ForgeView";
+import { InventoryView } from "../ui/views/InventoryView";
 
+// Core & Types
 import { GameState, type GameStateType } from "../core/types/GameState";
 import { GameStateManager } from "./GameStateManager";
+import { ALL_ITEMS } from "../data/ItemDb";
+import { WEAPONS_DB } from "../data/WeaponsDb";
+import { ItemData } from "../data/ItemData";
+import type { Player } from "../entities/Player";
+
+// Events
 import {
     OnDialogueRequest,
     OnInteractionAvailable,
@@ -18,13 +28,10 @@ import {
 import { OnHealthChanged } from "../core/interfaces/CombatEvent";
 import { OnOpenShop, OnPurchaseRequest } from "../core/interfaces/ShopEvents";
 import { OnOpenForge, OnCraftRequest } from "../core/interfaces/ForgeEvents";
-
-import type { Player } from "../entities/Player";
-import { WEAPONS_DB } from "../data/WeaponsDb";
-import { ItemData } from "../data/ItemData";
-import { ALL_ITEMS } from "../data/ItemDb";
-import { InventoryView } from "../ui/views/InventoryView";
-import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
+import {
+    OnOpenInventory,
+    OnInventoryUpdated,
+} from "../core/interfaces/InventoryEvent";
 import { OnCurrencyChanged } from "../core/interfaces/CurrencyEvent";
 import { OnLootReceived } from "../core/interfaces/LootEvents";
 
@@ -68,184 +75,141 @@ export class UIManager {
 
     public setPlayer(player: Player) {
         this._player = player;
+        this.inventoryView._setupActionClick(this._player);
     }
 
     private _setupEventListeners(): void {
-        // --- CHANGEMENT D'ÉTAT GLOBAL ---
+        // --- SYSTÈME DE JEU GLOBAL ---
         this._gameStateManager.onStateChangedObservable.add((state) => {
             this.handleStateChange(state);
         });
 
-        // --- EVENTS MENU PRINCIPAL ---
-        this.mainMenuView.onPlayObservable.add(() => {
-            this._gameStateManager.setPlaying();
-        });
-
-        this.mainMenuView.onSettingsObservable.add(() => {
-            this.mainMenuView.hide();
-            this.settingsView.show();
-        });
-
-        this.mainMenuView.onQuitObservable.add(() => {
-            console.log("Quitter le jeu");
-        });
-
-        // --- EVENTS MENU PAUSE ---
-        this.pauseMenuView.onResumeObservable.add(() => {
-            this._gameStateManager.setPlaying();
-        });
-
-        this.pauseMenuView.onSettingsObservable?.add(() => {
-            this.pauseMenuView.hide();
-            this.settingsView.show();
-        });
-
-        this.pauseMenuView.onMainMenuObservable.add(() => {
-            this._gameStateManager.setMenu();
-        });
-
-        OnLootReceived.add((eventData) => {
-            this.hudView.displayLoot(eventData.item, eventData.amount);
-        });
-
-        // --- EVENTS SETTINGS (RETOUR) ---
-        this.settingsView.onBackObservable.add(() => {
-            this.settingsView.hide();
-            const currentState = this._gameStateManager.getCurrentState();
-            if (currentState === GameState.MENU) {
-                this.mainMenuView.show();
-            } else {
-                this.pauseMenuView.show();
-            }
-        });
-
-        // --- EVENTS IN-GAME (HUD) ---
-        OnInteractionAvailable.add((event) => {
-            const isNear = !!(event.isNear && event.interactable);
-            const mesh = event.interactable?.transform as AbstractMesh;
-            this.hudView.setInteractionAvailable(isNear, mesh);
-        });
-
-        OnHealthChanged.add((event) => {
-            this.hudView.updatePlayerHealth(event.currentHp, event.maxHp);
-        });
-
-        // --- EVENTS DIALOGUES ---
-        OnDialogueRequest.add((data) => {
-            this.openDialogue(data);
-        });
-
-        this.dialogueView.onFinishObservable.add(() => {
-            this.closeDialogue();
-        });
-
-        OnCurrencyChanged.add((event) => {
-            this.hudView.updateCurrency(event.currentAmount, event.delta);
-        });
-
-        OnOpenInventory.add((data) => {
-            if (!this._player) return;
-
-            // --- ENRICHISSEMENT DES DONNÉES ---
-            // On transforme les items bruts de l'inventaire en items avec images et noms
-            const enrichedItems = data.items.map((invItem) => {
-                const itemInfo = ALL_ITEMS[invItem.id];
-
-                return {
-                    ...invItem,
-                    name: itemInfo?.name || invItem.id,
-                    description: itemInfo?.description || "Aucune description",
-                    iconPath:
-                        itemInfo?.iconPath || "./assets/ui/icons/default.png",
-                };
-            });
-
-            // On passe les infos enrichies à la vue
-            this.inventoryView.populateInventory(enrichedItems as any);
-            this.inventoryView.updateCurrency(this._player.currency);
-
-            // On synchronise l'équipement actuel pour les stats de comparaison
-            this.inventoryView.setCurrentEquipment(this._player.weaponSlots);
-
-            // On change l'état global
+        // --- GESTION DE L'INVENTAIRE (CENTRALISÉE) ---
+        // Se déclenche quand on ouvre l'inventaire
+        OnOpenInventory.add(() => {
+            this._refreshInventory();
             this._gameStateManager.setInventory();
+        });
+
+        // Se déclenche n'importe quand (Consommation, Equipement, Loot)
+        OnInventoryUpdated.add(() => {
+            this._refreshInventory();
         });
 
         this.inventoryView.onBackObservable.add(() => {
             this._gameStateManager.setPlaying();
         });
 
-        // --- EVENTS SHOP ---
-        OnOpenShop.add((data) => {
-            if (!this._player) return;
-
-            const enrichedInventory = data.inventory.map((shopItem) => {
-                return {
-                    ...shopItem,
-                    ownedCount: this._player!.inventory.getItemAmount(
-                        shopItem.id,
-                    ),
-                };
-            });
-
-            this.shopView.updateCurrencyDisplay(this._player.currency);
-            this.shopView.populateShop(enrichedInventory);
-            this._gameStateManager.setShop();
+        // --- MENUS PRINCIPAUX ---
+        this.mainMenuView.onPlayObservable.add(() =>
+            this._gameStateManager.setPlaying(),
+        );
+        this.mainMenuView.onSettingsObservable.add(() => {
+            this.mainMenuView.hide();
+            this.settingsView.show();
         });
 
-        this.shopView.onBackObservable.add(() => {
-            this._gameStateManager.setPlaying();
+        this.pauseMenuView.onResumeObservable.add(() =>
+            this._gameStateManager.setPlaying(),
+        );
+        this.pauseMenuView.onMainMenuObservable.add(() =>
+            this._gameStateManager.setMenu(),
+        );
+        this.pauseMenuView.onSettingsObservable?.add(() => {
+            this.pauseMenuView.hide();
+            this.settingsView.show();
+        });
+
+        this.settingsView.onBackObservable.add(() => {
+            this.settingsView.hide();
+            const currentState = this._gameStateManager.getCurrentState();
+            currentState === GameState.MENU
+                ? this.mainMenuView.show()
+                : this.pauseMenuView.show();
+        });
+
+        // --- HUD & COMBAT ---
+        OnLootReceived.add((eventData) => {
+            this.hudView.displayLoot(eventData.item, eventData.amount);
+            // Si l'inventaire est ouvert pendant un loot, on refresh
+            if (
+                this._gameStateManager.getCurrentState() === GameState.INVENTORY
+            ) {
+                this._refreshInventory();
+            }
+        });
+
+        OnHealthChanged.add((event) => {
+            this.hudView.updatePlayerHealth(event.currentHp, event.maxHp);
+        });
+
+        OnCurrencyChanged.add((event) => {
+            this.hudView.updateCurrency(event.currentAmount, event.delta);
+        });
+
+        OnInteractionAvailable.add((event) => {
+            const isNear = !!(event.isNear && event.interactable);
+            const mesh = event.interactable?.transform as AbstractMesh;
+            this.hudView.setInteractionAvailable(isNear, mesh);
+        });
+
+        // --- DIALOGUES ---
+        OnDialogueRequest.add((data) => this.openDialogue(data));
+        this.dialogueView.onFinishObservable.add(() => this.closeDialogue());
+
+        // --- SHOP ---
+        OnOpenShop.add((data) => {
+            if (!this._player) return;
+            const enrichedShop = data.inventory.map((item) => ({
+                ...item,
+                ownedCount: this._player!.inventory.getItemAmount(item.id),
+            }));
+            this.shopView.updateCurrencyDisplay(this._player.currency);
+            this.shopView.populateShop(enrichedShop);
+            this._gameStateManager.setShop();
         });
 
         OnPurchaseRequest.add((shopItem) => {
             if (!this._player) return;
-
             if (this._player.canAfford(shopItem.price)) {
-                // On récupère les données propres de l'item depuis ItemData ou WeaponsDB
                 const itemBase =
                     ItemData[shopItem.id] || WEAPONS_DB[shopItem.id];
-                const success = this._player.inventory.addItem(itemBase, 1);
-
-                if (success) {
+                if (this._player.inventory.addItem(itemBase, 1)) {
                     this._player.currency -= shopItem.price;
                     this.shopView.updateCurrencyDisplay(this._player.currency);
-
-                    const newCount = this._player.inventory.getItemAmount(
-                        shopItem.id,
+                    this.shopView.updateOwnedDisplay(
+                        this._player.inventory.getItemAmount(shopItem.id),
                     );
-                    this.shopView.updateOwnedDisplay(newCount);
                     this.shopView.playBuySuccessAnimation();
+                    OnInventoryUpdated.notifyObservers(); // Notifie le reste du système
                 }
             } else {
                 this.shopView.playBuyErrorAnimation();
             }
         });
 
-        // --- EVENTS FORGE ---
+        this.shopView.onBackObservable.add(() =>
+            this._gameStateManager.setPlaying(),
+        );
+
+        // --- FORGE ---
         OnOpenForge.add((data) => {
             if (!this._player) return;
-
             this.forgeView.setCurrentEquipment(this._player.weaponSlots);
 
             const enrichedRecipes = data.recipes.map((recipe) => {
                 const itemInfo = ALL_ITEMS[recipe.id];
-
                 return {
                     ...recipe,
-                    name:
-                        itemInfo?.name ||
-                        recipe.id.replace(/_/g, " ").toUpperCase(),
-                    description: itemInfo?.description || "Aucune description",
-                    // On déplace la logique de nettoyage de path ici
+                    name: itemInfo?.name || recipe.id,
+                    description: itemInfo?.description || "",
                     iconPath:
                         itemInfo?.iconPath ||
                         "./assets/ui/icons/default_icon.png",
                     type: itemInfo?.type || "material",
-                    weaponSlot: (itemInfo as any)?.weaponSlot,
                     ownedCount: this._player!.inventory.getItemAmount(
                         recipe.id,
                     ),
-                    // On enrichit aussi les composants requis (pour les noms/quantités possédées)
                     requirements: recipe.requirements.map((req) => ({
                         ...req,
                         ownedCount: this._player!.inventory.getItemAmount(
@@ -260,57 +224,73 @@ export class UIManager {
             this._gameStateManager.setForge();
         });
 
-        this.forgeView.onBackObservable.add(() => {
-            this._gameStateManager.setPlaying();
-        });
-
         OnCraftRequest.add((recipe) => {
             if (!this._player) return;
-
-            // 1. Checks (Monnaie + Ressources)
             if (
-                this._player.currency < recipe.price ||
-                !this._player.inventory.hasResources(recipe.requirements)
+                this._player.currency >= recipe.price &&
+                this._player.inventory.hasResources(recipe.requirements)
             ) {
+                recipe.requirements.forEach((req) =>
+                    this._player!.inventory.removeItem(req.itemId, req.amount),
+                );
+                this._player.currency -= recipe.price;
+
+                if (this._player.inventory.addItem(ALL_ITEMS[recipe.id], 1)) {
+                    this.forgeView.updateCurrency(this._player.currency);
+                    this.hudView.updateCurrency(
+                        this._player.currency,
+                        -recipe.price,
+                    );
+                    this.forgeView.refreshAllRecipesData(this._player);
+                    this.forgeView.playBuySuccessAnimation();
+                    OnInventoryUpdated.notifyObservers();
+                }
+            } else {
                 this.forgeView.playBuyErrorAnimation();
-                return;
-            }
-
-            // 2. Consommation
-            recipe.requirements.forEach((req) => {
-                this._player!.inventory.removeItem(req.itemId, req.amount);
-            });
-            this._player.currency -= recipe.price;
-
-            // 3. Ajout de l'item
-            const weaponToGive = ALL_ITEMS[recipe.id];
-            const success = this._player.inventory.addItem(weaponToGive, 1);
-
-            if (success) {
-                // 1. Mettre à jour la monnaie et le HUD
-                const pricePaid = recipe.price;
-                this.forgeView.updateCurrency(this._player.currency);
-                this.hudView.updateCurrency(this._player.currency, -pricePaid);
-
-                // 2. IMPORTANT : Mettre à jour TOUTES les recettes enrichies dans la grille
-                // On demande à la forge de rafraîchir les données de ses items à partir de l'inventaire réel
-                this.forgeView.refreshAllRecipesData(this._player);
-
-                // 3. Animation de succès
-                this.forgeView.playBuySuccessAnimation();
             }
         });
+
+        this.forgeView.onBackObservable.add(() =>
+            this._gameStateManager.setPlaying(),
+        );
+    }
+
+    private _refreshInventory(): void {
+        if (!this._player) return;
+
+        const items = this._player.inventory.getAllItems();
+
+        const enrichedItems = items.map((invItem) => {
+            const itemInfo = ALL_ITEMS[invItem.item.id];
+            return {
+                id: invItem.item.id,
+                quantity: invItem.amount,
+                name: itemInfo?.name || invItem.item.id,
+                description: itemInfo?.description || "Aucune description",
+                iconPath: itemInfo?.iconPath || "./assets/ui/icons/default.png",
+                type: invItem.item.type,
+                // On ajoute ownedCount si ta vue InventoryView l'utilise encore à la place de quantity
+                ownedCount: invItem.amount,
+            };
+        });
+
+        this.inventoryView.populateInventory(enrichedItems as any);
+        this.inventoryView.updateCurrency(this._player.currency);
+        this.inventoryView.setCurrentEquipment(this._player.weaponSlots);
     }
 
     private handleStateChange(state: GameStateType): void {
-        this.mainMenuView.hide();
-        this.pauseMenuView.hide();
-        this.hudView.hide();
-        this.dialogueView.hide();
-        this.settingsView.hide();
-        this.shopView.hide();
-        this.forgeView.hide();
-        this.inventoryView.hide();
+        const views = [
+            this.mainMenuView,
+            this.pauseMenuView,
+            this.hudView,
+            this.dialogueView,
+            this.settingsView,
+            this.shopView,
+            this.forgeView,
+            this.inventoryView,
+        ];
+        views.forEach((v) => v.hide());
 
         switch (state) {
             case GameState.MENU:
@@ -323,7 +303,6 @@ export class UIManager {
                 this.hudView.show();
                 break;
             case GameState.DIALOGUE:
-                this.hudView.interactionPrompt.hide();
                 this.dialogueView.show();
                 break;
             case GameState.SHOP:
@@ -345,7 +324,6 @@ export class UIManager {
 
     public closeDialogue(): void {
         this.dialogueView.reset();
-
         const currentState = this._gameStateManager.getCurrentState();
         if (
             currentState !== GameState.SHOP &&

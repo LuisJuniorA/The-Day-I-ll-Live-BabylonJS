@@ -1,4 +1,5 @@
 import { Observable } from "@babylonjs/core";
+import type { Character } from "../abstracts/Character";
 
 export interface InventoryItem {
     id: string;
@@ -13,3 +14,8 @@ export interface InventoryEventData {
 }
 
 export const OnOpenInventory = new Observable<InventoryEventData>();
+export const OnInventoryUpdated = new Observable<void>();
+export const OnRequestConsumableUse = new Observable<{
+    character: Character;
+    itemId: string;
+}>();
