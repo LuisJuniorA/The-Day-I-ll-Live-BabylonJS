@@ -23,6 +23,7 @@ import { FireNovaSpell } from "./spells/FireNovaSpell";
 import { PoolManager } from "./managers/PoolManager";
 import { CameraManager } from "./managers/CameraManager";
 import { CustomLoadingScreen } from "./core/engines/LoadingScreen";
+import { ALL_ITEMS } from "./data/ItemDb";
 
 export class App {
     private readonly engine: Engine;
@@ -209,9 +210,9 @@ export class App {
         ];
         this.player.learnSpell(new FireNovaSpell());
 
-        for (const w of weapons) {
-            await this.weaponManager.setSlotWeapon(this.player, w.slot, w.id);
-        }
+        weapons.forEach((weapon) =>
+            this.player.inventory.addItem(ALL_ITEMS[weapon.id], 1),
+        );
     }
 
     private startRenderLoop(): void {

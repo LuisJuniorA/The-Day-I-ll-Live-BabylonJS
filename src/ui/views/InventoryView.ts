@@ -17,12 +17,13 @@ import { ALL_ITEMS } from "../../data/ItemDb";
 import { WEAPONS_DB } from "../../data/WeaponsDb";
 import {
     OnRequestConsumableUse,
+    OnRequestEquipToSlot,
     type InventoryItem,
 } from "../../core/interfaces/InventoryEvent";
 import type { ShopItem } from "../../core/interfaces/ShopEvents";
 import { ItemType } from "../../core/types/Items";
 import type { Character } from "../../core/abstracts/Character";
-import { OnRequestWeaponEquip } from "../../core/interfaces/CombatEvent";
+import type { Player } from "../../entities/Player";
 
 // --- CONFIGURATION (Identique à ForgeView pour la cohérence) ---
 const UI_CONFIG = {
@@ -282,28 +283,34 @@ export class InventoryView extends BaseView {
             itemData?.description || "Aucune description.",
         );
 
-        // --- GESTION DYNAMIQUE DU BOUTON ET DES STATS ---
-
-        // On cache les stats par défaut, on ne les montre que pour les armes
         this._weaponStatsComp.isVisible = type === ItemType.WEAPON;
 
         if (this._actionButton.textBlock) {
             switch (type) {
                 case ItemType.WEAPON:
-                    this._actionButton.textBlock.text = "ÉQUIPER L'ARME";
-                    this._actionButton.background =
-                        UI_CONFIG.COLORS.BTN_PRIMARY; // Marron/Rouge
+                    // --- AJOUT ICI : Vérification si déjà équipé ---
+                    const isEquipped = Object.values(
+                        this._currentEquipment,
+                    ).includes(item.id);
+
+                    this._actionButton.textBlock.text = isEquipped
+                        ? "DÉSÉQUIPER L'ARME"
+                        : "ÉQUIPER L'ARME";
+                    this._actionButton.background = isEquipped
+                        ? "#34495e" // Une couleur plus neutre/grise pour déséquiper
+                        : UI_CONFIG.COLORS.BTN_PRIMARY;
+
                     this._updateStatsComparison(item.id);
                     break;
 
                 case ItemType.CONSUMABLE:
                     this._actionButton.textBlock.text = "UTILISER L'OBJET";
-                    this._actionButton.background = "#27ae60"; // Vert pour l'utilisation
+                    this._actionButton.background = "#27ae60";
                     break;
 
                 case ItemType.MATERIAL:
                     this._actionButton.textBlock.text = "JETER L'OBJET";
-                    this._actionButton.background = "#c0392b"; // Rouge pour le drop
+                    this._actionButton.background = "#c0392b";
                     break;
             }
         }
@@ -381,7 +388,7 @@ export class InventoryView extends BaseView {
     }
 
     public _setupActionClick(owner: Character) {
-        this._actionButton.onPointerUpObservable.clear(); // On nettoie les anciens listeners
+        this._actionButton.onPointerUpObservable.clear();
         this._actionButton.onPointerUpObservable.add(() => {
             if (!this._selectedItem || this._selectedItem.quantity == 0) return;
 
@@ -389,19 +396,41 @@ export class InventoryView extends BaseView {
             const type = this._selectedItem.type;
 
             if (type === ItemType.WEAPON) {
-                // On déclenche l'équipement via ton WeaponManager
-                OnRequestWeaponEquip.notifyObservers({
-                    character: owner,
-                    weaponId: id,
+                const weaponData = WEAPONS_DB[id];
+                const isEquipped = Object.values(
+                    this._currentEquipment,
+                ).includes(id);
+
+                OnRequestEquipToSlot.notifyObservers({
+                    player: owner as Player,
+                    weaponId: isEquipped ? null : id,
+                    slot: weaponData.weaponSlot,
                 });
+
+                // --- AJOUT : Force l'UI à changer de texte immédiatement ---
+                // On simule un changement local en attendant le retour du serveur/manager
+                if (isEquipped) {
+                    // On trouve la clé du slot et on la vide localement
+                    const slotKey = Object.keys(this._currentEquipment).find(
+                        (k) => this._currentEquipment[k] === id,
+                    );
+                    if (slotKey) this._currentEquipment[slotKey] = "";
+                } else {
+                    this._currentEquipment[weaponData.weaponSlot] = id;
+                }
+
+                // On redessine le bouton
+                const currentSlot = this._gridView.slots.find(
+                    (s) => s.itemData?.id === id,
+                );
+                if (currentSlot)
+                    this.selectItem(this._selectedItem!, currentSlot);
             } else if (type === ItemType.CONSUMABLE) {
-                // On déclenche l'usage (potions etc)
                 OnRequestConsumableUse.notifyObservers({
                     character: owner,
                     itemId: id,
                 });
             } else if (type === ItemType.MATERIAL) {
-                // Logique de Drop
                 this._showDropConfirmation(id);
             }
         });
@@ -420,6 +449,16 @@ export class InventoryView extends BaseView {
     public populateInventory(items: InventoryItem[], fragments?: number): void {
         if (fragments !== undefined) this.updateCurrency(fragments);
         this._gridView.populate(items as unknown as ShopItem[], 25);
+        const equippedIds = Object.values(this._currentEquipment).filter(
+            (id) => id !== null,
+        );
+        this._gridView.slots.forEach((slot) => {
+            if (slot.itemData && equippedIds.includes(slot.itemData.id)) {
+                slot.setEquipped(true);
+            } else {
+                slot.setEquipped(false);
+            }
+        });
         console.log(items as unknown as ShopItem[]);
 
         if (items.length > 0) {

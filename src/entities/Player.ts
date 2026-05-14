@@ -94,7 +94,6 @@ export class Player extends Character {
         [WeaponSlot.GREATSWORD]: null,
     };
     private _activeSpell: Spell | null = null;
-    private _nextSlotIndex: number = 0;
 
     public readonly gravity: number = -0.9;
     public readonly jumpForce: number = 21;
@@ -665,17 +664,28 @@ export class Player extends Character {
             }
         }
     }
-
     public setWeaponSlot(slot: WeaponSlot, weaponId: string | null): void {
+        // 1. On met à jour le dictionnaire logique
         this._currentSlots[slot] = weaponId;
+
+        // 2. On vérifie si c'est l'arme qu'on a actuellement dans la main
         if (this.currentWeapon?.weaponSlot === slot) {
-            if (weaponId) this.requestVisualWeapon(weaponId);
-            else {
-                this.currentWeapon?.mesh?.dispose();
+            if (weaponId) {
+                // On remplace par une autre arme
+                this.requestVisualWeapon(weaponId);
+            } else {
+                // CAS CRITIQUE : On déséquipe l'arme active.
+
+                // A. ON ENVOIE L'ORDRE DE CACHE AVANT DE PERDRE LA RÉFÉRENCE
+                // On envoie "" ou null pour que le WeaponManager appelle deactivateWeapon()
+                this.requestVisualWeapon("");
+
+                // B. SEULEMENT APRÈS, ON VIDE LA RÉFÉRENCE
                 this.currentWeapon = null;
             }
         }
 
+        // 3. Update UI et stats
         OnHealthChanged.notifyObservers({
             currentHp: this.stats.hp,
             maxHp: this.effectiveMaxHp,
@@ -684,13 +694,37 @@ export class Player extends Character {
     }
 
     public switchWeapon(): void {
-        const equippedSlots = Object.values(WeaponSlot).filter(
-            (s) => this._currentSlots[s] !== null,
+        const equippedSlots = Object.values(WeaponSlot).filter((slotKey) => {
+            const id = this._currentSlots[slotKey];
+            return id !== null && id !== "";
+        });
+
+        // FIX : Si on n'a plus rien, on doit vider la main !
+        if (equippedSlots.length === 0) {
+            this.currentWeapon = null;
+            // On envoie un ID vide pour dire au Manager de tout désactiver
+            this.requestVisualWeapon("");
+            return;
+        }
+
+        // 2. On trouve où se situe l'arme actuelle dans cette liste
+        // Si aucune arme n'est en main, on commence à -1 pour finir à 0
+        const currentIndex = equippedSlots.findIndex(
+            (slotKey) => this._currentSlots[slotKey] === this.currentWeapon?.id,
         );
-        if (equippedSlots.length < 2) return;
-        this._nextSlotIndex = (this._nextSlotIndex + 1) % equippedSlots.length;
-        const nextId = this._currentSlots[equippedSlots[this._nextSlotIndex]];
-        if (nextId) this.requestVisualWeapon(nextId);
+
+        // 3. Calcul de l'index suivant (boucle circulaire)
+        const nextListIndex = (currentIndex + 1) % equippedSlots.length;
+        const nextSlotKey = equippedSlots[nextListIndex];
+        const nextId = this._currentSlots[nextSlotKey];
+
+        // 4. On équipe
+        if (nextId && this.currentWeapon?.id !== nextId) {
+            console.log(
+                `Switching from index ${currentIndex} to ${nextListIndex} (Slot: ${nextSlotKey})`,
+            );
+            this.requestVisualWeapon(nextId);
+        }
     }
 
     private requestVisualWeapon(weaponId: string): void {

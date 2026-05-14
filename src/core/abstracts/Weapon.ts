@@ -9,18 +9,19 @@ import type { WeaponData } from "../types/WeaponStats";
 export abstract class Weapon {
     public mesh?: AbstractMesh;
     public readonly data: WeaponData;
+    public readonly id: string; // <--- Ajout de l'ID
     public name: string;
     protected scene: Scene;
 
     /**
-     * Getter pour un accès rapide aux statistiques de combat (damage, range, etc.)
+     * Getter pour un accès rapide aux statistiques de combat
      */
     public get stats() {
         return this.data.stats;
     }
 
     /**
-     * Getter pour le type d'emplacement (DAGGER, SWORD, etc.)
+     * Getter pour le type d'emplacement
      */
     public get weaponSlot() {
         return this.data.weaponSlot;
@@ -29,7 +30,9 @@ export abstract class Weapon {
     constructor(scene: Scene, data: WeaponData) {
         this.scene = scene;
         this.data = data;
-        // Le nom et la description sont hérités de l'interface Item via WeaponData
+
+        // On récupère l'ID depuis les données (essentiel pour le switch et l'UI)
+        this.id = data.id;
         this.name = data.name;
     }
 
