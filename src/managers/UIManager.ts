@@ -10,6 +10,7 @@ import { SettingsView } from "../ui/views/SettingsView";
 import { ShopView } from "../ui/views/ShopView";
 import { ForgeView } from "../ui/views/ForgeView";
 import { InventoryView } from "../ui/views/InventoryView";
+import { BonfireView } from "../ui/views/BonfireView";
 
 // Core & Types
 import { GameState, type GameStateType } from "../core/types/GameState";
@@ -34,9 +35,18 @@ import {
 } from "../core/interfaces/InventoryEvent";
 import { OnCurrencyChanged } from "../core/interfaces/CurrencyEvent";
 import { OnLootReceived } from "../core/interfaces/LootEvents";
+import {
+    OnOpenBonfire,
+    OnRequestStatUpgrade,
+    OnStatPointsChanged,
+} from "../core/interfaces/BonfireEvent";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
+    private _gameStateManager: GameStateManager;
+    private _player: Player | null = null;
+
+    // Vues Publiques
     public mainMenuView: MainMenuView;
     public pauseMenuView: PauseMenuView;
     public hudView: HUDView;
@@ -45,9 +55,7 @@ export class UIManager {
     public shopView: ShopView;
     public forgeView: ForgeView;
     public inventoryView: InventoryView;
-
-    private _gameStateManager: GameStateManager;
-    private _player: Player | null = null;
+    public bonfireView: BonfireView;
 
     constructor(scene: Scene, gameStateManager: GameStateManager) {
         this._advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI(
@@ -57,7 +65,7 @@ export class UIManager {
         );
         this._gameStateManager = gameStateManager;
 
-        // Instanciation des vues
+        // --- INSTANCIATION DES VUES ---
         this.mainMenuView = new MainMenuView(this._advancedTexture);
         this.pauseMenuView = new PauseMenuView(this._advancedTexture);
         this.hudView = new HUDView(this._advancedTexture);
@@ -66,14 +74,13 @@ export class UIManager {
         this.shopView = new ShopView(this._advancedTexture);
         this.forgeView = new ForgeView(this._advancedTexture);
         this.inventoryView = new InventoryView(this._advancedTexture);
+        this.bonfireView = new BonfireView(this._advancedTexture);
 
         this._setupEventListeners();
-
-        // Initialisation de l'état de départ
         this.handleStateChange(this._gameStateManager.getCurrentState());
     }
 
-    public setPlayer(player: Player) {
+    public setPlayer(player: Player): void {
         this._player = player;
         this.inventoryView._setupActionClick(this._player);
     }
@@ -84,23 +91,7 @@ export class UIManager {
             this.handleStateChange(state);
         });
 
-        // --- GESTION DE L'INVENTAIRE (CENTRALISÉE) ---
-        // Se déclenche quand on ouvre l'inventaire
-        OnOpenInventory.add(() => {
-            this._refreshInventory();
-            this._gameStateManager.setInventory();
-        });
-
-        // Se déclenche n'importe quand (Consommation, Equipement, Loot)
-        OnInventoryUpdated.add(() => {
-            this._refreshInventory();
-        });
-
-        this.inventoryView.onBackObservable.add(() => {
-            this._gameStateManager.setPlaying();
-        });
-
-        // --- MENUS PRINCIPAUX ---
+        // --- NAVIGATION DES MENUS ---
         this.mainMenuView.onPlayObservable.add(() =>
             this._gameStateManager.setPlaying(),
         );
@@ -128,10 +119,62 @@ export class UIManager {
                 : this.pauseMenuView.show();
         });
 
+        // --- INVENTAIRE ---
+        OnOpenInventory.add(() => {
+            this._refreshInventory();
+            this._gameStateManager.setInventory();
+        });
+
+        OnInventoryUpdated.add(() => this._refreshInventory());
+
+        this.inventoryView.onBackObservable.add(() =>
+            this._gameStateManager.setPlaying(),
+        );
+
+        // --- BONFIRE (AMÉLIORATION DE PERSONNAGE) ---
+        OnOpenBonfire.add(() => {
+            if (!this._player) return;
+            // Premier affichage à l'ouverture
+            this.bonfireView.updateStats(
+                this._player.stats,
+                this._player.upgradePoints,
+                this._player.exp.level,
+            );
+            this._gameStateManager.setBonfire();
+        });
+
+        this.bonfireView.onUpgradeStat.add((statId) => {
+            if (!this._player) return;
+
+            // ON NE FAIT QUE NOTIFIER LE PLAYER
+            // C'est le Player qui possède la logique et qui renverra l'ordre de refresh
+            OnRequestStatUpgrade.notifyObservers({
+                statId: statId,
+                costInPoints: 1,
+            });
+        });
+
+        // CETTE MÉTHODE EST LA CLÉ DU SPAM
+        // Elle est appelée par le Player immédiatement après la modif des stats
+        OnStatPointsChanged.add((_data) => {
+            if (!this._player) return;
+            console.log(this._player);
+            // On récupère les stats directement depuis la source de vérité (le Player)
+            // pour être certain de ne pas afficher d'anciennes valeurs.
+            this.bonfireView.updateStats(
+                this._player.stats,
+                this._player.upgradePoints, // On utilise la propriété directe du player
+                this._player.exp.level,
+            );
+        });
+
+        this.bonfireView.onBackObservable.add(() =>
+            this._gameStateManager.setPlaying(),
+        );
+
         // --- HUD & COMBAT ---
         OnLootReceived.add((eventData) => {
             this.hudView.displayLoot(eventData.item, eventData.amount);
-            // Si l'inventaire est ouvert pendant un loot, on refresh
             if (
                 this._gameStateManager.getCurrentState() === GameState.INVENTORY
             ) {
@@ -181,7 +224,7 @@ export class UIManager {
                         this._player.inventory.getItemAmount(shopItem.id),
                     );
                     this.shopView.playBuySuccessAnimation();
-                    OnInventoryUpdated.notifyObservers(); // Notifie le reste du système
+                    OnInventoryUpdated.notifyObservers();
                 }
             } else {
                 this.shopView.playBuyErrorAnimation();
@@ -259,7 +302,6 @@ export class UIManager {
         if (!this._player) return;
 
         const items = this._player.inventory.getAllItems();
-
         const enrichedItems = items.map((invItem) => {
             const itemInfo = ALL_ITEMS[invItem.item.id];
             return {
@@ -269,7 +311,6 @@ export class UIManager {
                 description: itemInfo?.description || "Aucune description",
                 iconPath: itemInfo?.iconPath || "./assets/ui/icons/default.png",
                 type: invItem.item.type,
-                // On ajoute ownedCount si ta vue InventoryView l'utilise encore à la place de quantity
                 ownedCount: invItem.amount,
             };
         });
@@ -289,6 +330,7 @@ export class UIManager {
             this.shopView,
             this.forgeView,
             this.inventoryView,
+            this.bonfireView,
         ];
         views.forEach((v) => v.hide());
 
@@ -314,6 +356,9 @@ export class UIManager {
             case GameState.INVENTORY:
                 this.inventoryView.show();
                 break;
+            case GameState.BONFIRE:
+                this.bonfireView.show();
+                break;
         }
     }
 
@@ -327,7 +372,8 @@ export class UIManager {
         const currentState = this._gameStateManager.getCurrentState();
         if (
             currentState !== GameState.SHOP &&
-            currentState !== GameState.FORGE
+            currentState !== GameState.FORGE &&
+            currentState !== GameState.BONFIRE
         ) {
             this._gameStateManager.setPlaying();
         }

@@ -15,12 +15,20 @@ export class PlayerAttackState extends BaseState<Player> {
         super.onEnter(owner);
         this._direction = owner.queuedAttackDirection;
         owner.buffer.consume("attack");
-
         this._timer = 0;
 
         if (owner.currentWeapon && owner.currentWeapon instanceof MeleeWeapon) {
-            this._attackDuration = owner.currentWeapon.attackDuration;
+            // --- MODIFICATION : Calcul de la vitesse d'attaque via la dextérité ---
+            // On récupère la durée de base de l'arme
+            const baseDuration = owner.currentWeapon.attackDuration;
 
+            // On récupère la stat de dextérité (par défaut 1 si non définie)
+            const dex = owner.stats.dexterity!;
+
+            // Formule : Chaque point de dextérité augmente la vitesse de 10%
+            // Exemple : 1 point = baseDuration / 1.1 | 10 points = baseDuration / 2
+            this._attackDuration = baseDuration / (1 + dex * 0.1);
+            console.log(this._attackDuration);
             // On passe la direction à la méthode attack
             owner.currentWeapon.attack(owner, this._direction);
         } else {

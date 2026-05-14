@@ -24,6 +24,7 @@ import { GenericEnemy } from "../entities/enemies/GenericEnemy";
 import { Slime } from "../entities/enemies/Slime";
 import { Merchant } from "../entities/villagers/Merchant";
 import { Blacksmith } from "../entities/villagers/BlackSmith";
+import { Campfire } from "../entities/villagers/CampFire";
 
 interface VisualAssets {
     root: AbstractMesh;
@@ -242,6 +243,23 @@ export class EntityFactory {
 
                 // Ajustement visuel standard
                 this._setupVisualPivot(assets.root);
+                break;
+
+            case "BONFIRE_MAIN":
+                // On crée l'entité Bonfire (qui implémente Interactable)
+                entity = new Campfire(scene, position, npcData);
+
+                // On attache le modèle 3D
+                assets.root.parent = entity.transform;
+
+                // Ajustement visuel (taille, rotation, offset Y)
+                // Ajuste ces valeurs selon la taille de ton modèle .glb
+                this._setupVisualPivot(
+                    assets.root,
+                    1.5, // Scale
+                    new Vector3(0, 0, 0), // Offset
+                    new Vector3(0, 0, 0), // Rotation
+                );
                 break;
 
             case "VILLAGER_BOB":

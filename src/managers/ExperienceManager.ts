@@ -1,6 +1,6 @@
 export class ExperienceManager {
     public level: number = 1;
-    public currentXp: number = 0;
+    public currentXp: number = 99;
     public xpToNextLevel: number = 100;
 
     private readonly EXPOSANT_LVL_COURBE = 1.5;

@@ -11,7 +11,7 @@ export interface StatConfig {
 }
 
 export class WeaponStatsComponent extends Grid {
-    private readonly STAT_INDENT_PX = 15; // Nombre pur pour éviter les erreurs de parsing
+    private readonly STAT_INDENT_PX = 15;
 
     private _colors: {
         main: string;
@@ -46,10 +46,11 @@ export class WeaponStatsComponent extends Grid {
         };
 
         this.width = "100%";
-        this.addColumnDefinition(0.35);
-        this.addColumnDefinition(0.15);
-        this.addColumnDefinition(0.35);
-        this.addColumnDefinition(0.15);
+        // Rééquilibrage des colonnes : 30% pour le texte, 20% pour la valeur
+        this.addColumnDefinition(0.3);
+        this.addColumnDefinition(0.2);
+        this.addColumnDefinition(0.3);
+        this.addColumnDefinition(0.2);
     }
 
     private _createSectionTitle(text: string): TextBlock {
@@ -181,7 +182,6 @@ export class WeaponStatsComponent extends Grid {
             lbl.fontSize = 13;
             lbl.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
 
-            // Fix du padding : on passe des strings propres
             if (!isRight) {
                 lbl.paddingLeft = `${this.STAT_INDENT_PX}px`;
             } else {
@@ -199,14 +199,17 @@ export class WeaponStatsComponent extends Grid {
                       ? this._colors.success
                       : this._colors.error;
             const sign = diff >= 0 ? "+" : "-";
-            const valStr =
-                stat.id === "attackDuration"
-                    ? targetVal.toFixed(2)
-                    : Math.round(targetVal);
-            const diffStr =
-                stat.id === "attackDuration"
-                    ? Math.abs(diff).toFixed(2)
-                    : Math.round(Math.abs(diff));
+
+            // Formatage intelligent
+            const isDuration =
+                stat.id.toLowerCase().includes("duration") ||
+                stat.id.toLowerCase().includes("cooldown");
+            const valStr = isDuration
+                ? targetVal.toFixed(2)
+                : Math.round(targetVal);
+            const diffStr = isDuration
+                ? Math.abs(diff).toFixed(2)
+                : Math.round(Math.abs(diff));
 
             const valTxt = new TextBlock(
                 "",
@@ -216,7 +219,8 @@ export class WeaponStatsComponent extends Grid {
             valTxt.fontSize = 11;
             valTxt.fontWeight = "bold";
             valTxt.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-            valTxt.paddingRight = "5px";
+            // Réduction du padding pour éviter le crop sur les bords
+            valTxt.paddingRight = "2px";
 
             this.addControl(valTxt, gridRow, isRight ? 3 : 1);
         });

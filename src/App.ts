@@ -139,8 +139,11 @@ export class App {
 
         const merchantPos = new Vector3(startPos.x + 1, startPos.y, 0);
         const merchantPos2 = new Vector3(startPos.x - 1, startPos.y, 0);
+        const merchantPos3 = new Vector3(startPos.x - 3, startPos.y, 0);
+
         this.entityManager.spawn("BLACKSMITH", merchantPos);
         this.entityManager.spawn("MERCHANT_SILAS", merchantPos2);
+        this.entityManager.spawn("BONFIRE_MAIN", merchantPos3);
         this.uiManager.setPlayer(this.player);
 
         console.log(`[App] Player spawned at: ${finalSpawnPos.toString()}`);
@@ -267,6 +270,10 @@ export class App {
                     this.scene.render();
                     break;
                 case GameState.INVENTORY:
+                    this.scene.animationsEnabled = false;
+                    this.scene.render();
+                    break;
+                case GameState.BONFIRE:
                     this.scene.animationsEnabled = false;
                     this.scene.render();
                     break;

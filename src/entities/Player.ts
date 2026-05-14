@@ -58,6 +58,10 @@ import { OnCurrencyChanged } from "../core/interfaces/CurrencyEvent";
 import { OnLootReceived } from "../core/interfaces/LootEvents";
 import { ItemData } from "../data/ItemData";
 import { ALL_ITEMS } from "../data/ItemDb";
+import {
+    OnRequestStatUpgrade,
+    OnStatPointsChanged,
+} from "../core/interfaces/BonfireEvent";
 
 export class Player extends Character {
     public readonly input: InputHandler;
@@ -82,6 +86,7 @@ export class Player extends Character {
     private _timeCounter: number = 0;
     private readonly FLOAT_AMPLITUDE: number = 0.1;
     private readonly FLOAT_SPEED: number = 2.5;
+    public upgradePoints: number = 10;
 
     public currency: number = 5000; // Tes "Fragments"
 
@@ -105,7 +110,16 @@ export class Player extends Character {
         super(
             "Player",
             scene,
-            { hp: 100, maxHp: 100, speed: 12, damage: 10 },
+            {
+                hp: 100,
+                maxHp: 100,
+                speed: 12,
+                damage: 10,
+                strength: 1,
+                vitality: 1,
+                dexterity: 1,
+                agility: 1,
+            },
             Faction.PLAYER,
             "Player",
         );
@@ -134,19 +148,14 @@ export class Player extends Character {
     }
 
     private _onLevelUp(): void {
-        // Boost des stats (Hollow Knight style : on pourrait augmenter les dégâts ou la vie max)
-        this.stats.maxHp += 10;
-        this.stats.hp = this.stats.maxHp; // Soins complets au level up
-        this.stats.damage += 2;
+        this.upgradePoints += 5; // On donne des points au lieu de stats fixes
 
-        console.log(`Bravo ! Niveau ${this.exp.level} atteint.`);
+        console.log(
+            `Niveau ${this.exp.level} atteint ! Points disponibles : ${this.upgradePoints}`,
+        );
 
-        // Update UI
-        OnHealthChanged.notifyObservers({
-            currentHp: this.stats.hp,
-            maxHp: this.effectiveMaxHp,
-            entityId: "Player",
-        });
+        // On prévient l'UI que le stock de points a changé
+        OnStatPointsChanged.notifyObservers(this.upgradePoints);
     }
 
     /**
@@ -357,6 +366,7 @@ export class Player extends Character {
             new Vector3(0, 0.5, -4),
             this._scene,
         );
+        this._pointLight.includedOnlyMeshes = [];
         this._pointLight.diffuse = new Color3(1, 0.98, 0.9);
         this._pointLight.intensity = 0.7;
         this._pointLight.range = 30;
@@ -419,7 +429,6 @@ export class Player extends Character {
                 this._pointLight.position.x = this.transform.position.x;
                 this._pointLight.position.y = this.transform.position.y + 0.5;
                 this._pointLight.position.z = -10; // Toujours fixe vers la caméra
-                this._pointLight.includedOnlyMeshes = [];
             }
         }
 
@@ -521,6 +530,34 @@ export class Player extends Character {
         return this.currency >= price;
     }
 
+    private _applyStatGain(statId: string): void {
+        // IMPORTANT: On modifie directement l'objet référencé par l'UI
+        switch (statId) {
+            case "strength":
+                this.stats.strength! += 1;
+                this.stats.damage += 2;
+                break;
+            case "vitality":
+                this.stats.vitality! += 1;
+                this.stats.maxHp += 20;
+                this.stats.hp += 20;
+
+                OnHealthChanged.notifyObservers({
+                    currentHp: this.stats.hp,
+                    maxHp: this.stats.maxHp,
+                    entityId: this.id,
+                });
+                break;
+            case "dexterity":
+                this.stats.dexterity! += 1;
+                break;
+            case "agility":
+                this.stats.agility! += 1;
+                this.stats.speed += 0.5;
+                break;
+        }
+    }
+
     private _initObservers(): void {
         OnInteractionAvailable.add((event) => {
             if (event.isNear) this._targetInteractable = event.interactable;
@@ -531,6 +568,26 @@ export class Player extends Character {
             // On vérifie que c'est bien ce joueur qui est concerné
             if (event.character.id === this.id) {
                 this.consumeItem(event.itemId);
+            }
+        });
+
+        // --- Dans le constructeur ou _initObservers de Player.ts ---
+        OnRequestStatUpgrade.add((request) => {
+            if (this.upgradePoints >= request.costInPoints) {
+                this.upgradePoints -= request.costInPoints;
+
+                // 1. Applique l'augmentation de la stat (str, vit ou dex)
+                this._applyStatGain(request.statId);
+
+                // 2. FORCE LE REFRESH DE L'UI ICI
+                // On renvoie le nouveau nombre de points pour déclencher le updateStats dans UIManager
+                OnStatPointsChanged.notifyObservers(this.upgradePoints);
+
+                console.log(
+                    `[UPGRADE] ${request.statId} augmenté. Points restants: ${this.upgradePoints}`,
+                );
+            } else {
+                console.warn("Points d'amélioration insuffisants !");
             }
         });
 
