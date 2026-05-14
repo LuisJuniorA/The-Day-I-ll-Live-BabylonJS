@@ -5,6 +5,7 @@ import {
     Image,
     AdvancedDynamicTexture,
     Button,
+    Grid,
 } from "@babylonjs/gui";
 import { BaseView } from "../../core/abstracts/BaseView";
 import { ItemSlotComponent } from "../components/ItemSlotComponent";
@@ -16,6 +17,7 @@ import { WeaponStatsComponent } from "../components/WeaponStatsComponent";
 import { ALL_ITEMS } from "../../data/ItemDb";
 import { WEAPONS_DB } from "../../data/WeaponsDb";
 import {
+    OnItemDropped,
     OnRequestConsumableUse,
     OnRequestEquipToSlot,
     type InventoryItem,
@@ -441,9 +443,80 @@ export class InventoryView extends BaseView {
     }
 
     private _showDropConfirmation(itemId: string) {
-        // Optionnel : Tu pourrais changer le texte du bouton en "CONFIRMER ?"
-        // ou ouvrir une petite popup Babylon GUI ici.
-        console.log("Demande de suppression de l'objet : " + itemId);
+        // 1. On gèle l'inventaire en arrière-plan pour éviter les clics parasites
+        this.rootContainer.isEnabled = false;
+
+        // 2. Création du container de la popup
+        const confirmOverlay = new Rectangle("drop_confirm_overlay");
+        confirmOverlay.width = "260px";
+        confirmOverlay.height = "130px";
+        confirmOverlay.background = "rgba(15, 15, 20, 0.98)";
+        confirmOverlay.color = UI_CONFIG.COLORS.TEXT_CURRENCY; // Bordure dorée
+        confirmOverlay.thickness = 2;
+        confirmOverlay.cornerRadius = 8;
+        confirmOverlay.zIndex = 2000;
+
+        // IMPORTANT : Bloque les interactions avec ce qui est dessous
+        confirmOverlay.isPointerBlocker = true;
+        confirmOverlay.horizontalAlignment =
+            Control.HORIZONTAL_ALIGNMENT_CENTER;
+        confirmOverlay.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+
+        // Fonction de nettoyage pour réactiver l'UI
+        const closePopup = () => {
+            this.advancedTexture.removeControl(confirmOverlay);
+            this.rootContainer.isEnabled = true;
+        };
+
+        // 3. Texte de question
+        const label = new TextBlock("confirm_text", "JETER CET OBJET ?");
+        label.color = UI_CONFIG.COLORS.TEXT_MAIN;
+        label.fontSize = 16;
+        label.fontWeight = "bold";
+        label.fontFamily = UI_CONFIG.FONTS.FAMILY;
+        label.top = "-25px";
+        confirmOverlay.addControl(label);
+
+        // 4. Grille pour les boutons (1 ligne, 2 colonnes)
+        const grid = new Grid("confirm_buttons");
+        grid.height = "50px";
+        grid.width = "90%";
+        grid.top = "25px";
+        grid.addColumnDefinition(0.5);
+        grid.addColumnDefinition(0.5);
+        confirmOverlay.addControl(grid);
+
+        // 5. Bouton CONFIRMER (OUI)
+        // Note: On utilise un simple bouton si ItemSlotComponent pose problème sans item
+        const btnYes = Button.CreateSimpleButton("btn_yes", "OUI");
+        btnYes.width = "90%";
+        btnYes.height = "40px";
+        btnYes.color = "white";
+        btnYes.background = UI_CONFIG.COLORS.TEXT_SUCCESS;
+        btnYes.cornerRadius = 5;
+        btnYes.fontFamily = UI_CONFIG.FONTS.FAMILY;
+        btnYes.onPointerUpObservable.add(() => {
+            console.log("Suppression confirmée : " + itemId);
+            OnItemDropped.notifyObservers({ itemId: itemId });
+            closePopup();
+        });
+        grid.addControl(btnYes, 0, 0);
+
+        // 6. Bouton ANNULER (NON)
+        const btnNo = Button.CreateSimpleButton("btn_no", "NON");
+        btnNo.width = "90%";
+        btnNo.height = "40px";
+        btnNo.color = "white";
+        btnNo.background = UI_CONFIG.COLORS.TEXT_ERROR;
+        btnNo.cornerRadius = 5;
+        btnNo.fontFamily = UI_CONFIG.FONTS.FAMILY;
+        btnNo.onPointerUpObservable.add(() => {
+            closePopup();
+        });
+        grid.addControl(btnNo, 0, 1);
+
+        // 7. Ajout final à la texture parente
+        this.advancedTexture.addControl(confirmOverlay);
     }
 
     public populateInventory(items: InventoryItem[], fragments?: number): void {
@@ -459,7 +532,6 @@ export class InventoryView extends BaseView {
                 slot.setEquipped(false);
             }
         });
-        console.log(items as unknown as ShopItem[]);
 
         if (items.length > 0) {
             this.selectItem(items[0], this._gridView.slots[0]);

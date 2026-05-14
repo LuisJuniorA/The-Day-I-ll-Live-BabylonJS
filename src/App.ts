@@ -65,6 +65,8 @@ export class App {
         this.hitStopManager = new HitStopManager(this.scene);
         this.poolManager = new PoolManager(this.scene);
 
+        this.weaponManager.dispose();
+
         // 3. Configuration du Moteur du Monde (Le lien Core <-> App)
         this.setupWorldEngine();
 

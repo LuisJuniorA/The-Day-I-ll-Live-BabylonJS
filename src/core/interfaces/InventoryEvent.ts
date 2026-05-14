@@ -22,9 +22,10 @@ export const OnRequestConsumableUse = new Observable<{
     itemId: string;
 }>();
 
-// src/core/interfaces/InventoryEvent.ts
 export const OnRequestEquipToSlot = new Observable<{
     player: Player;
     weaponId: string | null;
     slot: WeaponSlot; // "dagger", "sword", etc.
 }>();
+
+export const OnItemDropped = new Observable<{ itemId: string }>();

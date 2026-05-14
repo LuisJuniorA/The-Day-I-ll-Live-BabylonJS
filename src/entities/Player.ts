@@ -48,6 +48,7 @@ import type { Spell } from "../core/interfaces/Spell";
 import type { ShopItem } from "../core/interfaces/ShopEvents";
 import {
     OnInventoryUpdated,
+    OnItemDropped,
     OnOpenInventory,
     OnRequestConsumableUse,
 } from "../core/interfaces/InventoryEvent";
@@ -530,6 +531,28 @@ export class Player extends Character {
             // On vérifie que c'est bien ce joueur qui est concerné
             if (event.character.id === this.id) {
                 this.consumeItem(event.itemId);
+            }
+        });
+
+        // Écoute l'événement de jet d'objet depuis l'UI
+        OnItemDropped.add((event) => {
+            // On vérifie si l'item est possédé
+            const currentAmount = this.inventory.getItemAmount(event.itemId);
+
+            if (currentAmount > 0) {
+                const amountToRemove =
+                    this.inventory.getItemAmount(event.itemId) ?? 1;
+
+                // 1. Suppression logique
+                this.inventory.removeItem(event.itemId, amountToRemove);
+
+                console.log(
+                    `%c [DROP] ${event.itemId} jeté (${amountToRemove} unité(s))`,
+                    "color: #ffa502",
+                );
+
+                // 2. Notification de rafraîchissement pour l'UI
+                OnInventoryUpdated.notifyObservers();
             }
         });
 
