@@ -1,25 +1,26 @@
 import type { EnemyConfig } from "../core/types/EnemyConfig";
 
 export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
+    // --- L'EFFROI (Mob de milieu/fin de zone) ---
+    // C'est lui qui doit financer les armes Tier 2 et 3.
     effroi: {
         id: "effroi_standard",
         displayName: "Effroi",
         assetPath: "./assets/models/characters/enemies/effroi.glb",
         stats: { hp: 200, maxHp: 200, speed: 5, damage: 10 },
-        // --- RECOMPENSES ---
-        xpReward: 150, // Gros mob, grosse XP
+        xpReward: 150,
         lootTable: [
             {
                 itemId: "gold_coin",
-                dropChance: 1.0, // Toujours un peu d'or
-                minAmount: 20,
-                maxAmount: 50,
+                dropChance: 1.0,
+                minAmount: 80, // Augmenté : 4-5 kills = 1 Despair Tear
+                maxAmount: 150,
             },
             {
                 itemId: "despairs_tear",
-                dropChance: 0.2, // Rare
+                dropChance: 0.4, // Augmenté : Moins de grind frustrant
                 minAmount: 1,
-                maxAmount: 1,
+                maxAmount: 2,
             },
         ],
         behavior: {
@@ -34,25 +35,27 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
             weights: { seek: 1, separation: 0.5 },
         },
     },
+
+    // --- SLIME SOMBRE (Mob de début de zone) ---
+    // Source principale de Slime Souls et petit revenu constant.
     slime: {
         id: "slime_dark_entity",
         displayName: "Slime Sombre",
         assetPath: "procedural",
         stats: { hp: 80, maxHp: 80, speed: 2.5, damage: 15 },
-        // --- RECOMPENSES ---
         xpReward: 35,
         lootTable: [
             {
                 itemId: "gold_coin",
-                dropChance: 0.5, // 50% de chance
-                minAmount: 5,
-                maxAmount: 15,
+                dropChance: 1.0, // Toujours de l'or, même un peu
+                minAmount: 15, // 20 kills = 300g (Prix de base d'une arme T1)
+                maxAmount: 35,
             },
             {
                 itemId: "slime_soul",
-                dropChance: 0.8, // Commun
-                minAmount: 1,
-                maxAmount: 3,
+                dropChance: 0.9, // Presque systématique
+                minAmount: 2, // On en donne plus car les recettes en demandent pas mal
+                maxAmount: 4,
             },
         ],
         behavior: {

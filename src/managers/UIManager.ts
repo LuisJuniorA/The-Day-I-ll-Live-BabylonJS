@@ -26,7 +26,10 @@ import {
     OnInteractionAvailable,
     type DialogueRequest,
 } from "../core/interfaces/Interactable";
-import { OnHealthChanged } from "../core/interfaces/CombatEvent";
+import {
+    OnHealthChanged,
+    OnExperienceChanged, // <--- Nouvel import
+} from "../core/interfaces/CombatEvent";
 import { OnOpenShop, OnPurchaseRequest } from "../core/interfaces/ShopEvents";
 import { OnOpenForge, OnCraftRequest } from "../core/interfaces/ForgeEvents";
 import {
@@ -134,7 +137,6 @@ export class UIManager {
         // --- BONFIRE (AMÉLIORATION DE PERSONNAGE) ---
         OnOpenBonfire.add(() => {
             if (!this._player) return;
-            // Premier affichage à l'ouverture
             this.bonfireView.updateStats(
                 this._player.stats,
                 this._player.upgradePoints,
@@ -145,25 +147,17 @@ export class UIManager {
 
         this.bonfireView.onUpgradeStat.add((statId) => {
             if (!this._player) return;
-
-            // ON NE FAIT QUE NOTIFIER LE PLAYER
-            // C'est le Player qui possède la logique et qui renverra l'ordre de refresh
             OnRequestStatUpgrade.notifyObservers({
                 statId: statId,
                 costInPoints: 1,
             });
         });
 
-        // CETTE MÉTHODE EST LA CLÉ DU SPAM
-        // Elle est appelée par le Player immédiatement après la modif des stats
         OnStatPointsChanged.add((_data) => {
             if (!this._player) return;
-            console.log(this._player);
-            // On récupère les stats directement depuis la source de vérité (le Player)
-            // pour être certain de ne pas afficher d'anciennes valeurs.
             this.bonfireView.updateStats(
                 this._player.stats,
-                this._player.upgradePoints, // On utilise la propriété directe du player
+                this._player.upgradePoints,
                 this._player.exp.level,
             );
         });
@@ -184,6 +178,18 @@ export class UIManager {
 
         OnHealthChanged.add((event) => {
             this.hudView.updatePlayerHealth(event.currentHp, event.maxHp);
+        });
+
+        // --- MISE À JOUR DE L'EXPÉRIENCE ---
+        OnExperienceChanged.add((event) => {
+            if (!this._player) return;
+            // On transmet les infos à la HUDView
+            // Note: On utilise le level du player car l'event ne transmet que current/next
+            this.hudView.updatePlayerExperience(
+                event.current,
+                event.next,
+                this._player.exp.level,
+            );
         });
 
         OnCurrencyChanged.add((event) => {

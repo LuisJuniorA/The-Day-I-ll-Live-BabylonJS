@@ -14,7 +14,6 @@ export class Blacksmith extends NPCInteractable {
             text: "Besoin de transformer tes trouvailles ?",
             onComplete: () => {
                 const recipeIds = this.data.metadata?.forgeRecipes || [];
-
                 // FUSION DYNAMIQUE ICI
                 const enrichedRecipes: ForgeRecipe[] = recipeIds
                     .map((id) => {
@@ -22,7 +21,6 @@ export class Blacksmith extends NPCInteractable {
                         const baseItem = ALL_ITEMS[id]; // On récupère les infos visuelles
 
                         if (!raw || !baseItem) return null;
-
                         return {
                             ...baseItem, // id, name, description, iconPath, type
                             price: raw.price,

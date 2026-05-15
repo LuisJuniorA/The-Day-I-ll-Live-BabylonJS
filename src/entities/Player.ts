@@ -24,6 +24,7 @@ import {
 import { CollisionLayers } from "../core/constants/CollisionLayers";
 import {
     AttackDirection,
+    OnExperienceChanged,
     OnExperienceGained,
     OnHealthChanged,
     OnItemPickedUp,
@@ -143,8 +144,10 @@ export class Player extends Character {
             this._onLevelUp();
         }
 
-        // Optionnel : Notifier l'UI pour la barre d'XP
-        // OnXpChanged.notifyObservers({ current: this.exp.currentXp, next: this.exp.xpToNextLevel });
+        OnExperienceChanged.notifyObservers({
+            current: this.exp.currentXp,
+            next: this.exp.xpToNextLevel,
+        });
     }
 
     private _onLevelUp(): void {

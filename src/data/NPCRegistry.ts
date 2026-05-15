@@ -1,5 +1,5 @@
 import { Blacksmith } from "../entities/villagers/BlackSmith";
-import { Campfire } from "../entities/villagers/CampFire";
+import { Campfire } from "../entities/villagers/Campfire";
 import { Merchant } from "../entities/villagers/Merchant";
 import { Villager } from "../entities/villagers/Villager";
 

@@ -24,7 +24,7 @@ import { GenericEnemy } from "../entities/enemies/GenericEnemy";
 import { Slime } from "../entities/enemies/Slime";
 import { Merchant } from "../entities/villagers/Merchant";
 import { Blacksmith } from "../entities/villagers/BlackSmith";
-import { Campfire } from "../entities/villagers/CampFire";
+import { Campfire } from "../entities/villagers/Campfire";
 
 interface VisualAssets {
     root: AbstractMesh;

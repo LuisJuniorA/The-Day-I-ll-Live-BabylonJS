@@ -72,3 +72,7 @@ export const OnDamageConfirmed = new Observable<DamageEvent>();
 export const OnExperienceGained = new Observable<ExperienceEvent>();
 export const OnItemPickedUp = new Observable<ItemPickupEvent>();
 export const OnSpellChanged = new Observable<Spell | null>();
+export const OnExperienceChanged = new Observable<{
+    current: number;
+    next: number;
+}>();

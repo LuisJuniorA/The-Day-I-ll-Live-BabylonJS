@@ -349,7 +349,7 @@ export class InventoryView extends BaseView {
                         suffix = "%";
                     } else if (key === "damageMultiplier") {
                         label = "PUISSANCE";
-                        suffix = "x";
+                        suffix = "%";
                     } else if (key === "healthBoost") {
                         label = "VIE MAX";
                     }

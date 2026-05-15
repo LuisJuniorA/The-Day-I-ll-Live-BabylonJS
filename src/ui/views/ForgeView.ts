@@ -459,7 +459,7 @@ export class ForgeView extends BaseView {
                         suffix = "%";
                     } else if (key === "damageMultiplier") {
                         label = UI_CONFIG.TEXTS.STATS_LABELS.power;
-                        suffix = "x";
+                        suffix = "%";
                     } else if (key === "healthBoost") {
                         label = UI_CONFIG.TEXTS.STATS_LABELS.health;
                     }
@@ -484,6 +484,8 @@ export class ForgeView extends BaseView {
                 // On extrait la valeur numérique (ex: 0.1) pour le calcul
                 let val = mods[key].value;
                 if (key === "speedBoost") val *= 100;
+                if (key === "damageMultiplier") val *= 100;
+
                 flat[key] = val;
             }
             return flat;
