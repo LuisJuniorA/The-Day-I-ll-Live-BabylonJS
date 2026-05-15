@@ -399,18 +399,20 @@ export class Player extends Character {
         this.checkGrounded();
 
         // 2. LOGIQUE DE GRAVITÉ CENTRALISÉE
+        // 2. LOGIQUE DE GRAVITÉ CENTRALISÉE (AVEC ASYMÉTRIE)
         if (this.isGrounded) {
-            // Si on est au sol et qu'on ne saute pas, on maintient une petite pression vers le bas
             if (this.velocity.y <= 0) {
                 this.velocity.y = -0.1;
             }
             this.coyoteTimeCounter = this.coyoteTimeDuration;
         } else {
-            // Application de la gravité (accélération)
-            // Le multiplicateur 60-80 ajuste le "poids" ressenti
-            this.velocity.y += this.gravity * dt * 65;
+            // Détermination du multiplicateur : plus lourd en tombant
+            // Si velocity.y < 0, on tombe -> on applique par exemple 1.5x la gravité
+            const fallMultiplier = this.velocity.y < 0 ? 1.5 : 1.0;
 
-            // Vitesse terminale pour éviter de traverser le décor
+            this.velocity.y += this.gravity * dt * 65 * fallMultiplier;
+
+            // Vitesse terminale
             if (this.velocity.y < -25) this.velocity.y = -25;
 
             this.coyoteTimeCounter -= dt;
