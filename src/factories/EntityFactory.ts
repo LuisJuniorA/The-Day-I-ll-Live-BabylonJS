@@ -352,6 +352,10 @@ export class EntityFactory {
         path: string,
         scene: Scene,
     ): Promise<VisualAssets> {
+        if (path === "procedural" || !path) {
+            return this._createPlaceholderVisual(scene);
+        }
+
         try {
             const container = await this.LoadAsset(path, scene);
             const entries = container.instantiateModelsToScene(
@@ -364,17 +368,27 @@ export class EntityFactory {
                 anims: entries.animationGroups,
             };
         } catch (e) {
-            const mesh = MeshBuilder.CreateCapsule(
-                "placeholder",
-                { height: 2, radius: 0.5 },
-                scene,
+            console.warn(
+                `Échec du chargement de l'asset à l'adresse: ${path}. Utilisation du placeholder.`,
+                e,
             );
-            mesh.position.y = 1;
-            const material = new StandardMaterial("mat_placeholder", scene);
-            material.diffuseColor = Color3.Blue();
-            mesh.material = material;
-            return { root: mesh, anims: [] };
+            return this._createPlaceholderVisual(scene);
         }
+    }
+
+    // 2. On isole la création du mesh procédural pour la lisibilité
+    private static _createPlaceholderVisual(scene: Scene): VisualAssets {
+        const mesh = MeshBuilder.CreateCapsule(
+            "placeholder",
+            { height: 2, radius: 0.5 },
+            scene,
+        );
+        mesh.position.y = 1;
+        const material = new StandardMaterial("mat_placeholder", scene);
+        material.diffuseColor = Color3.Blue();
+        mesh.material = material;
+
+        return { root: mesh, anims: [] };
     }
 
     public static async LoadAsset(
