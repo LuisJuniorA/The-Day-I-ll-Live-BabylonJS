@@ -521,10 +521,18 @@ export class InventoryView extends BaseView {
 
     public populateInventory(items: InventoryItem[], fragments?: number): void {
         if (fragments !== undefined) this.updateCurrency(fragments);
+
+        // 1. Sauvegarder l'ID de l'item actuellement sélectionné avant de tout vider
+        const lastSelectedId = this._selectedItem?.id;
+
+        // 2. On remplit la grille
         this._gridView.populate(items as unknown as ShopItem[], 25);
+
         const equippedIds = Object.values(this._currentEquipment).filter(
             (id) => id !== null,
         );
+
+        // 3. On met à jour l'état visuel "Equipé"
         this._gridView.slots.forEach((slot) => {
             if (slot.itemData && equippedIds.includes(slot.itemData.id)) {
                 slot.setEquipped(true);
@@ -533,8 +541,22 @@ export class InventoryView extends BaseView {
             }
         });
 
+        // 4. GESTION INTELLIGENTE DE LA SÉLECTION
         if (items.length > 0) {
-            this.selectItem(items[0], this._gridView.slots[0]);
+            let itemToSelect = items[0];
+            let slotToSelect = this._gridView.slots[0];
+
+            // Si on avait un item sélectionné avant, on cherche s'il existe toujours dans la liste
+            if (lastSelectedId) {
+                const index = items.findIndex((it) => it.id === lastSelectedId);
+                if (index !== -1) {
+                    itemToSelect = items[index];
+                    slotToSelect = this._gridView.slots[index];
+                }
+            }
+
+            // On sélectionne l'item trouvé (ou le premier par défaut)
+            this.selectItem(itemToSelect, slotToSelect);
         }
     }
 

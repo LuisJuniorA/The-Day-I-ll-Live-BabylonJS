@@ -33,23 +33,23 @@ const BONFIRE_CONFIG = {
 const STAT_DESCRIPTIONS: Record<string, { desc: string; icon: string }> = {
     strength: {
         desc: "Augmente la puissance brute et les dégâts physiques infligés par vos armes.",
-        icon: "icon_strength.svg",
+        icon: "icon_strength.png",
     },
     vitality: {
         desc: "Augmente votre réserve de santé maximum pour survivre plus longtemps.",
-        icon: "icon_vitality.svg",
+        icon: "icon_vitality.png",
     },
     agility: {
         desc: "Améliore votre vitesse de déplacement et votre réactivité au sol.",
-        icon: "icon_agility.svg",
+        icon: "icon_agility.png",
     },
     dexterity: {
         desc: "Augmente votre vitesse d'attaque, vous permettant de frapper plus souvent.",
-        icon: "icon_dexterity.svg",
+        icon: "icon_dexterity.png",
     },
     intelligence: {
         desc: "Augmente la puissance de vos sorts de 5% par point.",
-        icon: "icon_intelligence.svg",
+        icon: "icon_intelligence.png",
     },
 };
 
@@ -221,7 +221,7 @@ export class BonfireView extends BaseView {
 
             const data = STAT_DESCRIPTIONS[stat.id] || {
                 desc: "Effet inconnu",
-                icon: "icon_strength.svg",
+                icon: "icon_strength.png",
             };
 
             const rowContainer = new Rectangle("row_" + stat.id);

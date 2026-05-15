@@ -85,7 +85,7 @@ export const ItemData: Record<string, Item> = {
         id: "health_potion",
         name: "Potion de Vie",
         description: "Rend instantanément 50 HP.",
-        iconPath: "./assets/ui/icons/utils/health_potion.svg",
+        iconPath: "./assets/ui/icons/utils/health_potion.png",
         type: ItemType.CONSUMABLE,
         effects: [{ type: "heal", value: 50 }],
     },
@@ -95,7 +95,7 @@ export const ItemData: Record<string, Item> = {
         id: "speed_elixir",
         name: "Élixir de célérité",
         description: "Augmente la vitesse de 30% pendant 10 minutes.",
-        iconPath: "./assets/ui/icons/utils/speed_elixir.svg",
+        iconPath: "./assets/ui/icons/utils/speed_elixir.png",
         type: ItemType.CONSUMABLE,
         effects: [{ type: "speed", value: 0.3, duration: 10 * 60 }],
     },
@@ -106,7 +106,7 @@ export const ItemData: Record<string, Item> = {
         name: "Breuvage du Berserker",
         description:
             "Rend 20 HP et augmente les dégâts de 20% pendant 1 minute.",
-        iconPath: "./assets/ui/icons/utils/berserker_brew.svg",
+        iconPath: "./assets/ui/icons/utils/berserker_brew.png",
         type: ItemType.CONSUMABLE,
         effects: [
             { type: "heal", value: 20 },

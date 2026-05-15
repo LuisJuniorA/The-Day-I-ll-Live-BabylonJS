@@ -69,6 +69,7 @@ export class ItemGridViewComponent extends Rectangle {
 
     /** Logique interne de filtrage et d'affichage */
     private _applyFilterAndPopulate(): void {
+        console.count("Populate");
         // 1. Filtrage des données
         const filteredItems =
             this._currentFilter === "all"

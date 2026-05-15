@@ -54,19 +54,19 @@ export class CurrencyFooterComponent extends Rectangle {
         this._createFilterButton(filterPanel, "ALL", "all", fontFamily);
         this._createFilterButton(
             filterPanel,
-            "weapon.svg",
+            "weapon.png",
             ItemType.WEAPON,
             fontFamily,
         );
         this._createFilterButton(
             filterPanel,
-            "material.svg",
+            "material.png",
             ItemType.MATERIAL,
             fontFamily,
         );
         this._createFilterButton(
             filterPanel,
-            "consumable.svg",
+            "consumable.png",
             ItemType.CONSUMABLE,
             fontFamily,
         );
@@ -104,7 +104,7 @@ export class CurrencyFooterComponent extends Rectangle {
         btn.isPointerBlocker = true;
 
         // Si le contenu se termine par .png, on crée une image, sinon un texte
-        if (content.endsWith(".svg")) {
+        if (content.endsWith(".png")) {
             const icon = new Image(
                 `${type}_icon`,
                 this.ICON_BASE_PATH + content,
