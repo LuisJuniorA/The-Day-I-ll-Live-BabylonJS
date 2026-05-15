@@ -3,7 +3,6 @@ import { Entity } from "./Entity";
 import type { CharacterStats } from "../types/CharacterStats";
 import { OnDamageConfirmed, OnEntityDamaged } from "../interfaces/CombatEvent";
 import type { FactionType } from "../types/Faction";
-import { AudioManager } from "../../managers/AudioManager";
 
 export abstract class Character extends Entity {
     public stats: CharacterStats;

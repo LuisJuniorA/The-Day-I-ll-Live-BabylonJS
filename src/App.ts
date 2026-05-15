@@ -65,6 +65,7 @@ export class App {
         // 2. Initialisation des gestionnaires
         this.gameStateManager = new GameStateManager();
         this.audioManager = new AudioManager(this.scene);
+        this.audioManager.playSfx("UI_CLICK");
         this.uiManager = new UIManager(this.scene, this.gameStateManager);
         this.entityManager = new EntityManager(this.scene);
         this.levelManager = new LevelManager(this.scene);
