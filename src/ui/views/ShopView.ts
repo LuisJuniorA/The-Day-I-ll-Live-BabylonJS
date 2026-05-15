@@ -20,6 +20,7 @@ import { DescriptionComponent } from "../components/DescriptionComponent";
 import { RequirementRowComponent } from "../components/RequirementRowComponent";
 import { ItemGridViewComponent } from "../components/ItemGridViewComponent";
 import { CurrencyFooterComponent } from "../components/CurrencyFooterComponent";
+import { AudioManager } from "../../managers/AudioManager";
 
 export class ShopView extends BaseView {
     // --- Configuration ---
@@ -267,6 +268,8 @@ export class ShopView extends BaseView {
         this._buyButton.fontSize = 20;
         this._buyButton.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
         this._buyButton.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+
             if (this._selectedItem)
                 OnPurchaseRequest.notifyObservers(this._selectedItem);
         });
@@ -289,6 +292,8 @@ export class ShopView extends BaseView {
             () => (closeBtn.color = this.COLOR_BTN_CLOSE),
         );
         closeBtn.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+
             this.hide();
             this.onBackObservable.notifyObservers();
         });

@@ -22,6 +22,7 @@ import { CurrencyFooterComponent } from "../components/CurrencyFooterComponent";
 import { WeaponStatsComponent } from "../components/WeaponStatsComponent";
 import { ALL_ITEMS } from "../../data/ItemDb";
 import { ItemGridViewComponent } from "../components/ItemGridViewComponent";
+import { AudioManager } from "../../managers/AudioManager";
 
 // --- CONFIGURATION ---
 const UI_CONFIG = {
@@ -350,6 +351,8 @@ export class ForgeView extends BaseView {
         this._craftButton.fontSize = UI_CONFIG.FONTS.SIZE_BTN_MAIN;
         this._craftButton.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
         this._craftButton.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+
             if (this._selectedRecipe)
                 OnCraftRequest.notifyObservers(this._selectedRecipe);
         });
@@ -373,6 +376,8 @@ export class ForgeView extends BaseView {
             () => (closeBtn.color = UI_CONFIG.COLORS.BTN_CLOSE),
         );
         closeBtn.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+
             this.hide();
             this.onBackObservable.notifyObservers();
         });

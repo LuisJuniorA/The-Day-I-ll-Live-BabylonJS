@@ -47,7 +47,10 @@ export class CurrencyHUDComponent extends Rectangle {
         this.addControl(container);
 
         // 1. Logo (Plus grand et centré)
-        this._icon = new Image(`${name}_Icon`, "./assets/ui/icons/default.png");
+        this._icon = new Image(
+            `${name}_Icon`,
+            "./assets/ui/icons/materials/fragment.png",
+        );
         this._icon.width = "36px";
         this._icon.height = "36px";
         // Plus besoin de paddingLeft ici, le container s'en occupe

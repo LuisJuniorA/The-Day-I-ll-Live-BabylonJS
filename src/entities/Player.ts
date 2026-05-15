@@ -63,6 +63,7 @@ import {
     OnRequestStatUpgrade,
     OnStatPointsChanged,
 } from "../core/interfaces/BonfireEvent";
+import { AudioManager } from "../managers/AudioManager";
 
 export class Player extends Character {
     public readonly input: InputHandler;
@@ -94,6 +95,8 @@ export class Player extends Character {
     private _currentStatus: StatusType = StatusType.NONE;
     private _statusTimer: number = 0;
     private _activeModifiers: Map<string, number> = new Map();
+    private _footstepTimer: number = 0;
+    private _footstepDelay: number = 0.35; // Temps en secondes entre deux pas (à ajuster selon l'anim)
 
     private _currentSlots: Record<WeaponSlot, string | null> = {
         [WeaponSlot.DAGGER]: null,
@@ -450,18 +453,38 @@ export class Player extends Character {
         if (this.isDead || !this.mesh) return;
 
         // 1. On calcule la vitesse cible (Stat de base + Equipement)
-        const moveX = inputVector.x; // L'input brut (-1, 0, 1)
+        const moveX = inputVector.x;
         const bonus = this.getSpeedBonus();
         const maxSpeed = this.stats.speed * bonus;
         const targetVelocityX = moveX * maxSpeed;
 
-        // 2. Lissage (Lerp) : On met à jour la vélocité horizontale du joueur
-        // On utilise 0.2 pour un feeling nerveux, baisse à 0.1 pour du "savonneux"
+        // 2. Lissage (Lerp)
         this.velocity.x = Scalar.Lerp(this.velocity.x, targetVelocityX, 0.2);
 
-        // 3. Sécurité d'arrêt (Évite de glisser à l'infini)
+        // 3. Sécurité d'arrêt
         if (Math.abs(moveX) < 0.1 && Math.abs(this.velocity.x) < 0.1) {
             this.velocity.x = 0;
+        }
+
+        // --- GESTION DES FOOTSTEPS ---
+        const isMovingOnGround =
+            this.isGrounded && Math.abs(this.velocity.x) > 0.5;
+
+        if (isMovingOnGround) {
+            this._footstepTimer += dt;
+
+            if (this._footstepTimer >= this._footstepDelay) {
+                // Lecture du son via le nouvel AudioManager V2
+                AudioManager.getInstance().playSfx(
+                    "FOOTSTEP",
+                    this.mesh.position,
+                );
+                this._footstepTimer = 0;
+            }
+        } else {
+            // Si on saute ou on s'arrête, on reset le timer au seuil de déclenchement
+            // pour que le prochain pas soit réactif dès l'atterrissage.
+            this._footstepTimer = this._footstepDelay;
         }
 
         // 4. Orientation (Flip du sprite/mesh)
@@ -470,15 +493,13 @@ export class Player extends Character {
         }
 
         // 5. On prépare le vecteur final pour le parent
-        // On prend le X qu'on vient de lisser et le Y de la gravité géré dans update()
         const finalMoveVector = new Vector3(
             this.velocity.x,
             this.velocity.y,
             0,
         );
 
-        // 6. On appelle la physique du Character (Parent)
-        // C'est lui qui fera le .scale(dt) et le moveWithCollisions
+        // 6. Physique du Character
         super.move(finalMoveVector, dt);
     }
 

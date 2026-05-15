@@ -14,7 +14,8 @@ import { EntityManager } from "./managers/EntityManager";
 import { GameStateManager } from "./managers/GameStateManager";
 import { UIManager } from "./managers/UIManager";
 import { WeaponManager } from "./managers/WeaponManager";
-import { WorldEngine } from "./core/engines/WorldEngine"; // Ton nouveau moteur
+import { AudioManager } from "./managers/AudioManager";
+import { WorldEngine } from "./core/engines/WorldEngine";
 import { GameState } from "./core/types/GameState";
 import { WeaponSlot } from "./core/types/WeaponTypes";
 import { EntityFactory } from "./factories/EntityFactory";
@@ -24,6 +25,7 @@ import { PoolManager } from "./managers/PoolManager";
 import { CameraManager } from "./managers/CameraManager";
 import { CustomLoadingScreen } from "./core/engines/LoadingScreen";
 import { ALL_ITEMS } from "./data/ItemDb";
+import "@babylonjs/core/Audio/audioSceneComponent";
 
 export class App {
     private readonly engine: Engine;
@@ -38,6 +40,7 @@ export class App {
     private readonly weaponManager: WeaponManager;
     private readonly hitStopManager: HitStopManager;
     private readonly poolManager: PoolManager;
+    private readonly audioManager: AudioManager;
     private cameraManager!: CameraManager;
 
     // Core Engine
@@ -49,7 +52,10 @@ export class App {
     constructor() {
         // 1. Initialisation de base
         this.canvas = this.createCanvas();
-        this.engine = new Engine(this.canvas, true);
+        // Dans ton fichier d'initialisation (ex: App.ts)
+        this.engine = new Engine(this.canvas, true, {
+            deterministicLockstep: true,
+        });
         this.scene = new Scene(this.engine);
         this.engine.loadingScreen = new CustomLoadingScreen();
         EntityFactory.setScene(this.scene);
@@ -58,6 +64,7 @@ export class App {
 
         // 2. Initialisation des gestionnaires
         this.gameStateManager = new GameStateManager();
+        this.audioManager = new AudioManager(this.scene);
         this.uiManager = new UIManager(this.scene, this.gameStateManager);
         this.entityManager = new EntityManager(this.scene);
         this.levelManager = new LevelManager(this.scene);
@@ -67,7 +74,7 @@ export class App {
 
         this.weaponManager.dispose();
 
-        // 3. Configuration du Moteur du Monde (Le lien Core <-> App)
+        // 3. Configuration du Moteur du Monde
         this.setupWorldEngine();
 
         // 4. Physique et Monde
@@ -82,13 +89,9 @@ export class App {
         this.startRenderLoop();
 
         const glow = new GlowLayer("glow", this.scene);
-        glow.intensity = 0.1; // Ajuste selon tes goûts
+        glow.intensity = 0.1;
     }
 
-    /**
-     * Configure le WorldEngine avec les délégués pour piloter les managers
-     * sans que le Core ne dépende d'eux.
-     */
     private setupWorldEngine(): void {
         this.worldEngine = new WorldEngine({
             onWorldGenerated: (grid, blockSize) => {
@@ -115,11 +118,7 @@ export class App {
     }
 
     private spawnPlayer(): void {
-        // 1. On récupère la position sécurisée
         const startPos = this.worldEngine.getStartPosition();
-
-        // 2. On force le Z à 0 (le plan de jeu)
-        // startPos est déjà un Vector3(x * blockSize, y * blockSize, 0)
         const finalSpawnPos = new Vector3(startPos.x, startPos.y, 0);
 
         this.player = new Player(this.scene, finalSpawnPos);
@@ -132,7 +131,6 @@ export class App {
             this.menuCamera.dispose();
         }
 
-        // Important pour que l'IA sache où aller
         this.entityManager.setPlayerTarget(this.player.transform);
         this.entityManager.add(this.player);
         this.cameraManager = new CameraManager(this.scene, this.player);
@@ -162,6 +160,8 @@ export class App {
         this.gameStateManager.onStateChangedObservable.add((state) => {
             if (state === GameState.PLAYING) {
                 this.canvas.requestPointerLock();
+                // Activation de l'ambiance sonore au début du jeu
+                //this.audioManager.playMusic("ENVIRONMENT");
             } else if (document.pointerLockElement === this.canvas) {
                 document.exitPointerLock();
             }
@@ -169,28 +169,27 @@ export class App {
 
         this.uiManager.mainMenuView.onPlayObservable.add(async () => {
             if (!this.player) {
-                // 1. Affiche l'écran de chargement
-                this.engine.displayLoadingUI();
                 this.engine.displayLoadingUI();
 
                 try {
-                    // Petit délai pour laisser l'UI s'afficher avant de bloquer le thread
+                    // Laisser un peu de temps à l'UI pour s'afficher
                     await new Promise((r) => setTimeout(r, 50));
 
-                    // 2. Initialisation du monde
+                    // 1. Initialiser le monde (chargement assets)
                     await this.worldEngine.init("./assets/scenes/start.glb");
 
-                    // 3. Initialisation du joueur et CameraManager
+                    // 2. CRUCIAL : Attendre que Babylon ait fini de traiter la scène
+                    // et que tous les meshes soient prêts pour les collisions
+                    await this.scene.whenReadyAsync();
+
+                    // 3. Spawner les entités maintenant que le sol est "physique"
                     this.spawnPlayer();
                     this.entityManager.spawn("SLIME", new Vector3(0, 0, 0));
 
-                    // 4. Armes
+                    // 4. Armes et Spells
                     await this.setupInitialWeapons();
 
-                    // 5. CRUCIAL : On attend que le GPU soit prêt (évite le lag au 1er rendu)
-                    await this.scene.whenReadyAsync();
-
-                    // 6. On cache le loading et on joue
+                    // 5. Cleanup UI et démarrage
                     this.engine.hideLoadingUI();
                     this.gameStateManager.setPlaying();
                 } catch (err) {
@@ -232,12 +231,9 @@ export class App {
                     break;
 
                 case GameState.PLAYING:
-                    // Laisse le manager décider si on doit freeze ou non
                     this.hitStopManager.update(dt);
                     this.poolManager.update(dt);
 
-                    // On ne met à jour la logique des entités QUE si on n'est pas en hitstop
-                    // Sinon ils vont continuer à bouger/glisser pendant le freeze
                     if (this.scene.animationsEnabled) {
                         this.entityManager.update(dt);
                     }
@@ -253,28 +249,16 @@ export class App {
                     break;
 
                 case GameState.PAUSED:
+                case GameState.SHOP:
+                case GameState.FORGE:
+                case GameState.INVENTORY:
+                case GameState.BONFIRE:
                     this.scene.animationsEnabled = false;
-                    this.scene.render(true);
+                    this.scene.render();
                     break;
 
                 case GameState.DIALOGUE:
                     if (this.player) this.player.updateInput(dt);
-                    this.scene.render();
-                    break;
-                case GameState.SHOP:
-                    this.scene.animationsEnabled = false;
-                    this.scene.render();
-                    break;
-                case GameState.FORGE:
-                    this.scene.animationsEnabled = false;
-                    this.scene.render();
-                    break;
-                case GameState.INVENTORY:
-                    this.scene.animationsEnabled = false;
-                    this.scene.render();
-                    break;
-                case GameState.BONFIRE:
-                    this.scene.animationsEnabled = false;
                     this.scene.render();
                     break;
             }
@@ -282,8 +266,6 @@ export class App {
 
         window.addEventListener("resize", () => this.engine.resize());
     }
-
-    // --- Helpers de setup ---
 
     private initMenu(): void {
         this.menuCamera = new UniversalCamera(
@@ -310,17 +292,7 @@ export class App {
         return canvas;
     }
 
-    private createDefaultLight(): void {
-        // const light = new HemisphericLight(
-        //     "ambientLight",
-        //     new Vector3(0, 1, 0),
-        //     this.scene,
-        // );
-        // // On baisse l'intensité à 0.2 (au lieu de 0.7)
-        // // Ça permet de voir la silhouette du monstre même sans torche
-        // light.intensity = 0.2;
-        // light.diffuse = new Color3(0.5, 0.5, 0.8); // Teinte légèrement bleutée pour la nuit
-    }
+    private createDefaultLight(): void {}
 
     private setupInspectorToggle(): void {
         // @ts-ignore

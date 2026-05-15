@@ -1,5 +1,6 @@
 import { Rectangle, Image, TextBlock, Control } from "@babylonjs/gui";
 import type { ShopItem } from "../../core/interfaces/ShopEvents";
+import { AudioManager } from "../../managers/AudioManager";
 
 export class ItemSlotComponent extends Rectangle {
     private _icon?: Image;
@@ -152,6 +153,7 @@ export class ItemSlotComponent extends Rectangle {
         });
 
         this.onPointerClickObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
             if (this.itemData) onClick(this.itemData, this);
         });
     }

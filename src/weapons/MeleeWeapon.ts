@@ -15,6 +15,7 @@ import type { WeaponData } from "../core/types/WeaponStats";
 import { DebugService } from "../core/engines/DebugService";
 import { PoolManager } from "../managers/PoolManager";
 import { Player } from "../entities/Player";
+import { AudioManager } from "../managers/AudioManager";
 
 /**
  * Classe de base pour toutes les armes de mêlée.
@@ -34,6 +35,7 @@ export abstract class MeleeWeapon extends Weapon {
         direction: AttackDirection = AttackDirection.SIDE,
     ): void {
         this.playAttackAnimation(owner, direction);
+        AudioManager.getInstance().playSfx("SWORD_SWING");
 
         const { position, size, rotation } = this._calculateHitboxGeometry(
             owner,

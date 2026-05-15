@@ -7,7 +7,7 @@ export const ItemData: Record<string, Item> = {
         name: "Fragment of Hope",
         description:
             "A remnant from a decaying world. This currency allows you to exchange the essence of shadows for enough strength to last one more day.",
-        iconPath: "./assets/ui/icons/gold_coin.png",
+        iconPath: "./assets/ui/icons/materials/fragment.png",
         type: ItemType.CURRENCY,
     },
 

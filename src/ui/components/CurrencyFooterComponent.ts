@@ -15,9 +15,11 @@ export class CurrencyFooterComponent extends Rectangle {
     private _gridView: ItemGridViewComponent;
     private _filterButtons: Map<string, Button> = new Map();
     private _filterIcons: Map<string, Image> = new Map();
-    private _filterTexts: Map<string, TextBlock> = new Map(); // Pour gérer la couleur du texte "ALL"
+    private _filterTexts: Map<string, TextBlock> = new Map();
 
     private readonly ICON_BASE_PATH = "assets/ui/icons/utils/";
+    private readonly CURRENCY_ICON_PATH =
+        "assets/ui/icons/materials/fragment.png";
 
     constructor(
         name: string,
@@ -40,17 +42,15 @@ export class CurrencyFooterComponent extends Rectangle {
         this.zIndex = 100;
         this.isPointerBlocker = true;
 
+        // --- PANEL FILTRES (Gauche) ---
         const filterPanel = new StackPanel(`${name}_FilterPanel`);
         filterPanel.isVertical = false;
         filterPanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
         filterPanel.width = "70%";
         filterPanel.height = "100%";
         filterPanel.paddingLeft = "20px";
-        filterPanel.isPointerBlocker = false;
         this.addControl(filterPanel);
 
-        // --- Création des boutons ---
-        // On passe "ALL" au lieu d'un nom de fichier .png
         this._createFilterButton(filterPanel, "ALL", "all", fontFamily);
         this._createFilterButton(
             filterPanel,
@@ -71,6 +71,34 @@ export class CurrencyFooterComponent extends Rectangle {
             fontFamily,
         );
 
+        // --- PANEL MONNAIE (Droite) ---
+        // On utilise un rectangle comme container pour mieux contrôler le placement
+        const currencyContainer = new Rectangle(`${name}_CurrencyContainer`);
+        currencyContainer.width = "300px"; // Largeur fixe pour éviter que Babylon ne s'y perde
+        currencyContainer.height = "100%";
+        currencyContainer.thickness = 0;
+        currencyContainer.horizontalAlignment =
+            Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        this.addControl(currencyContainer);
+
+        const currencyStack = new StackPanel(`${name}_CurrencyStack`);
+        currencyStack.isVertical = false;
+        currencyStack.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        currencyStack.paddingRight = "30px";
+        currencyContainer.addControl(currencyStack);
+
+        // Icône du Fragment
+        const currencyIcon = new Image(
+            `${name}_CurrencyIcon`,
+            this.CURRENCY_ICON_PATH,
+        );
+        currencyIcon.width = "64px";
+        currencyIcon.height = "64px";
+        currencyIcon.stretch = Image.STRETCH_UNIFORM;
+        currencyIcon.paddingRight = "10px";
+        currencyStack.addControl(currencyIcon);
+
+        // Texte du montant
         this._currencyText = new TextBlock(
             `${name}_Text`,
             `0${this._currencySuffix}`,
@@ -78,18 +106,18 @@ export class CurrencyFooterComponent extends Rectangle {
         this._currencyText.fontFamily = fontFamily;
         this._currencyText.color = textColor;
         this._currencyText.fontSize = 22;
+        this._currencyText.width = "200px"; // On donne une largeur fixe au texte
         this._currencyText.textHorizontalAlignment =
-            Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        this._currencyText.paddingRight = "30px";
+            Control.HORIZONTAL_ALIGNMENT_LEFT;
         this._currencyText.isHitTestVisible = false;
-        this.addControl(this._currencyText);
+        currencyStack.addControl(this._currencyText);
 
         this._highlightActiveFilter("all");
     }
 
     private _createFilterButton(
         container: StackPanel,
-        content: string, // Peut être "ALL" ou "image.png"
+        content: string,
         type: ItemType | "all",
         fontFamily: string,
     ): void {
@@ -100,10 +128,9 @@ export class CurrencyFooterComponent extends Rectangle {
         btn.cornerRadius = 4;
         btn.background = "rgba(255, 255, 255, 0.1)";
         btn.color = "white";
-        btn.paddingRight = "12px";
+        btn.paddingRight = "10px"; // Espace entre les boutons
         btn.isPointerBlocker = true;
 
-        // Si le contenu se termine par .png, on crée une image, sinon un texte
         if (content.endsWith(".png")) {
             const icon = new Image(
                 `${type}_icon`,
@@ -112,7 +139,6 @@ export class CurrencyFooterComponent extends Rectangle {
             icon.width = "100%";
             icon.height = "100%";
             icon.stretch = Image.STRETCH_UNIFORM;
-            icon.color = "white";
             btn.addControl(icon);
             this._filterIcons.set(type, icon);
         } else {
@@ -129,7 +155,6 @@ export class CurrencyFooterComponent extends Rectangle {
             this._highlightActiveFilter(type);
         });
 
-        // Animations Hover
         btn.pointerEnterAnimation = () => {
             if (btn.thickness !== 2)
                 btn.background = "rgba(255, 255, 255, 0.2)";

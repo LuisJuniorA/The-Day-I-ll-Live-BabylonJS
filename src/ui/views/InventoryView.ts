@@ -26,6 +26,7 @@ import type { ShopItem } from "../../core/interfaces/ShopEvents";
 import { ItemType } from "../../core/types/Items";
 import type { Character } from "../../core/abstracts/Character";
 import type { Player } from "../../entities/Player";
+import { AudioManager } from "../../managers/AudioManager";
 
 // --- CONFIGURATION (Identique à ForgeView pour la cohérence) ---
 const UI_CONFIG = {
@@ -243,6 +244,8 @@ export class InventoryView extends BaseView {
         this._actionButton.verticalAlignment =
             Control.VERTICAL_ALIGNMENT_BOTTOM;
         this._actionButton.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+
             if (this._selectedItem)
                 this.onActionObservable.notifyObservers(this._selectedItem);
         });
@@ -260,6 +263,8 @@ export class InventoryView extends BaseView {
             "-" + (parseInt(UI_CONFIG.POSITIONS.ACTION_BTN_HEIGHT) + 10) + "px";
         closeBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
         closeBtn.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+
             this.hide();
             this.onBackObservable.notifyObservers();
         });
@@ -392,6 +397,8 @@ export class InventoryView extends BaseView {
     public _setupActionClick(owner: Character) {
         this._actionButton.onPointerUpObservable.clear();
         this._actionButton.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+
             if (!this._selectedItem || this._selectedItem.quantity == 0) return;
 
             const id = this._selectedItem.id;
@@ -496,6 +503,8 @@ export class InventoryView extends BaseView {
         btnYes.cornerRadius = 5;
         btnYes.fontFamily = UI_CONFIG.FONTS.FAMILY;
         btnYes.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+
             console.log("Suppression confirmée : " + itemId);
             OnItemDropped.notifyObservers({ itemId: itemId });
             closePopup();
@@ -511,6 +520,8 @@ export class InventoryView extends BaseView {
         btnNo.cornerRadius = 5;
         btnNo.fontFamily = UI_CONFIG.FONTS.FAMILY;
         btnNo.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+
             closePopup();
         });
         grid.addControl(btnNo, 0, 1);

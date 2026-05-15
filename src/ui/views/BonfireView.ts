@@ -11,6 +11,7 @@ import {
 } from "@babylonjs/gui";
 import { BaseView } from "../../core/abstracts/BaseView";
 import { Observable } from "@babylonjs/core";
+import { AudioManager } from "../../managers/AudioManager";
 
 const BONFIRE_CONFIG = {
     COLORS: {
@@ -174,9 +175,10 @@ export class BonfireView extends BaseView {
         backBtn.background = "rgba(255,255,255,0.05)";
         backBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
         backBtn.top = "-30px";
-        backBtn.onPointerUpObservable.add(() =>
-            this.onBackObservable.notifyObservers(),
-        );
+        backBtn.onPointerUpObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
+            this.onBackObservable.notifyObservers();
+        });
         mainPanel.addControl(backBtn);
     }
 
@@ -287,9 +289,10 @@ export class BonfireView extends BaseView {
                 : BONFIRE_CONFIG.COLORS.DISABLED;
             upBtn.isEnabled = canAfford;
             if (canAfford) {
-                upBtn.onPointerUpObservable.add(() =>
-                    this.onUpgradeStat.notifyObservers(stat.id),
-                );
+                upBtn.onPointerUpObservable.add(() => {
+                    AudioManager.getInstance().playSfx("UI_CLICK");
+                    this.onUpgradeStat.notifyObservers(stat.id);
+                });
             }
             rowLayout.addControl(upBtn, 0, 3);
 
