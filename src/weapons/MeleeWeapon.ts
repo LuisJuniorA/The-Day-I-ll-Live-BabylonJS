@@ -14,6 +14,8 @@ import {
 import type { WeaponData } from "../core/types/WeaponStats";
 import { DebugService } from "../core/engines/DebugService";
 import { PoolManager } from "../managers/PoolManager";
+import { Player } from "../entities/Player";
+import { AudioManager } from "../managers/AudioManager";
 
 /**
  * Classe de base pour toutes les armes de mêlée.
@@ -33,6 +35,7 @@ export abstract class MeleeWeapon extends Weapon {
         direction: AttackDirection = AttackDirection.SIDE,
     ): void {
         this.playAttackAnimation(owner, direction);
+        AudioManager.getInstance().playSfx("SWORD_SWING");
 
         const { position, size, rotation } = this._calculateHitboxGeometry(
             owner,
@@ -142,6 +145,26 @@ export abstract class MeleeWeapon extends Weapon {
     ): void {
         let firstTargetPos: Vector3 | null = null;
 
+        // 1. CALCUL DU MULTIPLICATEUR TOTAL
+        // On part d'une base de 100% (1.0)
+        let totalDamageMultiplier = 1.0;
+
+        // A. Bonus de l'arme (ex: 0.1 pour +10%)
+        const weaponBonus = this.data.modifiers?.damageMultiplier?.value ?? 0;
+        totalDamageMultiplier += weaponBonus;
+
+        // B. Bonus des consommables/potions (via le dictionnaire du Player)
+        if (owner instanceof Player) {
+            totalDamageMultiplier += owner.getModifier("damage");
+        }
+
+        // 2. CALCUL DES DÉGÂTS DE BASE
+        // Dégâts fixes de l'arme + force intrinsèque du perso
+        const baseDamage = this.stats.damage + (owner.stats.damage || 0);
+
+        // 3. RÉSULTAT FINAL
+        const finalDamage = baseDamage * totalDamageMultiplier;
+
         for (const targetNode of targets) {
             if (!firstTargetPos) {
                 firstTargetPos =
@@ -151,28 +174,30 @@ export abstract class MeleeWeapon extends Weapon {
             const hitStop = this.stats.hitStopDuration ?? 0;
             const knockback = this.stats.knockbackForce ?? 0;
 
+            // Notification avec le montant calculé
             OnEntityDamaged.notifyObservers({
                 targetId: targetNode.id,
                 attackerId: owner.id,
-                amount: this.stats.damage + (owner.stats.damage || 0),
+                amount: finalDamage,
                 position: owner.transform.position.clone(),
                 attackerFaction: owner.faction,
                 hitStopDuration: hitStop,
                 knockbackForce: knockback,
             });
 
+            // Feedback visuel de debug
             DebugService.getInstance().drawPoint(
-                "hit_" + targetNode.id + Date.now(),
+                "hit_" + targetNode.id + "_" + Date.now(),
                 this.scene,
-                targetNode.getAbsolutePosition(),
+                targetNode.getAbsolutePosition
+                    ? targetNode.getAbsolutePosition()
+                    : targetNode.position,
                 Color3.Green(),
                 0.4,
             );
         }
 
         if (firstTargetPos) {
-            // Ici la direction est utile : on transmet l'info au Character
-            // pour qu'il sache comment réagir (knockback vers le haut si UP, etc.)
             owner.onHitTarget(firstTargetPos);
         }
     }

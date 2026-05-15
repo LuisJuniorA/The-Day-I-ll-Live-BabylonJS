@@ -202,9 +202,13 @@ export class WeaponHUDComponent extends Rectangle {
         // Observer pour les Armes
         OnWeaponChanged.add((event) => {
             const slots = event.allSlots;
-            const activeWeaponId = event.weapon.data.id;
-            const dbData = WEAPONS_DB[activeWeaponId];
 
+            // 1. Protection : Si event.weapon est null, on n'a pas de data
+            const activeWeapon = event.weapon;
+            const activeWeaponId = activeWeapon?.data?.id;
+            const dbData = activeWeaponId ? WEAPONS_DB[activeWeaponId] : null;
+
+            // 2. Update du label (vide si pas d'arme)
             this._activeWeaponLabel.text = dbData
                 ? `— ${dbData.name.toLowerCase()} —`
                 : "";
@@ -213,23 +217,27 @@ export class WeaponHUDComponent extends Rectangle {
                 if (slotKey === "Spell") return;
 
                 const weaponIdInSlot = slots[slotKey];
-                const isEquipped = event.weapon.weaponSlot === slotKey;
+                // On vérifie si ce slot est celui de l'arme en main (si elle existe)
+                const isEquipped =
+                    activeWeapon && activeWeapon.weaponSlot === slotKey;
 
+                // 3. Update de l'icône dans le slot
                 if (weaponIdInSlot) {
                     visual.icon.source = `${this._ICON_PATH}${weaponIdInSlot}.png`;
                     visual.rect.alpha = 1.0;
                 } else {
+                    // C'est ça qui videra ton icône quand tu unequip du slot
                     visual.icon.source = "";
                     visual.rect.alpha = 0.1;
                 }
 
+                // 4. Update du style "Equipé" (Glow/Scale)
                 if (isEquipped) {
                     visual.rect.scaleX = 1.15;
                     visual.rect.scaleY = 1.15;
                     visual.rect.color = this._THEME.SOUL_LIGHT;
                     visual.rect.background = "rgba(255, 255, 255, 0.15)";
                     visual.rect.shadowBlur = 15;
-                    visual.rect.shadowColor = "white";
                     visual.icon.alpha = 1.0;
                 } else {
                     visual.rect.scaleX = 1.0;

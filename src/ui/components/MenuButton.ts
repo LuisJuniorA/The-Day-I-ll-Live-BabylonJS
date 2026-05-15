@@ -1,4 +1,5 @@
 import { Button, TextBlock, Control } from "@babylonjs/gui";
+import { AudioManager } from "../../managers/AudioManager";
 
 export class MenuButton extends Button {
     private _textBlockButton: TextBlock;
@@ -53,6 +54,7 @@ export class MenuButton extends Button {
 
         // L'effort / l'action (Click)
         this.onPointerDownObservable.add(() => {
+            AudioManager.getInstance().playSfx("UI_CLICK");
             this._textBlockButton.scaleX = 0.95;
             this._textBlockButton.scaleY = 0.95;
         });

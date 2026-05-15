@@ -3,6 +3,7 @@ import { Entity } from "./Entity";
 import type { CharacterStats } from "../types/CharacterStats";
 import { OnDamageConfirmed, OnEntityDamaged } from "../interfaces/CombatEvent";
 import type { FactionType } from "../types/Faction";
+import { AudioManager } from "../../managers/AudioManager";
 
 export abstract class Character extends Entity {
     public stats: CharacterStats;
@@ -231,9 +232,10 @@ export abstract class Character extends Entity {
     }
 
     private _handleSpriteFlip(inputVelocity: Vector3): void {
-        // On ne se retourne que si on a une intention de mouvement claire
-        // Cela évite de flip à cause du knockback ou d'un micro-mouvement
-        if (Math.abs(inputVelocity.x) > 0.1) {
+        // Augmente le seuil à 0.2 ou 0.3 pour ignorer les "glissements" de fin de mouvement
+        const flipThreshold = 0.2;
+
+        if (Math.abs(inputVelocity.x) > flipThreshold) {
             this.faceDirection(inputVelocity.x);
         }
     }

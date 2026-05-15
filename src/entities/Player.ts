@@ -9,6 +9,7 @@ import {
     Color3,
     Color4,
     TransformNode,
+    Scalar,
 } from "@babylonjs/core";
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
@@ -23,6 +24,7 @@ import {
 import { CollisionLayers } from "../core/constants/CollisionLayers";
 import {
     AttackDirection,
+    OnExperienceChanged,
     OnExperienceGained,
     OnHealthChanged,
     OnItemPickedUp,
@@ -36,11 +38,32 @@ import { Weapon } from "../core/abstracts/Weapon";
 import { WeaponSlot } from "../core/types/WeaponTypes";
 import { InventoryManager } from "../managers/InventoryManager";
 import { ExperienceManager } from "../managers/ExperienceManager";
-import type { LootDrop } from "../core/types/Items";
+import {
+    ItemType,
+    type EffectType,
+    type ItemEffect,
+    type LootDrop,
+} from "../core/types/Items";
 import { StatusType } from "../core/types/StatusEffects";
 import type { Spell } from "../core/interfaces/Spell";
 import type { ShopItem } from "../core/interfaces/ShopEvents";
-import { OnOpenInventory } from "../core/interfaces/InventoryEvent";
+import {
+    OnInventoryUpdated,
+    OnItemDropped,
+    OnOpenInventory,
+    OnRequestConsumableUse,
+} from "../core/interfaces/InventoryEvent";
+import { WEAPONS_DB } from "../data/WeaponsDb";
+import { ModifierMode } from "../core/types/WeaponStats";
+import { OnCurrencyChanged } from "../core/interfaces/CurrencyEvent";
+import { OnLootReceived } from "../core/interfaces/LootEvents";
+import { ItemData } from "../data/ItemData";
+import { ALL_ITEMS } from "../data/ItemDb";
+import {
+    OnRequestStatUpgrade,
+    OnStatPointsChanged,
+} from "../core/interfaces/BonfireEvent";
+import { AudioManager } from "../managers/AudioManager";
 
 export class Player extends Character {
     public readonly input: InputHandler;
@@ -65,11 +88,15 @@ export class Player extends Character {
     private _timeCounter: number = 0;
     private readonly FLOAT_AMPLITUDE: number = 0.1;
     private readonly FLOAT_SPEED: number = 2.5;
+    public upgradePoints: number = 10;
 
-    public currency: number = 500; // Tes "Fragments"
+    public currency: number = 5000; // Tes "Fragments"
 
     private _currentStatus: StatusType = StatusType.NONE;
     private _statusTimer: number = 0;
+    private _activeModifiers: Map<string, number> = new Map();
+    private _footstepTimer: number = 0;
+    private _footstepDelay: number = 0.35; // Temps en secondes entre deux pas (à ajuster selon l'anim)
 
     private _currentSlots: Record<WeaponSlot, string | null> = {
         [WeaponSlot.DAGGER]: null,
@@ -77,9 +104,7 @@ export class Player extends Character {
         [WeaponSlot.GREATSWORD]: null,
     };
     private _activeSpell: Spell | null = null;
-    private _nextSlotIndex: number = 0;
 
-    public readonly speed: number = 12;
     public readonly gravity: number = -0.9;
     public readonly jumpForce: number = 21;
     public coyoteTimeCounter: number = 0;
@@ -89,7 +114,16 @@ export class Player extends Character {
         super(
             "Player",
             scene,
-            { hp: 100, maxHp: 100, speed: 12, damage: 10 },
+            {
+                hp: 100,
+                maxHp: 100,
+                speed: 12,
+                damage: 10,
+                strength: 1,
+                vitality: 1,
+                dexterity: 1,
+                agility: 1,
+            },
             Faction.PLAYER,
             "Player",
         );
@@ -101,7 +135,7 @@ export class Player extends Character {
         this.attackFSM = new FSM<Player>(this);
 
         this._initObservers();
-
+        this.inventory.addItem(ALL_ITEMS["health_potion"], 1);
         this.movementFSM.transitionTo(new PlayerMoveState());
         this.attackFSM.transitionTo(new PlayerCombatIdleState());
     }
@@ -113,24 +147,121 @@ export class Player extends Character {
             this._onLevelUp();
         }
 
-        // Optionnel : Notifier l'UI pour la barre d'XP
-        // OnXpChanged.notifyObservers({ current: this.exp.currentXp, next: this.exp.xpToNextLevel });
+        OnExperienceChanged.notifyObservers({
+            current: this.exp.currentXp,
+            next: this.exp.xpToNextLevel,
+        });
     }
 
     private _onLevelUp(): void {
-        // Boost des stats (Hollow Knight style : on pourrait augmenter les dégâts ou la vie max)
-        this.stats.maxHp += 10;
-        this.stats.hp = this.stats.maxHp; // Soins complets au level up
-        this.stats.damage += 2;
+        this.upgradePoints += 5; // On donne des points au lieu de stats fixes
 
-        console.log(`Bravo ! Niveau ${this.exp.level} atteint.`);
+        console.log(
+            `Niveau ${this.exp.level} atteint ! Points disponibles : ${this.upgradePoints}`,
+        );
 
-        // Update UI
+        // On prévient l'UI que le stock de points a changé
+        OnStatPointsChanged.notifyObservers(this.upgradePoints);
+    }
+
+    /**
+     * Méthode principale pour consommer un objet.
+     * Appelle-la depuis ton UI d'inventaire.
+     */
+    public consumeItem(itemId: string): void {
+        if (this.inventory.getItemAmount(itemId) == 0) return;
+        const item = ItemData[itemId];
+        if (!item || item.type !== ItemType.CONSUMABLE || !item.effects) return;
+
+        console.log(
+            `%c [ITEM] Utilisation de : ${item.name}`,
+            "color: #4cd137; font-weight: bold;",
+        );
+
+        // 1. Appliquer chaque effet défini dans l'item
+        item.effects.forEach((effect) => this._applyEffect(effect));
+
+        // 2. Retirer l'item de l'inventaire
+        this.inventory.removeItem(itemId, 1);
+        OnInventoryUpdated.notifyObservers();
+    }
+
+    /**
+     * Oriente l'effet vers la bonne logique (Soin vs Buff)
+     */
+    private _applyEffect(effect: ItemEffect): void {
+        switch (effect.type) {
+            case "heal":
+                this.heal(effect.value);
+                break;
+            case "speed":
+                this._applyTemporaryBuff(
+                    "speed",
+                    effect.value,
+                    effect.duration ?? 0,
+                );
+                break;
+            case "damage":
+                this._applyTemporaryBuff(
+                    "damage",
+                    effect.value,
+                    effect.duration ?? 0,
+                );
+                break;
+        }
+    }
+
+    /**
+     * Soigne le joueur et notifie l'UI
+     */
+    public heal(amount: number): void {
+        if (this.isDead) return;
+
+        const previousHp = this.stats.hp;
+        this.stats.hp = Math.min(this.stats.hp + amount, this.effectiveMaxHp);
+
+        console.log(
+            `%c [HEAL] +${this.stats.hp - previousHp} HP`,
+            "color: #ff4757",
+        );
+
         OnHealthChanged.notifyObservers({
             currentHp: this.stats.hp,
-            maxHp: this.stats.maxHp,
+            maxHp: this.effectiveMaxHp,
             entityId: "Player",
         });
+    }
+
+    /**
+     * Gère les bonus temporaires (Speed, Damage, etc.)
+     * Utilise un modificateur temporaire sur les stats
+     */
+    private _applyTemporaryBuff(
+        statType: EffectType,
+        value: number,
+        duration: number,
+    ): void {
+        if (duration <= 0) return;
+
+        // On applique le buff (ex: on ajoute directement à la stat de base)
+        if (statType === "speed") this.stats.speed += value;
+        if (statType === "damage") this.stats.damage += value;
+
+        console.log(
+            `%c [BUFF] ${statType.toUpperCase()} +${value} pendant ${duration}s`,
+            "color: #eccc68",
+        );
+
+        // On programme la fin du buff
+        setTimeout(() => {
+            if (statType === "speed") this.stats.speed -= value;
+            if (statType === "damage") this.stats.damage -= value;
+
+            console.log(
+                `%c [BUFF] Fin de l'effet ${statType}`,
+                "color: #70a1ff",
+            );
+        }, duration * 1000);
     }
 
     public pickUp(loot: LootDrop): void {
@@ -143,16 +274,23 @@ export class Player extends Character {
             );
 
             // Notifier le HUD si tu as une méthode updateCurrency
-            // OnCurrencyChanged.notifyObservers(this.currency);
+            OnCurrencyChanged.notifyObservers({
+                currentAmount: this.currency,
+                delta: loot.amount,
+            });
             return;
         }
 
         // 2. Logique normale pour les autres items
         const success = this.inventory.addItem(loot.item, loot.amount);
         if (success) {
-            console.log(`Inventaire : +${loot.amount} ${loot.item.name}`);
+            // Déclenche l'event de notification
+            OnLootReceived.notifyObservers({
+                item: loot.item,
+                amount: loot.amount,
+            });
         } else {
-            console.log("Inventaire plein !");
+            console.warn("Inventaire plein !");
         }
     }
 
@@ -234,6 +372,7 @@ export class Player extends Character {
             new Vector3(0, 0.5, -4),
             this._scene,
         );
+        this._pointLight.includedOnlyMeshes = [];
         this._pointLight.diffuse = new Color3(1, 0.98, 0.9);
         this._pointLight.intensity = 0.7;
         this._pointLight.range = 30;
@@ -263,18 +402,20 @@ export class Player extends Character {
         this.checkGrounded();
 
         // 2. LOGIQUE DE GRAVITÉ CENTRALISÉE
+        // 2. LOGIQUE DE GRAVITÉ CENTRALISÉE (AVEC ASYMÉTRIE)
         if (this.isGrounded) {
-            // Si on est au sol et qu'on ne saute pas, on maintient une petite pression vers le bas
             if (this.velocity.y <= 0) {
                 this.velocity.y = -0.1;
             }
             this.coyoteTimeCounter = this.coyoteTimeDuration;
         } else {
-            // Application de la gravité (accélération)
-            // Le multiplicateur 60-80 ajuste le "poids" ressenti
-            this.velocity.y += this.gravity * dt * 65;
+            // Détermination du multiplicateur : plus lourd en tombant
+            // Si velocity.y < 0, on tombe -> on applique par exemple 1.5x la gravité
+            const fallMultiplier = this.velocity.y < 0 ? 1.5 : 1.0;
 
-            // Vitesse terminale pour éviter de traverser le décor
+            this.velocity.y += this.gravity * dt * 65 * fallMultiplier;
+
+            // Vitesse terminale
             if (this.velocity.y < -25) this.velocity.y = -25;
 
             this.coyoteTimeCounter -= dt;
@@ -296,13 +437,70 @@ export class Player extends Character {
                 this._pointLight.position.x = this.transform.position.x;
                 this._pointLight.position.y = this.transform.position.y + 0.5;
                 this._pointLight.position.z = -10; // Toujours fixe vers la caméra
-                this._pointLight.includedOnlyMeshes = [];
             }
         }
 
         // 5. Caméra et Contrainte 2D
         this.transform.position.z = 0;
         this.velocity.z = 0;
+    }
+
+    /**
+     * Override du move pour injecter les modificateurs d'équipement
+     */
+
+    public override move(inputVector: Vector3, dt: number): void {
+        if (this.isDead || !this.mesh) return;
+
+        // 1. On calcule la vitesse cible (Stat de base + Equipement)
+        const moveX = inputVector.x;
+        const bonus = this.getSpeedBonus();
+        const maxSpeed = this.stats.speed * bonus;
+        const targetVelocityX = moveX * maxSpeed;
+
+        // 2. Lissage (Lerp)
+        this.velocity.x = Scalar.Lerp(this.velocity.x, targetVelocityX, 0.2);
+
+        // 3. Sécurité d'arrêt
+        if (Math.abs(moveX) < 0.1 && Math.abs(this.velocity.x) < 0.1) {
+            this.velocity.x = 0;
+        }
+
+        // --- GESTION DES FOOTSTEPS ---
+        const isMovingOnGround =
+            this.isGrounded && Math.abs(this.velocity.x) > 0.5;
+
+        if (isMovingOnGround) {
+            this._footstepTimer += dt;
+
+            if (this._footstepTimer >= this._footstepDelay) {
+                // Lecture du son via le nouvel AudioManager V2
+                AudioManager.getInstance().playSfx(
+                    "FOOTSTEP",
+                    this.mesh.position,
+                );
+                this._footstepTimer = 0;
+            }
+        } else {
+            // Si on saute ou on s'arrête, on reset le timer au seuil de déclenchement
+            // pour que le prochain pas soit réactif dès l'atterrissage.
+            this._footstepTimer = this._footstepDelay;
+        }
+
+        // 4. Orientation (Flip du sprite/mesh)
+        if (Math.abs(this.velocity.x) > 0.1) {
+            this.faceDirection(this.velocity.x);
+        }
+
+        // 5. On prépare le vecteur final pour le parent
+        const finalMoveVector = new Vector3(
+            this.velocity.x,
+            this.velocity.y,
+            0,
+        );
+
+        // 6. Physique du Character
+        super.move(finalMoveVector, dt);
     }
 
     public tryPurchase(item: ShopItem): boolean {
@@ -316,6 +514,40 @@ export class Player extends Character {
         return false;
     }
 
+    public getSpeedBonus(): number {
+        // On commence à 100% de la vitesse
+        let multiplier = 1.0;
+
+        // 1. Bonus des Armes (Passifs et Actifs)
+        for (const slot in this.weaponSlots) {
+            const weaponId = this.weaponSlots[slot as WeaponSlot];
+            if (weaponId) {
+                const weaponData = WEAPONS_DB[weaponId];
+                if (
+                    weaponData?.modifiers?.speedBoost?.mode ===
+                    ModifierMode.PASSIVE
+                ) {
+                    // Si ton arme donne +0.2 (20%), on l'ajoute
+                    multiplier += weaponData.modifiers.speedBoost.value;
+                }
+            }
+        }
+
+        if (
+            this.currentWeapon?.data?.modifiers?.speedBoost?.mode ===
+            ModifierMode.ACTIVE
+        ) {
+            multiplier += this.currentWeapon.data.modifiers.speedBoost.value;
+        }
+
+        // 2. Bonus des Potions (via le dictionnaire)
+        // Ici, getModifier("speed") retournera par exemple 0.3 pour une potion +30%
+        multiplier += this.getModifier("speed");
+
+        // On retourne le multiplicateur final
+        return multiplier;
+    }
+
     public addCurrency(amount: number): void {
         this.currency += amount;
     }
@@ -324,11 +556,87 @@ export class Player extends Character {
         return this.currency >= price;
     }
 
+    private _applyStatGain(statId: string): void {
+        // IMPORTANT: On modifie directement l'objet référencé par l'UI
+        switch (statId) {
+            case "strength":
+                this.stats.strength! += 1;
+                this.stats.damage += 2;
+                break;
+            case "vitality":
+                this.stats.vitality! += 1;
+                this.stats.maxHp += 20;
+                this.stats.hp += 20;
+
+                OnHealthChanged.notifyObservers({
+                    currentHp: this.stats.hp,
+                    maxHp: this.stats.maxHp,
+                    entityId: this.id,
+                });
+                break;
+            case "dexterity":
+                this.stats.dexterity! += 1;
+                break;
+            case "agility":
+                this.stats.agility! += 1;
+                this.stats.speed += 0.5;
+                break;
+        }
+    }
+
     private _initObservers(): void {
         OnInteractionAvailable.add((event) => {
             if (event.isNear) this._targetInteractable = event.interactable;
             else if (this._targetInteractable === event.interactable)
                 this._targetInteractable = null;
+        });
+        OnRequestConsumableUse.add((event) => {
+            // On vérifie que c'est bien ce joueur qui est concerné
+            if (event.character.id === this.id) {
+                this.consumeItem(event.itemId);
+            }
+        });
+
+        // --- Dans le constructeur ou _initObservers de Player.ts ---
+        OnRequestStatUpgrade.add((request) => {
+            if (this.upgradePoints >= request.costInPoints) {
+                this.upgradePoints -= request.costInPoints;
+
+                // 1. Applique l'augmentation de la stat (str, vit ou dex)
+                this._applyStatGain(request.statId);
+
+                // 2. FORCE LE REFRESH DE L'UI ICI
+                // On renvoie le nouveau nombre de points pour déclencher le updateStats dans UIManager
+                OnStatPointsChanged.notifyObservers(this.upgradePoints);
+
+                console.log(
+                    `[UPGRADE] ${request.statId} augmenté. Points restants: ${this.upgradePoints}`,
+                );
+            } else {
+                console.warn("Points d'amélioration insuffisants !");
+            }
+        });
+
+        // Écoute l'événement de jet d'objet depuis l'UI
+        OnItemDropped.add((event) => {
+            // On vérifie si l'item est possédé
+            const currentAmount = this.inventory.getItemAmount(event.itemId);
+
+            if (currentAmount > 0) {
+                const amountToRemove =
+                    this.inventory.getItemAmount(event.itemId) ?? 1;
+
+                // 1. Suppression logique
+                this.inventory.removeItem(event.itemId, amountToRemove);
+
+                console.log(
+                    `%c [DROP] ${event.itemId} jeté (${amountToRemove} unité(s))`,
+                    "color: #ffa502",
+                );
+
+                // 2. Notification de rafraîchissement pour l'UI
+                OnInventoryUpdated.notifyObservers();
+            }
         });
 
         OnWeaponChanged.add((event) => {
@@ -449,7 +757,7 @@ export class Player extends Character {
 
         OnHealthChanged.notifyObservers({
             currentHp: this.stats.hp,
-            maxHp: this.stats.maxHp,
+            maxHp: this.effectiveMaxHp,
             entityId: "Player",
         });
     }
@@ -462,26 +770,67 @@ export class Player extends Character {
             }
         }
     }
-
     public setWeaponSlot(slot: WeaponSlot, weaponId: string | null): void {
+        // 1. On met à jour le dictionnaire logique
         this._currentSlots[slot] = weaponId;
+
+        // 2. On vérifie si c'est l'arme qu'on a actuellement dans la main
         if (this.currentWeapon?.weaponSlot === slot) {
-            if (weaponId) this.requestVisualWeapon(weaponId);
-            else {
-                this.currentWeapon?.mesh?.dispose();
+            if (weaponId) {
+                // On remplace par une autre arme
+                this.requestVisualWeapon(weaponId);
+            } else {
+                // CAS CRITIQUE : On déséquipe l'arme active.
+
+                // A. ON ENVOIE L'ORDRE DE CACHE AVANT DE PERDRE LA RÉFÉRENCE
+                // On envoie "" ou null pour que le WeaponManager appelle deactivateWeapon()
+                this.requestVisualWeapon("");
+
+                // B. SEULEMENT APRÈS, ON VIDE LA RÉFÉRENCE
                 this.currentWeapon = null;
             }
         }
+
+        // 3. Update UI et stats
+        OnHealthChanged.notifyObservers({
+            currentHp: this.stats.hp,
+            maxHp: this.effectiveMaxHp,
+            entityId: "Player",
+        });
     }
 
     public switchWeapon(): void {
-        const equippedSlots = Object.values(WeaponSlot).filter(
-            (s) => this._currentSlots[s] !== null,
+        const equippedSlots = Object.values(WeaponSlot).filter((slotKey) => {
+            const id = this._currentSlots[slotKey];
+            return id !== null && id !== "";
+        });
+
+        // FIX : Si on n'a plus rien, on doit vider la main !
+        if (equippedSlots.length === 0) {
+            this.currentWeapon = null;
+            // On envoie un ID vide pour dire au Manager de tout désactiver
+            this.requestVisualWeapon("");
+            return;
+        }
+
+        // 2. On trouve où se situe l'arme actuelle dans cette liste
+        // Si aucune arme n'est en main, on commence à -1 pour finir à 0
+        const currentIndex = equippedSlots.findIndex(
+            (slotKey) => this._currentSlots[slotKey] === this.currentWeapon?.id,
         );
-        if (equippedSlots.length < 2) return;
-        this._nextSlotIndex = (this._nextSlotIndex + 1) % equippedSlots.length;
-        const nextId = this._currentSlots[equippedSlots[this._nextSlotIndex]];
-        if (nextId) this.requestVisualWeapon(nextId);
+
+        // 3. Calcul de l'index suivant (boucle circulaire)
+        const nextListIndex = (currentIndex + 1) % equippedSlots.length;
+        const nextSlotKey = equippedSlots[nextListIndex];
+        const nextId = this._currentSlots[nextSlotKey];
+
+        // 4. On équipe
+        if (nextId && this.currentWeapon?.id !== nextId) {
+            console.log(
+                `Switching from index ${currentIndex} to ${nextListIndex} (Slot: ${nextSlotKey})`,
+            );
+            this.requestVisualWeapon(nextId);
+        }
     }
 
     private requestVisualWeapon(weaponId: string): void {
@@ -572,5 +921,38 @@ export class Player extends Character {
                 }
             });
         }
+    }
+
+    /**
+     * Calcule le Max HP total (Base + Modificateurs passifs des armes équipées)
+     */
+    public get effectiveMaxHp(): number {
+        let totalMaxHp = this.stats.maxHp;
+
+        for (const slot in this.weaponSlots) {
+            const weaponId = this.weaponSlots[slot as WeaponSlot];
+            if (weaponId) {
+                const weaponData = WEAPONS_DB[weaponId];
+                if (
+                    weaponData?.modifiers?.healthBoost?.mode ===
+                    ModifierMode.PASSIVE
+                ) {
+                    totalMaxHp += weaponData.modifiers.healthBoost.value;
+                }
+            }
+        }
+
+        if (
+            this.currentWeapon?.data?.modifiers?.healthBoost?.mode ===
+            ModifierMode.ACTIVE
+        ) {
+            totalMaxHp += this.currentWeapon.data.modifiers.healthBoost.value;
+        }
+
+        return totalMaxHp;
+    }
+
+    public getModifier(key: string): number {
+        return this._activeModifiers.get(key) ?? 0;
     }
 }

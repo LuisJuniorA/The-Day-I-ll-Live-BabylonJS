@@ -39,7 +39,7 @@ export class WorldEngine {
     public getStartPosition(): Vector3 {
         // Mode Artisanal : Position fixe par défaut (à adapter selon ta scène Blender)
         if (!this._isProcedural) {
-            return new Vector3(0, 2, 0);
+            return new Vector3(-1, 2, 0);
         }
 
         // Mode Procédural : Recherche de spawn sécurisé

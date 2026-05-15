@@ -1,21 +1,19 @@
-import { Scalar } from "@babylonjs/core";
 import { Player } from "../../entities/Player";
 import { BaseState } from "../../core/abstracts/BaseState";
 import { PlayerIdleState } from "./PlayerIdleState";
 import { PlayerJumpState } from "./PlayerJumpState";
 import { PlayerFallingState } from "./PlayerFallingState";
+import { Vector3 } from "@babylonjs/core";
 
 export class PlayerMoveState extends BaseState<Player> {
     public readonly name = "MoveState";
 
     protected handleUpdate(owner: Player, dt: number): void {
         const moveX = owner.input.horizontal;
-        const targetVelocityX = moveX * owner.stats.speed;
 
-        owner.velocity.x = Scalar.Lerp(owner.velocity.x, targetVelocityX, 0.2);
+        owner.move(new Vector3(moveX, 0, 0), dt);
 
-        owner.move(owner.velocity, dt);
-
+        // --- Transitions ---
         if (owner.buffer.isActive("jump") && owner.isGrounded) {
             owner.buffer.consume("jump");
             owner.movementFSM.transitionTo(new PlayerJumpState());

@@ -25,7 +25,8 @@ export const NPC_DATA: Record<string, NPCConfig> = {
             shopItems: [
                 { id: "slime_soul", price: 40 },
                 { id: "despairs_tear", price: 200 },
-                { id: "imperial_steel", price: 500 }, // Silas revend l'acier à prix d'or
+                { id: "health_potion", price: 120 }, // Achat direct plus cher que le craft
+                { id: "speed_elixir", price: 450 },
             ],
         },
     },
@@ -39,19 +40,32 @@ export const NPC_DATA: Record<string, NPCConfig> = {
         metadata: {
             isForge: true,
             forgeRecipes: [
-                // Matériaux d'abord
                 "imperial_steel",
                 "monster_claw",
                 "dragon_scale",
                 "dark_feather",
-                // Puis les armes (ordre croissant)
-                "knife",
+                "health_potion",
+                "speed_elixir",
+                "berserker_brew", // Consommables craftables
+                "fish_knife",
                 "butcher_dagger",
                 "noble_dagger",
+                "hunter_knife",
+                "crow_dagger",
                 "knight_sword",
+                "oath_sword",
+                "sashimi_sword",
                 "scale_sword",
+                "great_jade_sword",
+                "great_imperial_sword",
                 "great_steel_sword",
             ],
         },
+    },
+    BONFIRE_MAIN: {
+        name: "Feu de Camp",
+        assetPath: "./assets/models/props/campfire.glb",
+        texts: ["Le feu crépite doucement. Vous vous sentez reposé."],
+        metadata: {},
     },
 };

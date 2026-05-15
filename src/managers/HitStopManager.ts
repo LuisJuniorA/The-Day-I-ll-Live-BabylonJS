@@ -4,6 +4,7 @@ import {
     OnEntityDamaged,
 } from "../core/interfaces/CombatEvent";
 import { Faction } from "../core/types/Faction";
+import { AudioManager } from "./AudioManager"; // Import de ton manager
 
 export class HitStopManager {
     private _scene: Scene;
@@ -13,25 +14,31 @@ export class HitStopManager {
     constructor(scene: Scene) {
         this._scene = scene;
 
-        // 1. On garde l'écoute sur OnEntityDamaged pour quand le JOUEUR frappe
-        // (car l'ennemi n'a peut-être pas d'i-frames, ou on veut le stop même si l'ennemi pare)
+        // 1. Quand une entité est touchée (Le joueur frappe quelqu'un)
         OnEntityDamaged.add((event) => {
-            // On ne trigger que si l'événement demande explicitement un hitstop
             if (event.hitStopDuration && event.hitStopDuration > 0) {
-                // Optionnel: On peut quand même filtrer par faction ici
-                if (
-                    event.attackerFaction === Faction.PLAYER ||
-                    event.targetId === "Player"
-                ) {
+                if (event.attackerFaction === Faction.PLAYER) {
+                    // --- SON D'IMPACT (Le joueur touche un ennemi) ---
+                    // On le joue ici car le hitstop confirme l'impact physique
+                    setTimeout(() => {
+                        AudioManager.getInstance().playSfx("HIT");
+                    }, 20);
+
                     this.trigger(event.hitStopDuration);
                 }
             }
         });
 
-        // 2. On écoute OnDamageConfirmed pour quand le JOUEUR subit
+        // 2. Quand le DOMMAGE est confirmé sur le JOUEUR (Le joueur prend un coup)
         OnDamageConfirmed.add((event) => {
             if (event.targetId === "Player") {
-                this.trigger(0.15); // Hitstop fixe et marqué quand on est touché
+                // --- SON DE DOULEUR / IMPACT LOURD ---
+                // Un son différent pour quand le joueur est la victime
+                setTimeout(() => {
+                    AudioManager.getInstance().playSfx("HIT");
+                }, 20);
+
+                this.trigger(0.15);
             }
         });
     }
@@ -41,12 +48,20 @@ export class HitStopManager {
 
         this._isFrozen = true;
         this._stopTimer = duration;
+
+        // On coupe les animations pour le feeling "poids"
         this._scene.animationsEnabled = false;
+
+        // OPTIONNEL : Petite astuce de Sound Design
+        // On pourrait baisser légèrement la vitesse du moteur audio (pitch global)
+        // ou mettre un filtre passe-bas pendant le hitstop si ton AudioManager le permet.
     }
 
     public update(dt: number): void {
         if (!this._isFrozen) {
-            this._scene.animationsEnabled = true;
+            // Sécurité : on s'assure que les anims sont actives
+            if (!this._scene.animationsEnabled)
+                this._scene.animationsEnabled = true;
             return;
         }
 

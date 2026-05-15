@@ -51,6 +51,10 @@ export class GameStateManager {
         return this._currentState;
     }
 
+    public setBonfire(): void {
+        this._setState(GameState.BONFIRE);
+    }
+
     public setShop(): void {
         this._setState(GameState.SHOP);
     }
