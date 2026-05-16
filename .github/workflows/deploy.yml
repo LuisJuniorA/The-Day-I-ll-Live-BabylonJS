@@ -1,5 +1,7 @@
 name: Deploy Babylon.js Project
 
+if: github.repository == 'LuisJuniorA/The-Day-I-ll-Live-BabylonJS'
+
 on:
     push:
         branches: ["features"]
