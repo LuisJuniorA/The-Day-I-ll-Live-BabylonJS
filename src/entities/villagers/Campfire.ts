@@ -1,6 +1,7 @@
 import { NPCInteractable } from "../../core/abstracts/NPCInteractable";
 import { OnOpenBonfire } from "../../core/interfaces/BonfireEvent";
 import { OnDialogueRequest } from "../../core/interfaces/Interactable";
+import { CheckpointManager } from "../../managers/CheckpointManager"; // Ajuste le chemin
 
 export class Campfire extends NPCInteractable {
     public onInteract(): void {
@@ -12,7 +13,12 @@ export class Campfire extends NPCInteractable {
             speakerName: "FEU DE CAMP",
             text: text,
             onComplete: () => {
-                // Le Campfire ne passe RIEN, il dit juste "Ouvre-toi"
+                // On met à jour le checkpoint mondial avec la position de CE feu de camp
+                CheckpointManager.getInstance().setRespawnPosition(
+                    this.transform.position,
+                );
+
+                // Ouvre l'interface du Bonfire
                 OnOpenBonfire.notifyObservers();
 
                 this._currentIndex = 0;

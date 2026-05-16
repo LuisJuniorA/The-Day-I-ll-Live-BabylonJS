@@ -43,6 +43,7 @@ import {
     OnRequestStatUpgrade,
     OnStatPointsChanged,
 } from "../core/interfaces/BonfireEvent";
+import { DeathScreenView } from "../ui/views/DeathScreenView";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
@@ -59,6 +60,7 @@ export class UIManager {
     public forgeView: ForgeView;
     public inventoryView: InventoryView;
     public bonfireView: BonfireView;
+    public deathView: DeathScreenView;
 
     constructor(scene: Scene, gameStateManager: GameStateManager) {
         this._advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI(
@@ -78,6 +80,7 @@ export class UIManager {
         this.forgeView = new ForgeView(this._advancedTexture);
         this.inventoryView = new InventoryView(this._advancedTexture);
         this.bonfireView = new BonfireView(this._advancedTexture);
+        this.deathView = new DeathScreenView(this._advancedTexture);
 
         this._setupEventListeners();
         this.handleStateChange(this._gameStateManager.getCurrentState());
@@ -337,6 +340,7 @@ export class UIManager {
             this.forgeView,
             this.inventoryView,
             this.bonfireView,
+            this.deathView,
         ];
         views.forEach((v) => v.hide());
 
@@ -365,6 +369,8 @@ export class UIManager {
             case GameState.BONFIRE:
                 this.bonfireView.show();
                 break;
+            case GameState.GAME_OVER:
+                this.deathView.show();
         }
     }
 

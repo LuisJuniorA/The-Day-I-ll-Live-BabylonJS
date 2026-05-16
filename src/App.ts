@@ -24,6 +24,7 @@ import { FireNovaSpell } from "./spells/FireNovaSpell";
 import { PoolManager } from "./managers/PoolManager";
 import { CameraManager } from "./managers/CameraManager";
 import { CustomLoadingScreen } from "./core/engines/LoadingScreen";
+import { CheckpointManager } from "./managers/CheckpointManager";
 import { ALL_ITEMS } from "./data/ItemDb";
 import "@babylonjs/core/Audio/audioSceneComponent";
 
@@ -119,8 +120,16 @@ export class App {
     }
 
     private spawnPlayer(): void {
-        const startPos = this.worldEngine.getStartPosition();
-        const finalSpawnPos = new Vector3(startPos.x, startPos.y, 0);
+        // Regarder d'abord si un feu de camp a été activé précédemment via le CheckpointManager
+        const activeCheckpoint = CheckpointManager.getInstance().getPosition();
+        let finalSpawnPos: Vector3;
+
+        if (activeCheckpoint) {
+            finalSpawnPos = activeCheckpoint.clone();
+        } else {
+            const startPos = this.worldEngine.getStartPosition();
+            finalSpawnPos = new Vector3(startPos.x, startPos.y, 0);
+        }
 
         this.player = new Player(this.scene, finalSpawnPos);
 
@@ -136,6 +145,7 @@ export class App {
         this.entityManager.add(this.player);
         this.cameraManager = new CameraManager(this.scene, this.player);
 
+        const startPos = this.worldEngine.getStartPosition();
         const merchantPos = new Vector3(startPos.x + 1, startPos.y, 0);
         const merchantPos2 = new Vector3(startPos.x - 1, startPos.y, 0);
         const merchantPos3 = new Vector3(startPos.x - 3, startPos.y, 0);
@@ -146,6 +156,54 @@ export class App {
         this.uiManager.setPlayer(this.player);
 
         console.log(`[App] Player spawned at: ${finalSpawnPos.toString()}`);
+    }
+
+    /**
+     * Déclenché uniquement lorsque le joueur clique sur le bouton "RENAÎTRE" de l'écran de mort
+     */
+    public respawnPlayer(): void {
+        const respawnPos = CheckpointManager.getInstance().getPosition();
+
+        // Ajout d'un écran noir / UI de chargement durant le repositionnement
+        this.engine.displayLoadingUI();
+
+        setTimeout(() => {
+            if (this.player) {
+                // 1. Repositionnement sur le checkpoint ou le point de départ global
+                if (respawnPos) {
+                    this.player.transform.position.copyFrom(respawnPos);
+                } else {
+                    const startPos = this.worldEngine.getStartPosition();
+                    this.player.transform.position.set(
+                        startPos.x,
+                        startPos.y,
+                        0,
+                    );
+                }
+
+                // Ajustement de hauteur pour éviter les problèmes de collision au sol
+                this.player.transform.position.y += 0.5;
+
+                // 2. Restauration complète des PV du joueur
+                this.player.heal(this.player.stats.maxHp || 100);
+
+                // 3. Réinitialisation des flags et FSM de mort du joueur
+                if (typeof (this.player as any).revive === "function") {
+                    (this.player as any).revive();
+                } else {
+                    (this.player as any).isDead = false;
+                }
+            }
+
+            // 4. Remise en route du moteur de jeu et bascule du State
+            this.scene.animationsEnabled = true;
+            this.gameStateManager.setPlaying();
+            this.engine.hideLoadingUI();
+
+            console.log(
+                "[App] Player respawned successfully via death screen choice.",
+            );
+        }, 1000);
     }
 
     private setupInputs(): void {
@@ -205,6 +263,13 @@ export class App {
         this.uiManager.mainMenuView.onQuitObservable.add(() => {
             window.location.reload();
         });
+
+        // Écoute de l'action RENAÎTRE depuis la vue de mort (DeathScreenView)
+        if (this.uiManager.deathView) {
+            this.uiManager.deathView.onRetryObservable.add(() => {
+                this.respawnPlayer();
+            });
+        }
     }
 
     private async setupInitialWeapons(): Promise<void> {
@@ -248,7 +313,7 @@ export class App {
 
                     this.scene.render();
                     break;
-
+                case GameState.GAME_OVER:
                 case GameState.PAUSED:
                 case GameState.SHOP:
                 case GameState.FORGE:

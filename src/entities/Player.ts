@@ -752,7 +752,8 @@ export class Player extends Character {
 
         // Appelle Character.takeDamage (qui gère désormais les PV + le vecteur de recul)
         super.takeDamage(amount, originPos, attackerId);
-
+        this.isDead = false;
+        this.hasToBeDeleted = false;
         this._invulnerabilityTimer = this.I_FRAME_DURATION;
 
         OnHealthChanged.notifyObservers({

@@ -35,6 +35,7 @@ export const AUDIO_CONFIG = {
     MUSIC: {
         BOSS: "./assets/audio/music/boss_theme.mp3",
         ENVIRONMENT: "./assets/audio/music/environment.mp3",
+        DEATH_THEME: "",
     },
 } as const;
 
