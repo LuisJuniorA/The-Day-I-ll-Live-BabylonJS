@@ -19,7 +19,7 @@ export const AUDIO_CONFIG = {
             volume: 0.2,
         },
         // HIT & CLICK : Similaires (0.78x)
-        HIT: { url: "./assets/audio/sfx/hit.ogg", volume: 0.8 },
+        HIT: { url: "./assets/audio/sfx/hit.mp3", volume: 0.8 },
         UI_CLICK: { url: "./assets/audio/sfx/ui_click.ogg", volume: 0.4 },
         UI_REBIND_SUCCESS: {
             url: "./assets/audio/sfx/ui_click.ogg",

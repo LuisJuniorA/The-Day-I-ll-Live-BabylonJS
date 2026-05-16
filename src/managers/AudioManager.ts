@@ -75,6 +75,8 @@ export class AudioManager {
         }
     }
 
+    public isWorking(): void {}
+
     public static getInstance(): AudioManager {
         if (!AudioManager._instance)
             throw new Error("AudioManager non initialisé.");
