@@ -2,7 +2,7 @@ name: Deploy Babylon.js Project
 
 on:
     push:
-        branches: ["main"]
+        branches: ["features"]
 
 permissions:
     contents: read
