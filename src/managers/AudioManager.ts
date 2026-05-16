@@ -83,8 +83,6 @@ export class AudioManager {
 
     private _getValidUrl(url: string): string {
         let cleanUrl = url;
-        if (cleanUrl.startsWith("./")) cleanUrl = cleanUrl.substring(1);
-        if (!cleanUrl.startsWith("/")) cleanUrl = "./" + cleanUrl;
         return cleanUrl;
     }
 
