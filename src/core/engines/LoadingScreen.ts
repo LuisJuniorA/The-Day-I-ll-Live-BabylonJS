@@ -32,8 +32,7 @@ export class CustomLoadingScreen implements ILoadingScreen {
 
         const textDiv = document.createElement("div");
         // On s'assure d'avoir un texte par défaut si loadingUIText est vide
-        textDiv.textContent =
-            this.loadingUIText || "INITIALISATION DU MONDE...";
+        textDiv.textContent = this.loadingUIText || "LOADING...";
         textDiv.style.fontSize = "22px";
         textDiv.style.letterSpacing = "6px";
         textDiv.style.fontWeight = "bold";
