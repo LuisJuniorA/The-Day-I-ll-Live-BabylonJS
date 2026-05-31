@@ -27,6 +27,10 @@ export class GameStateManager {
         this._setState(GameState.PAUSED);
     }
 
+    public setVictory(): void {
+        this._setState(GameState.VICTORY);
+    }
+
     public setForge(): void {
         this._setState(GameState.FORGE);
     }

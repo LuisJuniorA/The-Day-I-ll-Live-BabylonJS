@@ -28,7 +28,8 @@ import {
 } from "../core/interfaces/Interactable";
 import {
     OnHealthChanged,
-    OnExperienceChanged, // <--- Nouvel import
+    OnExperienceChanged,
+    OnBossDefeated, // <--- Nouvel import
 } from "../core/interfaces/CombatEvent";
 import { OnOpenShop, OnPurchaseRequest } from "../core/interfaces/ShopEvents";
 import { OnOpenForge, OnCraftRequest } from "../core/interfaces/ForgeEvents";
@@ -44,6 +45,7 @@ import {
     OnStatPointsChanged,
 } from "../core/interfaces/BonfireEvent";
 import { DeathScreenView } from "../ui/views/DeathScreenView";
+import { VictoryScreenView } from "../ui/views/VictoryScreenView";
 
 export class UIManager {
     private _advancedTexture: AdvancedDynamicTexture;
@@ -60,6 +62,7 @@ export class UIManager {
     public forgeView: ForgeView;
     public inventoryView: InventoryView;
     public bonfireView: BonfireView;
+    public victoryView: VictoryScreenView; // Ajout de la propriété
     public deathView: DeathScreenView;
 
     constructor(scene: Scene, gameStateManager: GameStateManager) {
@@ -81,6 +84,7 @@ export class UIManager {
         this.inventoryView = new InventoryView(this._advancedTexture);
         this.bonfireView = new BonfireView(this._advancedTexture);
         this.deathView = new DeathScreenView(this._advancedTexture);
+        this.victoryView = new VictoryScreenView(this._advancedTexture);
 
         this._setupEventListeners();
         this.handleStateChange(this._gameStateManager.getCurrentState());
@@ -115,6 +119,11 @@ export class UIManager {
         this.pauseMenuView.onSettingsObservable?.add(() => {
             this.pauseMenuView.hide();
             this.settingsView.show();
+        });
+        OnBossDefeated.add((_) => {
+            console.log("Boss vaincu, déclenchement victoire...");
+            this._gameStateManager.setVictory(); // Assure-toi que cet état existe
+            this.victoryView.show();
         });
 
         this.settingsView.onBackObservable.add(() => {
@@ -341,6 +350,7 @@ export class UIManager {
             this.inventoryView,
             this.bonfireView,
             this.deathView,
+            this.victoryView, // Ajout ici pour le nettoyage
         ];
         views.forEach((v) => v.hide());
 
@@ -371,6 +381,10 @@ export class UIManager {
                 break;
             case GameState.GAME_OVER:
                 this.deathView.show();
+                break;
+            case GameState.VICTORY: // Ajout de l'état VICTORY
+                this.victoryView.show();
+                break;
         }
     }
 

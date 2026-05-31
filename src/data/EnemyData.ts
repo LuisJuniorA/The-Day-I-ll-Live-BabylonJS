@@ -73,4 +73,39 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
             },
         },
     },
+    shadowboss: {
+        id: "shadow_boss_entity",
+        displayName: "Shadow",
+        assetPath: "procedural",
+        stats: { hp: 2000, maxHp: 2000, speed: 4.0, damage: 35 },
+        xpReward: 1000,
+        lootTable: [
+            {
+                itemId: "gold_coin",
+                dropChance: 1.0,
+                minAmount: 500,
+                maxAmount: 1000,
+            },
+            {
+                itemId: "slime_soul",
+                dropChance: 1.0,
+                minAmount: 1000,
+                maxAmount: 11000,
+            },
+        ],
+        behavior: {
+            detectionRange: 50,
+            escapeRange: 40,
+            interactionRange: 20.0,
+            attackRange: 40,
+            arrivalRadius: 8.0,
+            maxSpeed: 4.0,
+            maxForce: 0.5,
+            turnSpeed: 0.15,
+            weights: {
+                seek: 1.0,
+                separation: 0.5,
+            },
+        },
+    },
 };

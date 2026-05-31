@@ -18,7 +18,7 @@ export class EnemyChaseState extends EnemyState {
     protected handleUpdate(owner: Enemy, dt: number): void {
         const target = owner.targetTransform;
         const debug = DebugService.getInstance();
-        const scene = owner.transform.getScene();
+        const scene = owner._scene;
 
         if (!target) {
             this.clearAllDebug(owner);
@@ -165,7 +165,7 @@ export class EnemyChaseState extends EnemyState {
         dt: number,
     ): void {
         // On cible le mesh directement au lieu de chercher un "visual_pivot"
-        if (owner.type === "slime") return;
+        if (owner.type === "slime" || owner.type === "shadowboss") return;
         const visualMesh = owner.mesh;
 
         if (visualMesh) {

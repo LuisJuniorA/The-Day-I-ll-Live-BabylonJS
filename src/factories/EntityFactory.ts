@@ -27,6 +27,7 @@ import { Merchant } from "../entities/villagers/Merchant";
 import { Blacksmith } from "../entities/villagers/BlackSmith";
 import { Campfire } from "../entities/villagers/Campfire";
 import { Corpse } from "../entities/villagers/Corpse";
+import { ShadowBoss } from "../entities/enemies/ShadowBoss";
 
 interface VisualAssets {
     root: AbstractMesh;
@@ -271,6 +272,65 @@ export class EntityFactory {
                     new Vector3(0, 0, 0), // Rotation
                 );
                 break;
+            case "SHADOWBOSS": {
+                assets.root.dispose();
+
+                if (!enemyData) {
+                    throw new Error(`Config pour le shadowboss introuvable.`);
+                }
+
+                // 1. LE CORPS (3x plus gros : diameter 2 * 3 = 6)
+                const bossMesh = MeshBuilder.CreateSphere(
+                    `shadowboss_body_${Date.now()}`,
+                    { diameter: 6, segments: 32, updatable: true },
+                    scene,
+                );
+
+                const bossMat = new PBRMaterial(
+                    `mat_shadowboss_${Date.now()}`,
+                    scene,
+                );
+                bossMat.albedoColor = new Color3(0, 0, 0);
+                bossMat.metallic = 0.5;
+                bossMat.roughness = 0.2;
+                bossMat.alpha = 0.8;
+                bossMat.transparencyMode = 2;
+                bossMesh.material = bossMat;
+
+                // 3. LE NOYAU (3x plus gros : 0.6 * 3 = 1.8)
+                const soul = MeshBuilder.CreateSphere(
+                    "soul",
+                    { diameter: 1.8, segments: 16, updatable: true },
+                    scene,
+                );
+                const soulMat = new StandardMaterial("soulMat", scene);
+                soulMat.emissiveColor = new Color3(0.5, 0, 0);
+                soulMat.disableLighting = true;
+                soul.material = soulMat;
+
+                // 4. INITIALISATION
+                entity = new ShadowBoss(
+                    scene,
+                    enemyData,
+                    proximitySystem,
+                    bossMesh,
+                    soul,
+                );
+
+                bossMesh.parent = entity.transform;
+                soul.parent = entity.transform;
+
+                // Pivot et collisions ajustés pour la taille 3x
+                this._setupVisualPivot(
+                    bossMesh,
+                    3,
+                    new Vector3(0, 0, 0),
+                    new Vector3(0, 1, 0),
+                );
+                bossMesh.checkCollisions = true;
+                this._addHitboxWrap(entity, scene, 4.5, 4.5, 2.25);
+                break;
+            }
 
             case "VILLAGER_BOB":
             case "VILLAGER_ANNA":

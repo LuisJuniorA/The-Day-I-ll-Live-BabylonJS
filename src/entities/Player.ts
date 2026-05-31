@@ -10,6 +10,7 @@ import {
     Color4,
     TransformNode,
     Scalar,
+    Mesh,
 } from "@babylonjs/core";
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
@@ -110,6 +111,7 @@ export class Player extends Character {
     public readonly jumpForce: number = 24;
     public coyoteTimeCounter: number = 0;
     private readonly coyoteTimeDuration: number = 0.2;
+    static staticMesh: AbstractMesh;
 
     constructor(scene: Scene, startPosition: Vector3) {
         super(
@@ -140,6 +142,7 @@ export class Player extends Character {
         this.inventory.addItem(ALL_ITEMS["health_potion"], 1);
         this.movementFSM.transitionTo(new PlayerMoveState());
         this.attackFSM.transitionTo(new PlayerCombatIdleState());
+        Player.staticMesh = this.mesh!;
     }
 
     public grantXp(amount: number): void {
@@ -968,6 +971,10 @@ export class Player extends Character {
         }
 
         return totalMaxHp;
+    }
+
+    public static getCurrentMesh(): AbstractMesh {
+        return this.staticMesh;
     }
 
     public getModifier(key: string): number {

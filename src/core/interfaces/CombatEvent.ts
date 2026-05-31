@@ -76,3 +76,6 @@ export const OnExperienceChanged = new Observable<{
     current: number;
     next: number;
 }>();
+
+// Nouvel événement pour la victoire
+export const OnBossDefeated = new Observable<{ bossId: string }>();

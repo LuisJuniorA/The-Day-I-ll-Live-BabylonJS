@@ -33,6 +33,7 @@ import {
 import { ItemData } from "./data/ItemData";
 import { FireNovaSpell } from "./spells/FireNovaSpell";
 import { OnItemPickedUp } from "./core/interfaces/CombatEvent";
+import { WEAPONS_DB } from "./data/WeaponsDb";
 
 export class App {
     private readonly engine: Engine;
@@ -144,8 +145,8 @@ export class App {
             onEnemiesReady: (enemies) => {
                 enemies.forEach((spawn) => {
                     const pos = new Vector3(
-                        spawn.position.x * 2,
-                        spawn.position.y * 2,
+                        spawn.position.x,
+                        spawn.position.y,
                         0,
                     );
                     this.entityManager.spawn(spawn.type, pos);
@@ -361,6 +362,7 @@ export class App {
 
                     this.scene.render();
                     break;
+                case GameState.VICTORY:
                 case GameState.GAME_OVER:
                 case GameState.PAUSED:
                 case GameState.SHOP:

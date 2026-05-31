@@ -9,7 +9,7 @@ export interface HookPoint {
 }
 
 export class HookScanner {
-    private static readonly RAY_LENGTH = 18;
+    public static readonly RAY_LENGTH = 18;
     private static readonly RAY_OFFSET_Y = 0.5;
     private static readonly MIN_DISTANCE = 1.5;
     private static readonly SLIME_SAFETY_OFFSET = 0.8;
@@ -22,30 +22,30 @@ export class HookScanner {
         targetPos: Vector3,
         currentUp: Vector3,
         id: string,
-        playerCollider?: AbstractMesh, // Passé depuis l'Enemy pour éviter getMeshByName
+        playerCollider?: AbstractMesh,
+        customRayLength?: number, // Paramètre optionnel ajouté
     ): HookPoint | null {
         let best: HookPoint | null = null;
         let hiScore = -Infinity;
 
-        // Nettoyage debug
         DebugService.getInstance().clear(`${id}_best_hook`);
 
-        // Calcul de l'origine du scan
         this._RayOrigin.copyFrom(origin);
         this._RayOrigin.y += this.RAY_OFFSET_Y;
 
-        // Direction vers le joueur
         const dirToTarget = targetPos.subtract(this._RayOrigin).normalize();
-
-        // On récupère moins de directions pour économiser le CPU
         const scanDirs = this.getSimplifiedDirections(dirToTarget);
 
         for (const [index, dir] of scanDirs.entries()) {
-            // Anti-corner : recul léger
             const backOffOrigin = this._RayOrigin.subtract(dir.scale(0.1));
-            const ray = new Ray(backOffOrigin, dir, this.RAY_LENGTH);
 
-            // 1. SCAN PRIMAIRE (Le plus important)
+            // Utilise la valeur custom si elle est fournie, sinon la valeur par défaut
+            const rayLength =
+                customRayLength !== undefined
+                    ? customRayLength
+                    : this.RAY_LENGTH;
+            const ray = new Ray(backOffOrigin, dir, rayLength);
+
             const hit = scene.pickWithRay(
                 ray,
                 (m) =>
@@ -58,14 +58,12 @@ export class HookScanner {
                 let norm = hit.getNormal(true)!;
                 if (Vector3.Dot(norm, dir) > 0) norm.scaleInPlace(-1);
 
-                // Point où le slime va se coller (décalé de la surface)
                 const potentialPos = hit.pickedPoint.add(
                     norm.scale(this.SLIME_SAFETY_OFFSET),
                 );
 
                 if (hit.distance < this.MIN_DISTANCE) continue;
 
-                // 2. CHECK INTERSECTION JOUEUR (Rapide)
                 let intersectsPlayer = false;
                 if (playerCollider) {
                     const intersectInfo = ray.intersectsMesh(
@@ -80,8 +78,6 @@ export class HookScanner {
                     }
                 }
 
-                // 3. CALCUL DU SCORE PRÉLIMINAIRE
-                // On calcule le score avant les tests de trajectoire lourds
                 let score = this.calculateScore(
                     potentialPos,
                     targetPos,
@@ -93,11 +89,8 @@ export class HookScanner {
                     intersectsPlayer,
                 );
 
-                // --- OPTIMISATION CRUCIALE : EARLY EXIT ---
-                // Si le score est déjà moins bon que notre meilleur, on ne fait pas les tests de collision suivants
                 if (score <= hiScore) continue;
 
-                // 4. TRAJECTORY CHECK (Seulement pour les bons candidats)
                 const toPot = potentialPos.subtract(this._RayOrigin);
                 const distToPot = toPot.length();
                 const pathCheck = scene.pickWithRay(
@@ -112,10 +105,9 @@ export class HookScanner {
                     pathCheck.hit &&
                     pathCheck.distance < distToPot - 0.1
                 ) {
-                    continue; // Chemin obstrué
+                    continue;
                 }
 
-                // 5. EPAISSEUR / INSIDE CHECK
                 const insideCheck = scene.pickWithRay(
                     new Ray(
                         potentialPos,
@@ -132,10 +124,9 @@ export class HookScanner {
                     insideCheck.hit &&
                     insideCheck.distance < this.SLIME_SAFETY_OFFSET - 0.1
                 ) {
-                    continue; // Point à l'intérieur d'un mur
+                    continue;
                 }
 
-                // Si on arrive ici, c'est notre nouveau meilleur point
                 hiScore = score;
                 best = {
                     position: potentialPos,
@@ -143,7 +134,6 @@ export class HookScanner {
                     score: score,
                 };
 
-                // Debug visuel uniquement pour les points validés
                 this.drawDebug(
                     scene,
                     id,
@@ -182,22 +172,14 @@ export class HookScanner {
         const distToPlayerSq = Vector3.DistanceSquared(pos, target);
         const distOriginToPlayerSq = Vector3.DistanceSquared(origin, target);
 
-        // Bonus alignement (Dot product)
         score += Vector3.Dot(dir, targetDir) * 10;
-
-        // Bonus si rapprochement
         if (distToPlayerSq < distOriginToPlayerSq) score += 15;
-
-        // GROS BONUS : Traverse le joueur (Attaque)
         if (intersectsPlayer) score += 80;
 
-        // Bonus type de surface
         const dotUp = Vector3.Dot(norm, up);
-        if (dotUp > 0.8)
-            score -= 10; // Sol (Bof)
-        else if (dotUp < -0.5)
-            score += 15; // Plafond (Top pour slime)
-        else score += 5; // Murs
+        if (dotUp > 0.8) score -= 10;
+        else if (dotUp < -0.5) score += 15;
+        else score += 5;
 
         return score;
     }
@@ -205,13 +187,11 @@ export class HookScanner {
     private static getSimplifiedDirections(dirToTarget: Vector3): Vector3[] {
         const dirs: Vector3[] = [dirToTarget.clone()];
 
-        // Construction d'un repère local
         let up =
             Math.abs(dirToTarget.y) > 0.99 ? Vector3.Right() : Vector3.Up();
         const right = Vector3.Cross(dirToTarget, up).normalize();
         up = Vector3.Cross(right, dirToTarget).normalize();
 
-        // On réduit à deux "anneaux" de détection (15 rayons total au lieu de 30)
         const rings = [
             { radius: 0.4, count: 6 },
             { radius: 0.9, count: 8 },
@@ -226,8 +206,7 @@ export class HookScanner {
                 dirs.push(dirToTarget.add(offset).normalize());
             }
         }
-
-        dirs.push(new Vector3(0, -1, 0)); // Toujours checker le bas au cas où
+        dirs.push(new Vector3(0, -1, 0));
         return dirs;
     }
 

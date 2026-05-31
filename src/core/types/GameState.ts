@@ -8,6 +8,7 @@ export const GameState = {
     FORGE: 6,
     INVENTORY: 7,
     BONFIRE: 8,
+    VICTORY: 9,
 } as const;
 
 export type GameStateType = (typeof GameState)[keyof typeof GameState];

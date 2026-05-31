@@ -4,6 +4,7 @@ import { Hitbox } from "../utils/Hitbox";
 export class PoolManager {
     private static _instance: PoolManager;
     private _hitboxes: Hitbox[] = [];
+    private _bossHitbox: Hitbox;
     private _scene: Scene;
 
     constructor(scene: Scene, initialSize: number = 10) {
@@ -12,6 +13,7 @@ export class PoolManager {
             this._hitboxes.push(new Hitbox(scene));
         }
         PoolManager._instance = this;
+        this._bossHitbox = new Hitbox(this._scene);
     }
 
     public static getInstance(): PoolManager {
@@ -24,8 +26,14 @@ export class PoolManager {
         size: Vector3,
         duration: number,
         onTick: (h: Hitbox) => void,
+        boss?: boolean,
     ): Hitbox {
-        let hitbox = this._hitboxes.find((h) => !h.isActive);
+        let hitbox;
+        if (boss) {
+            hitbox = this._bossHitbox;
+        } else {
+            hitbox = this._hitboxes.find((h) => !h.isActive);
+        }
 
         if (!hitbox) {
             console.log(
@@ -44,5 +52,6 @@ export class PoolManager {
 
     public update(dt: number) {
         this._hitboxes.forEach((h) => h.update(dt));
+        this._bossHitbox.update(dt);
     }
 }
