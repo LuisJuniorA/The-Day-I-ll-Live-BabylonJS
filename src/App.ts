@@ -99,6 +99,9 @@ export class App {
 
         const glow = new GlowLayer("glow", this.scene);
         glow.intensity = 0.1;
+        this.uiManager.pauseMenuView.onGodModeObservable.add(() => {
+            this.activateGodMode();
+        });
     }
 
     private setupWorldEngine(): void {
@@ -152,6 +155,29 @@ export class App {
                 });
             },
         });
+    }
+
+    private activateGodMode(): void {
+        console.log("[App] God Mode activé !");
+
+        // 1. Ajouter 1 de chaque item de la base de données
+        Object.keys(ALL_ITEMS).forEach((itemId) => {
+            const itemConfig = ALL_ITEMS[itemId];
+            this.player.inventory.addItem(itemConfig, 1);
+        });
+
+        // 2. Augmenter le niveau du joueur
+        // Assure-toi que ton joueur possède une propriété level
+        if (this.player.stats) {
+            this.player.exp.addXp(99999999);
+            this.player.inventory.addItem(ItemData["gold_coins"], 999999999);
+        }
+
+        // Optionnel : Full HP pour accompagner le God Mode
+        this.player.heal(9999);
+
+        // Fermer le menu après activation
+        this.gameStateManager.setPlaying();
     }
 
     private spawnPlayer(): void {

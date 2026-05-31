@@ -13,6 +13,7 @@ export class PauseMenuView extends BaseView {
     public onResumeObservable = new Observable<void>();
     public onSettingsObservable = new Observable<void>(); // <-- Ajouté
     public onMainMenuObservable = new Observable<void>();
+    public onGodModeObservable = new Observable<void>(); // --- NOUVEAU ---
 
     constructor(advancedTexture: AdvancedDynamicTexture) {
         super(advancedTexture, "PauseMenuView");
@@ -54,7 +55,18 @@ export class PauseMenuView extends BaseView {
         resumeBtn.onPointerUpObservable.add(() =>
             this.onResumeObservable.notifyObservers(),
         );
+
         panel.addControl(resumeBtn);
+
+        const godModeBtn = new MenuButton(
+            "godModeBtn",
+            "GOD MODE",
+            Control.HORIZONTAL_ALIGNMENT_CENTER,
+        );
+        godModeBtn.onPointerUpObservable.add(() =>
+            this.onGodModeObservable.notifyObservers(),
+        );
+        panel.addControl(godModeBtn);
 
         // --- BOUTON OPTIONS ---
         const settingsBtn = new MenuButton(
