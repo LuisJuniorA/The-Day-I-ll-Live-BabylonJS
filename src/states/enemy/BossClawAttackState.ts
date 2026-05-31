@@ -1,7 +1,6 @@
 import { Vector3, Scalar } from "@babylonjs/core";
 import { EnemyState } from "../../core/abstracts/EnemyState";
 import { Enemy } from "../../core/abstracts/Enemy";
-import { EnemyChaseState } from "./EnemyChaseState";
 import { EnemyAttackIdleState } from "./EnemyAttackIdleState";
 import type { ShadowBoss } from "../../entities/enemies/ShadowBoss";
 import { PoolManager } from "../../managers/PoolManager";

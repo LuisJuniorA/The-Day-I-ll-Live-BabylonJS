@@ -10,7 +10,6 @@ import {
     Color4,
     TransformNode,
     Scalar,
-    Mesh,
 } from "@babylonjs/core";
 import { Character } from "../core/abstracts/Character";
 import { FSM } from "../core/engines/FSM";
