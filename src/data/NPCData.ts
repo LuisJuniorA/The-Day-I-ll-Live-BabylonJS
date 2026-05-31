@@ -53,7 +53,7 @@ export const NPC_DATA: Record<string, NPCConfig> = {
     },
     CHEST_SPELL: {
         name: "Coffre Arcanique",
-        assetPath: "./assets/models/props/chest.glb",
+        assetPath: "procedural",
         texts: ["Une aura mystique émane de ce coffre."],
         metadata: {
             reward: {
@@ -63,7 +63,7 @@ export const NPC_DATA: Record<string, NPCConfig> = {
     },
     CHEST_DRAGON: {
         name: "Coffre de Dragon",
-        assetPath: "./assets/models/props/chest.glb",
+        assetPath: "procedural",
         texts: ["Les écailles brillent d'un éclat ancien."],
         metadata: {
             reward: {
@@ -76,7 +76,7 @@ export const NPC_DATA: Record<string, NPCConfig> = {
     },
     CHEST_IMPERIAL: {
         name: "Coffre Impérial",
-        assetPath: "./assets/models/props/chest.glb",
+        assetPath: "procedural",
         texts: ["Le sceau impérial scelle ce coffre."],
         metadata: {
             reward: {
@@ -90,7 +90,7 @@ export const NPC_DATA: Record<string, NPCConfig> = {
     },
     CORPSE: {
         name: "...",
-        assetPath: "...",
+        assetPath: "procedural",
         texts: [
             "The armor is still warm, as if he died only a moment ago.",
             "Etched on the chest plate, the name 'Valerius' is barely visible.",
