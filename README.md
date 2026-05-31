@@ -5,6 +5,7 @@
 **The Day I'll Live** a pour objectif d'être un Metroidvania narratif développé avec **Babylon.js**. C'est une plongée interactive dans une phase de reconstruction personnelle, explorant le silence des émotions et le poids de l'absence. Bien que le projet soit encore en phase de développement, son intention profonde et sa vision finale restent intactes.
 
 Lien du jeu [disponible ici](https://luisjuniora.github.io/The-Day-I-ll-Live-BabylonJS/)
+Lien de la vidéo de présentation [disponible ici](https://youtu.be/d-RDDUEmMio)
 
 ## L'Histoire
 
