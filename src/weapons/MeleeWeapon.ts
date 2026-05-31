@@ -16,6 +16,7 @@ import { DebugService } from "../core/engines/DebugService";
 import { PoolManager } from "../managers/PoolManager";
 import { Player } from "../entities/Player";
 import { AudioManager } from "../managers/AudioManager";
+import { SlashEffect } from "../utils/SlashEffect";
 
 /**
  * Classe de base pour toutes les armes de mêlée.
@@ -23,11 +24,13 @@ import { AudioManager } from "../managers/AudioManager";
 export abstract class MeleeWeapon extends Weapon {
     public attackRange: number;
     public attackDuration: number;
+    private _slashEffect: SlashEffect; // Ajout de la référence à l'effet
 
     constructor(scene: Scene, data: WeaponData) {
         super(scene, data);
         this.attackRange = data.stats.range;
         this.attackDuration = data.stats.attackDuration;
+        this._slashEffect = new SlashEffect(scene); // Initialisation
     }
 
     public attack(
@@ -37,14 +40,23 @@ export abstract class MeleeWeapon extends Weapon {
         this.playAttackAnimation(owner, direction);
         AudioManager.getInstance().playSfx("SWORD_SWING");
 
+        // Calcul de la géométrie pour la physique ET le visuel
         const { position, size, rotation } = this._calculateHitboxGeometry(
             owner,
             direction,
         );
+
+        // --- Déclenchement de l'effet visuel ---
+        // On utilise la forward direction du owner pour orienter le slash
+        this._slashEffect.play(
+            position,
+            owner.transform.forward,
+            size, // Utilisation directe de la taille calculée
+        );
+
         const pool = PoolManager.getInstance();
         const detectionDuration = 0.1;
 
-        // On crée une liste locale pour cette attaque précise
         const hitList = new Set<string>();
 
         pool.spawn(position, size, detectionDuration, (hitbox) => {
@@ -53,11 +65,10 @@ export abstract class MeleeWeapon extends Weapon {
 
             const targets = this._findTargetsInHitbox(hitbox.mesh, owner);
 
-            // On filtre : seulement ceux qui ne sont pas dans hitList
             const newTargets = targets.filter((t) => !hitList.has(t.id));
 
             if (newTargets.length > 0) {
-                newTargets.forEach((t) => hitList.add(t.id)); // On les marque comme touchés
+                newTargets.forEach((t) => hitList.add(t.id));
                 this._processHits(newTargets, owner, direction);
             }
         });

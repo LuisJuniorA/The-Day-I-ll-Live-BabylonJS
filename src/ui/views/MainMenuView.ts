@@ -59,7 +59,7 @@ export class MainMenuView extends BaseView {
         // 4. Boutons alignés à droite
         const playBtn = new MenuButton(
             "playBtn",
-            "COMMENCER",
+            "PLAY",
             Control.HORIZONTAL_ALIGNMENT_RIGHT,
         );
         playBtn.onPointerUpObservable.add(() =>
@@ -79,7 +79,7 @@ export class MainMenuView extends BaseView {
 
         const quitBtn = new MenuButton(
             "quitBtn",
-            "QUITTER",
+            "QUIT",
             Control.HORIZONTAL_ALIGNMENT_RIGHT,
         );
         quitBtn.onPointerUpObservable.add(() =>

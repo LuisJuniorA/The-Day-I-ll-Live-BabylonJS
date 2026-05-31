@@ -49,7 +49,7 @@ export class Corpse extends NPCInteractable {
     private giveInitialGear(): void {
         const starterWeapons = [
             { slot: WeaponSlot.SWORD, id: "knight_sword" },
-            { slot: WeaponSlot.DAGGER, id: "butcher_dagger" },
+            { slot: WeaponSlot.DAGGER, id: "fish_knife" },
             { slot: WeaponSlot.GREATSWORD, id: "great_imperial_sword" },
         ];
 

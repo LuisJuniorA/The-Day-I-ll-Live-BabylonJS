@@ -26,14 +26,14 @@ export class ShopView extends BaseView {
     // --- Configuration ---
     private readonly TEXT_CONFIG = {
         CURRENCY_SUFFIX: " FRAGMENTS",
-        CURRENCY_LABEL: "FRAGMENTS D'ÂME",
-        OWNED_LABEL: "EN POSSESSION : ",
-        PRICE_SECTION_TITLE: "PRIX D'ÉCHANGE",
-        BTN_EXCHANGE: "ÉCHANGER",
-        BTN_CANCEL: "ANNULER / QUITTER",
-        SUCCESS_FEEDBACK: "ACQUIS !",
-        UNKNOWN_ITEM: "OBJET INCONNU",
-        NO_DESCRIPTION: "Aucune description.",
+        CURRENCY_LABEL: "SOUL'S FRAGMENTS",
+        OWNED_LABEL: "OWN : ",
+        PRICE_SECTION_TITLE: "BUY PRICE",
+        BTN_EXCHANGE: "BUY",
+        BTN_CANCEL: "CANCEL / QUIT",
+        SUCCESS_FEEDBACK: "BOUGHT !",
+        UNKNOWN_ITEM: "UNKNOWN OBJECT",
+        NO_DESCRIPTION: "NO DESCRIPTION.",
         CURRENCY_ICON_PATH: "assets/ui/icons/materials/fragment.png",
     };
 

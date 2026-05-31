@@ -33,6 +33,7 @@ import {
 import { ItemData } from "./data/ItemData";
 import { FireNovaSpell } from "./spells/FireNovaSpell";
 import { OnItemPickedUp } from "./core/interfaces/CombatEvent";
+import { WEAPONS_DB } from "./data/WeaponsDb";
 
 export class App {
     private readonly engine: Engine;

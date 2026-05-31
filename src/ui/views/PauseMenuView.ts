@@ -36,7 +36,7 @@ export class PauseMenuView extends BaseView {
         this.rootContainer.addControl(panel);
 
         // 3. Titre
-        const titleText = new TextBlock("pauseTitle", "EN PAUSE");
+        const titleText = new TextBlock("pauseTitle", "NEED A BREAK ?");
         titleText.height = "80px";
         titleText.color = "white";
         titleText.fontSize = 32;
@@ -48,7 +48,7 @@ export class PauseMenuView extends BaseView {
         // --- BOUTON REPRENDRE ---
         const resumeBtn = new MenuButton(
             "resumeBtn",
-            "REPRENDRE",
+            "RESUME",
             Control.HORIZONTAL_ALIGNMENT_CENTER,
         );
         resumeBtn.onPointerUpObservable.add(() =>
@@ -70,7 +70,7 @@ export class PauseMenuView extends BaseView {
         // --- BOUTON MENU PRINCIPAL ---
         const menuBtn = new MenuButton(
             "menuBtn",
-            "MENU PRINCIPAL",
+            "MAIN MENU",
             Control.HORIZONTAL_ALIGNMENT_CENTER,
         );
         menuBtn.onPointerUpObservable.add(() =>
