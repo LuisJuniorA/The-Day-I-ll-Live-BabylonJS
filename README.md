@@ -2,7 +2,7 @@
 
 > _"Donner une forme physique à ce que les mots ne peuvent pas décrire."_
 
-**The Day I'll Live** a pour objectif d'être un Metroidvania narratif développé avec **Babylon.js**. C'est une plongée interactive dans une phase de reconstruction personnelle, explorant le silence des émotions et le poids de l'absence.
+**The Day I'll Live** a pour objectif d'être un Metroidvania narratif développé avec **Babylon.js**. C'est une plongée interactive dans une phase de reconstruction personnelle, explorant le silence des émotions et le poids de l'absence. Bien que le projet soit encore en phase de développement, son intention profonde et sa vision finale restent intactes.
 
 Lien du jeu [disponible ici](https://luisjuniora.github.io/The-Day-I-ll-Live-BabylonJS/)
 
@@ -73,13 +73,11 @@ Chaque interaction doit être ressentie physiquement par le joueur :
 
 - **Hitstop (Freeze Frame)** : Lors d'un coup porté ou reçu, le temps s'arrête pendant une fraction de seconde pour souligner l'impact et donner du "poids" à l'attaque.
 - **Knockback (Recul)** : Chaque coup génère une force vectorielle qui projette l'ennemi (et le joueur), pour souligner l'impact.
-- **Vitesse de réaction** : Les animations d'attaque possèdent des "startup frames" très courtes pour une réactivité instantanée à l'appui d'une touche.
 
 ## Défis Techniques & Contexte de production
 
 - **Gestion du temps critique** : Ce projet a été mené en parallèle d'un émulateur GameBoy en Rust et d'autres projets scolaires et personnels chronophages, notamment l'implémentation d'un cryptosystème basé sur le **Learning With Errors (LWE)** en Rust.
 - **WorldSkills 2026** : En plus de mes études, je prépare actuellement les finales mondiales des **WorldSkills à Shanghai** (septembre prochain) où je représenterai la France. Ce parcours d'excellence a limité le temps disponible pour le polish visuel, mais a renforcé ma rigueur technique.
-- **Pipeline 3D** : Toute la map a été modélisée sur **Blender** par mes soins pour garantir une cohérence artistique totale avec le récit.
 - **Optimisation Assets (SVG vers PNG)** : Initialement, j'avais prévu d'utiliser des SVG pour la netteté des assets. Cependant, pour des raisons de performances rendant le jeu injouable (70% du CPU utilisé par le refresh du layout pour une raison que j'ignore toujours), j'ai dû basculer sur des formats PNG pour garantir la fluidité du gameplay.
 
 ## Note de l'Auteur
@@ -89,5 +87,5 @@ Certaines armes proviennent d'internet. D'autres sont faites par moi, ou en part
 
 ## Équipe
 
-- **Luis-Junior ARAUJO DA COSTA** : Game Design, Code, Histoire, Musique (Projet Solo). Toute la map a été fait sur Blender par mes soins.
-- **Gemini** : La plupart des assets visuels 2D sont générés pas IA. Je n'ai pas les compétences nécessaires. Beaucoup d'assets 3D sont fait par mes soins, bien qu'il y ait un monstre généré par IA.
+- **Luis-Junior ARAUJO DA COSTA** : Game Design, Code, Histoire, Musique (Projet Solo).
+- **Gemini** : La plupart des assets visuels 2D sont générés pas IA. Je n'ai pas les compétences nécessaires. Certains assets 3D sont fait par mes soins, certains sont publiques, d'autres généré par IA.
