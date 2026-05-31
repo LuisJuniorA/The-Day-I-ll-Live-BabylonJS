@@ -17,16 +17,22 @@ import { WeaponManager } from "./managers/WeaponManager";
 import { AudioManager } from "./managers/AudioManager";
 import { WorldEngine } from "./core/engines/WorldEngine";
 import { GameState } from "./core/types/GameState";
-import { WeaponSlot } from "./core/types/WeaponTypes";
 import { EntityFactory } from "./factories/EntityFactory";
 import { HitStopManager } from "./managers/HitStopManager";
-import { FireNovaSpell } from "./spells/FireNovaSpell";
 import { PoolManager } from "./managers/PoolManager";
 import { CameraManager } from "./managers/CameraManager";
 import { CustomLoadingScreen } from "./core/engines/LoadingScreen";
 import { CheckpointManager } from "./managers/CheckpointManager";
 import { ALL_ITEMS } from "./data/ItemDb";
 import "@babylonjs/core/Audio/audioSceneComponent";
+import {
+    OnChestOpened,
+    OnInitialGearAcquired,
+    type ChestReward,
+} from "./core/interfaces/Interactable";
+import { ItemData } from "./data/ItemData";
+import { FireNovaSpell } from "./spells/FireNovaSpell";
+import { OnItemPickedUp } from "./core/interfaces/CombatEvent";
 
 export class App {
     private readonly engine: Engine;
@@ -42,6 +48,7 @@ export class App {
     private readonly hitStopManager: HitStopManager;
     private readonly poolManager: PoolManager;
     private readonly audioManager: AudioManager;
+
     private cameraManager!: CameraManager;
 
     // Core Engine
@@ -103,8 +110,36 @@ export class App {
                     blockSize,
                 );
             },
-            onLevelLoaded: (url) => {
-                this.levelManager.loadMap(url);
+            onLevelLoaded: async (url: string) => {
+                console.log("[App] Chargement de la map...");
+
+                // 2. On attend impérativement que la map soit chargée
+                await this.levelManager.loadMap(url);
+
+                // 3. Maintenant on récupère les spawns
+                const spawners = this.levelManager.getSpawnPoints();
+
+                console.log(
+                    `[App] Map chargée, nombre de spawners trouvés : ${spawners.length}`,
+                );
+
+                // 4. On boucle avec 'for...of' qui supporte bien l'async
+                for (const spawner of spawners) {
+                    try {
+                        console.log(
+                            `[App] Traitement du spawner : ${spawner.name}`,
+                        );
+
+                        // 5. On attend chaque spawn pour éviter les collisions d'initialisation
+                        await this.entityManager.spawnFromMetadata(spawner);
+                    } catch (e) {
+                        console.error(
+                            `[App] Erreur lors du spawn de ${spawner.name}`,
+                            e,
+                        );
+                    }
+                }
+                console.log("[App] Tous les spawners ont été traités.");
             },
             onEnemiesReady: (enemies) => {
                 enemies.forEach((spawn) => {
@@ -145,14 +180,6 @@ export class App {
         this.entityManager.add(this.player);
         this.cameraManager = new CameraManager(this.scene, this.player);
 
-        const startPos = this.worldEngine.getStartPosition();
-        const merchantPos = new Vector3(startPos.x + 1, startPos.y, 0);
-        const merchantPos2 = new Vector3(startPos.x - 1, startPos.y, 0);
-        const merchantPos3 = new Vector3(startPos.x - 3, startPos.y, 0);
-
-        this.entityManager.spawn("BLACKSMITH", merchantPos);
-        this.entityManager.spawn("MERCHANT_SILAS", merchantPos2);
-        this.entityManager.spawn("BONFIRE_MAIN", merchantPos3);
         this.uiManager.setPlayer(this.player);
 
         console.log(`[App] Player spawned at: ${finalSpawnPos.toString()}`);
@@ -226,6 +253,12 @@ export class App {
             }
         });
 
+        OnInitialGearAcquired.add((items) => {
+            items.items.forEach((weapon) =>
+                this.player.inventory.addItem(ALL_ITEMS[weapon.id], 1),
+            );
+        });
+
         this.uiManager.mainMenuView.onPlayObservable.add(async () => {
             if (!this.player) {
                 this.engine.displayLoadingUI();
@@ -243,7 +276,6 @@ export class App {
 
                     // 3. Spawner les entités maintenant que le sol est "physique"
                     this.spawnPlayer();
-                    this.entityManager.spawn("SLIME", new Vector3(0, 0, 0));
 
                     // 4. Armes et Spells
                     await this.setupInitialWeapons();
@@ -273,16 +305,31 @@ export class App {
     }
 
     private async setupInitialWeapons(): Promise<void> {
-        const weapons = [
-            { slot: WeaponSlot.SWORD, id: "knight_sword" },
-            { slot: WeaponSlot.DAGGER, id: "butcher_dagger" },
-            { slot: WeaponSlot.GREATSWORD, id: "great_imperial_sword" },
-        ];
-        this.player.learnSpell(new FireNovaSpell());
+        OnChestOpened.add((reward: ChestReward) => {
+            // 1. Gestion des items
+            reward.items?.forEach((itemEntry) => {
+                const itemConfig = ItemData[itemEntry.id];
+                if (itemConfig) {
+                    // Ajouter à l'inventaire
+                    this.player.inventory.addItem(itemConfig, 1);
 
-        weapons.forEach((weapon) =>
-            this.player.inventory.addItem(ALL_ITEMS[weapon.id], 1),
-        );
+                    // Notifier le système de pickup avec l'objet événement attendu
+                    OnItemPickedUp.notifyObservers({
+                        targetId: this.player.id, // Ou l'ID correspondant à ton joueur
+                        item: itemConfig,
+                        amount: 1,
+                    });
+                }
+            });
+
+            // 2. Gestion des sorts
+            reward.spells?.forEach((spellId) => {
+                if (spellId === "fire_nova") {
+                    this.player.learnSpell(new FireNovaSpell());
+                }
+                // Ajoute ici d'autres types de sorts si nécessaire
+            });
+        });
     }
 
     private startRenderLoop(): void {
@@ -298,6 +345,7 @@ export class App {
 
                 case GameState.PLAYING:
                     this.hitStopManager.update(dt);
+
                     this.poolManager.update(dt);
 
                     if (this.scene.animationsEnabled) {

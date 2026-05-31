@@ -12,6 +12,7 @@ import {
     PBRMaterial,
 } from "@babylonjs/core";
 
+import { Chest } from "../entities/villagers/Chest"; // Ajuste le chemin selon ton architecture
 import { Entity } from "../core/abstracts/Entity";
 import { Player } from "../entities/Player";
 import { Effroi } from "../entities/enemies/Effroi";
@@ -25,6 +26,7 @@ import { Slime } from "../entities/enemies/Slime";
 import { Merchant } from "../entities/villagers/Merchant";
 import { Blacksmith } from "../entities/villagers/BlackSmith";
 import { Campfire } from "../entities/villagers/Campfire";
+import { Corpse } from "../entities/villagers/Corpse";
 
 interface VisualAssets {
     root: AbstractMesh;
@@ -62,6 +64,14 @@ export class EntityFactory {
         switch (typeUpper) {
             case "PLAYER":
                 return new Player(scene, position);
+            case "CHEST_IMPERIAL":
+            case "CHEST_DRAGON":
+            case "CHEST_SPELL":
+            case "CHEST":
+                entity = new Chest(scene, position, npcData);
+                assets.root.parent = entity.transform;
+                this._setupVisualPivot(assets.root);
+                break;
 
             case "EFFROI":
                 entity = new Effroi(
@@ -233,7 +243,7 @@ export class EntityFactory {
                 // On utilise les mêmes réglages visuels que les autres NPCs
                 this._setupVisualPivot(assets.root);
                 break;
-
+            case "MERCHANT":
             case "MERCHANT_SILAS":
                 // On crée l'entité Silas (soit via une classe Merchant dédiée, soit via Villager)
                 // npcData contient déjà l'assetPath, le nom, et les dialogues de Silas
@@ -267,6 +277,12 @@ export class EntityFactory {
                 entity = new Villager(scene, position, npcData);
                 assets.root.parent = entity.transform;
                 this._setupVisualPivot(assets.root);
+                break;
+            case "CORPSE":
+                entity = new Corpse(scene, position, npcData);
+                assets.root.parent = entity.transform;
+                this._setupVisualPivot(assets.root);
+
                 break;
 
             default:
@@ -364,16 +380,16 @@ export class EntityFactory {
                 anims: entries.animationGroups,
             };
         } catch (e) {
-            const mesh = MeshBuilder.CreateCapsule(
-                "placeholder",
-                { height: 2, radius: 0.5 },
+            // Retourne un nœud invisible qui ne sera jamais affiché
+            const invisibleRoot = new TransformNode(
+                "placeholder_invisible",
                 scene,
             );
-            mesh.position.y = 1;
-            const material = new StandardMaterial("mat_placeholder", scene);
-            material.diffuseColor = Color3.Blue();
-            mesh.material = material;
-            return { root: mesh, anims: [] };
+
+            return {
+                root: invisibleRoot as unknown as AbstractMesh,
+                anims: [],
+            };
         }
     }
 

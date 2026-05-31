@@ -4,14 +4,12 @@ import type { Perceivable } from "../interfaces/Perceivable";
 
 export class ProximitySystem {
     private _interactables: Set<Interactable> = new Set();
-    // Utilisation directe de Perceivable (qui contient déjà id et position)
     private _perceivables: Set<Perceivable> = new Set();
 
     public target?: TransformNode;
 
-    // --- LES VARIABLES MANQUANTES ---
     private _timer: number = 0;
-    private _checkInterval: number = 0.1; // 10 fois par seconde (Logique lente)
+    private _checkInterval: number = 0.1; // 10 fois par seconde
 
     public setTarget(target: TransformNode) {
         this.target = target;
@@ -34,7 +32,8 @@ export class ProximitySystem {
     }
 
     /**
-     * Utilisé par le Steering (IA) à chaque frame.
+     * Retourne les entités dans le rayon XY donné.
+     * Utilise le théorème de Pythagore sur 2 axes pour ignorer Z.
      */
     public getEntitiesInRadius(
         origin: Vector3,
@@ -47,8 +46,12 @@ export class ProximitySystem {
         for (const entity of this._perceivables) {
             if (entity.id === skipId) continue;
 
-            // Optimisation DistanceSquared
-            if (Vector3.DistanceSquared(origin, entity.position) <= radiusSq) {
+            // Calcul manuel pour ignorer l'axe Z (distance 2D)
+            const dx = origin.x - entity.position.x;
+            const dy = origin.y - entity.position.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq <= radiusSq) {
                 results.push(entity);
             }
         }
@@ -57,6 +60,7 @@ export class ProximitySystem {
 
     /**
      * Logique de détection Joueur <-> Objets (Optimisée par timer)
+     * Calcul basé uniquement sur le plan XY.
      */
     public update(dt: number): void {
         if (!this.target) return;
@@ -68,16 +72,14 @@ export class ProximitySystem {
             const targetPos = this.target.position;
 
             for (const entity of this._interactables) {
-                // DistanceSquared pour économiser le CPU
-                const distSq = Vector3.DistanceSquared(
-                    entity.transform.position,
-                    targetPos,
-                );
+                // Calcul manuel distance 2D (Plan XY)
+                const dx = entity.transform.position.x - targetPos.x;
+                const dy = entity.transform.position.y - targetPos.y;
+                const distSq = dx * dx + dy * dy;
 
                 const rangeSq =
                     entity.interactionRange * entity.interactionRange;
 
-                // On met à jour l'état de l'objet (affichage UI, etc.)
                 entity.setProximityState(distSq <= rangeSq);
             }
         }

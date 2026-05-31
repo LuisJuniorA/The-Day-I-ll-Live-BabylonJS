@@ -11,7 +11,7 @@ export class Blacksmith extends NPCInteractable {
     public onInteract(): void {
         OnDialogueRequest.notifyObservers({
             speakerName: this.name,
-            text: "Besoin de transformer tes trouvailles ?",
+            text: "Need anything, stranger ?",
             onComplete: () => {
                 const recipeIds = this.data.metadata?.forgeRecipes || [];
                 // FUSION DYNAMIQUE ICI
@@ -34,6 +34,7 @@ export class Blacksmith extends NPCInteractable {
                 });
                 return true;
             },
+            portraitUrl: "./assets/img/portrait/blacksmith.png",
         });
     }
 }

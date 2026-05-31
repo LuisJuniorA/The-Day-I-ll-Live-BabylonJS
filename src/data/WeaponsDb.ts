@@ -3,17 +3,17 @@ import { type WeaponData, ModifierMode } from "../core/types/WeaponStats";
 import { WeaponSlot } from "../core/types/WeaponTypes";
 
 export const WEAPONS_DB: Record<string, WeaponData> = {
-    // --- DAGUES (Vitesse extrême, Dégâts par coup faibles mais DPS élevé) ---
+    // --- DAGGERS (Extremely fast, low damage per hit, high DPS) ---
     fish_knife: {
         id: "fish_knife",
         name: "Fish Knife",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
-        description: "Une petite lame dentelée, idéale pour l'écaillage.",
+        description: "A small serrated blade, perfect for descaling.",
         iconPath: "./assets/ui/icons/weapons/fish_knife.png",
         meshPath: "./assets/models/weapons/daggers/fish_knife.glb",
         stats: {
-            damage: 156, // 866 * 0.18
+            damage: 7.8,
             range: 1.2,
             attackDuration: 0.18,
             hitStopDuration: 0.02,
@@ -26,11 +26,11 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Butcher's Dagger",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
-        description: "Lame épaisse pour découper la viande... et les os.",
+        description: "A thick blade for carving meat... and bones.",
         iconPath: "./assets/ui/icons/weapons/butcher_dagger.png",
         meshPath: "./assets/models/weapons/daggers/butcher_dagger.glb",
         stats: {
-            damage: 213, // (1314 * 0.18) / 1.1 multiplier
+            damage: 10.65,
             range: 1.4,
             attackDuration: 0.18,
             hitStopDuration: 0.04,
@@ -46,11 +46,11 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Noble Dagger",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
-        description: "Une arme de parade ornée de joyaux.",
+        description: "A ceremonial weapon adorned with jewels.",
         iconPath: "./assets/ui/icons/weapons/noble_dagger.png",
         meshPath: "./assets/models/weapons/daggers/noble_dagger.glb",
         stats: {
-            damage: 251, // (1607 * 0.18) / 1.15 multiplier
+            damage: 12.55,
             range: 1.6,
             attackDuration: 0.18,
             hitStopDuration: 0.05,
@@ -66,11 +66,11 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Hunter's Knife",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
-        description: "Robuste et fiable, survit à toutes les traques.",
+        description: "Rugged and reliable, built to survive any hunt.",
         iconPath: "./assets/ui/icons/weapons/hunter_knife.png",
         meshPath: "./assets/models/weapons/daggers/hunter_knife.glb",
         stats: {
-            damage: 271, // (1811 * 0.18) / 1.2 multiplier
+            damage: 13.55,
             range: 1.8,
             attackDuration: 0.18,
             hitStopDuration: 0.06,
@@ -86,11 +86,11 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Crow Dagger",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.DAGGER,
-        description: "Aussi légère qu'une plume, aussi noire que la nuit.",
+        description: "As light as a feather, as dark as the night.",
         iconPath: "./assets/ui/icons/weapons/crow_dagger.png",
         meshPath: "./assets/models/weapons/daggers/crow_dagger.glb",
         stats: {
-            damage: 282, // (1960 * 0.18) / 1.25 multiplier
+            damage: 14.1,
             range: 2.0,
             attackDuration: 0.18,
             hitStopDuration: 0.08,
@@ -103,17 +103,17 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         },
     },
 
-    // --- ÉPÉES (Équilibrées, dégâts modérés) ---
+    // --- SWORDS (Balanced, moderate damage) ---
     knight_sword: {
         id: "knight_sword",
         name: "Knight's Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.SWORD,
-        description: "L'équilibre parfait entre l'acier et la volonté.",
+        description: "The perfect balance between steel and willpower.",
         iconPath: "./assets/ui/icons/weapons/knight_sword.png",
         meshPath: "./assets/models/weapons/swords/knight_sword.glb",
         stats: {
-            damage: 113, // 226.7 * 0.5
+            damage: 5.65,
             range: 2.2,
             attackDuration: 0.5,
             hitStopDuration: 0.08,
@@ -126,11 +126,11 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Oathkeeper Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.SWORD,
-        description: "Forgée pour respecter une promesse éternelle.",
+        description: "Forged to uphold an eternal promise.",
         iconPath: "./assets/ui/icons/weapons/oath_sword.png",
         meshPath: "./assets/models/weapons/swords/oath_sword.glb",
         stats: {
-            damage: 167, // (368 * 0.5) / 1.1 multiplier
+            damage: 8.35,
             range: 2.4,
             attackDuration: 0.5,
             hitStopDuration: 0.1,
@@ -145,11 +145,11 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Sashimi Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.SWORD,
-        description: "Une lame si fine qu'elle tranche l'air sans bruit.",
+        description: "A blade so fine it slices the air without a sound.",
         iconPath: "./assets/ui/icons/weapons/sashimi_sword.png",
         meshPath: "./assets/models/weapons/swords/sashimi_sword.glb",
         stats: {
-            damage: 206, // (474 * 0.5) / 1.15 multiplier
+            damage: 10.3,
             range: 2.6,
             attackDuration: 0.5,
             hitStopDuration: 0.12,
@@ -165,11 +165,11 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Scale Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.SWORD,
-        description: "Une lame renforcée par des écailles de Calamité.",
+        description: "A blade reinforced with Calamity scales.",
         iconPath: "./assets/ui/icons/weapons/scale_sword.png",
         meshPath: "./assets/models/weapons/swords/scale_sword.glb",
         stats: {
-            damage: 233, // (559 * 0.5) / 1.2 multiplier
+            damage: 11.65,
             range: 2.8,
             attackDuration: 0.5,
             hitStopDuration: 0.14,
@@ -180,17 +180,17 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         },
     },
 
-    // --- ESPADONS (Lents, mais dégâts par coup massifs) ---
+    // --- GREATSWORDS (Slow, but massive damage per hit) ---
     great_jade_sword: {
         id: "great_jade_sword",
         name: "Great Jade Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.GREATSWORD,
-        description: "Lourde, mais mystiquement équilibrée par le jade.",
+        description: "Heavy, yet mystically balanced by jade.",
         iconPath: "./assets/ui/icons/weapons/great_jade_sword.png",
         meshPath: "./assets/models/weapons/great_swords/great_jade_sword.glb",
         stats: {
-            damage: 231, // 178.2 * 1.3
+            damage: 11.55,
             range: 3.5,
             attackDuration: 1.3,
             hitStopDuration: 0.16,
@@ -203,12 +203,12 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Great Imperial Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.GREATSWORD,
-        description: "L'emblème de la garde impériale déchue.",
+        description: "The emblem of the fallen Imperial Guard.",
         iconPath: "./assets/ui/icons/weapons/great_imperial_sword.png",
         meshPath:
             "./assets/models/weapons/great_swords/great_imperial_sword.glb",
         stats: {
-            damage: 352, // (298 * 1.3) / 1.1 multiplier
+            damage: 17.6,
             range: 3.7,
             attackDuration: 1.3,
             hitStopDuration: 0.2,
@@ -224,11 +224,11 @@ export const WEAPONS_DB: Record<string, WeaponData> = {
         name: "Great Steel Sword",
         type: ItemType.WEAPON,
         weaponSlot: WeaponSlot.GREATSWORD,
-        description: "Une masse d'acier brut. Lent, mais définitif.",
+        description: "A slab of raw steel. Slow, but definitive.",
         iconPath: "./assets/ui/icons/weapons/great_steel_sword.png",
         meshPath: "./assets/models/weapons/great_swords/great_steel_sword.glb",
         stats: {
-            damage: 428, // (395 * 1.3) / 1.2 multiplier
+            damage: 21.4,
             range: 3.9,
             attackDuration: 1.3,
             hitStopDuration: 0.25,

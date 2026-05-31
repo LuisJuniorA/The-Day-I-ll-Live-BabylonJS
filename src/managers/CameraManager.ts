@@ -1,16 +1,26 @@
-import { UniversalCamera, Vector3, Scene, Scalar } from "@babylonjs/core";
+import {
+    UniversalCamera,
+    Vector3,
+    Scene,
+    Scalar,
+    PointLight,
+    Color3,
+} from "@babylonjs/core";
 import { Player } from "../entities/Player";
 import { type CameraBounds, CAM_CONFIG } from "../core/types/CameraTypes";
 
 export class CameraManager {
     private _camera: UniversalCamera;
     private _player: Player;
+    private _scene: Scene;
+    private _light: PointLight;
 
     private _currentBiasX: number = 0;
     private _currentBiasY: number = 0;
     private _currentBounds: CameraBounds | null = null;
 
     constructor(scene: Scene, player: Player) {
+        this._scene = scene;
         this._player = player;
 
         const startPos = new Vector3(
@@ -22,16 +32,41 @@ export class CameraManager {
         this._camera = new UniversalCamera("playerCamera", startPos, scene);
         this._camera.setTarget(new Vector3(startPos.x, startPos.y, 0));
         scene.activeCamera = this._camera;
+
+        // Configuration de la lampe torche (PointLight)
+        // La PointLight éclaire tout autour d'elle, c'est idéal pour une torche
+        this._light = new PointLight(
+            "playerLight",
+            Vector3.Zero(),
+            this._scene,
+        );
+
+        // 1. Intensité très élevée pour compenser l'absence d'ambiance
+        this._light.intensity = 30;
+        // 2. Portée de la torche
+        this._light.range = 50;
+        // 3. Couleur un peu chaude pour faire "torche"
+        this._light.diffuse = new Color3(1, 0.9, 0.7);
+
+        this._scene.onBeforeRenderObservable.add(() => {
+            this._updateLighting();
+        });
+    }
+
+    private _updateLighting(): void {
+        // La lampe est placée légèrement devant la caméra (sur l'axe Z)
+        // pour éclairer le joueur et le sol devant lui
+        const torchOffset = new Vector3(0, 0, 5);
+        this._light.position = this._camera.position.add(torchOffset);
     }
 
     public update(_dt: number): void {
         if (!this._camera || !this._player) return;
 
-        // 1. GESTION DES BIAS
+        // ... (Ton code de lissage reste identique)
         let targetBiasX = 0;
         let targetBiasY = 0;
 
-        // Bias Horizontal (On utilise la vélocité ou l'input pour plus de punch)
         if (Math.abs(this._player.input.horizontal) > 0.1) {
             targetBiasX =
                 this._player.input.horizontal > 0
@@ -39,7 +74,6 @@ export class CameraManager {
                     : -CAM_CONFIG.BIAS_X;
         }
 
-        // Bias Vertical
         if (
             this._player.isGrounded &&
             Math.abs(this._player.input.horizontal) < 0.2
@@ -53,20 +87,15 @@ export class CameraManager {
             }
         }
 
-        // --- LE SECRET EST ICI ---
-        // On augmente la vitesse de lissage du Bias (0.15 au lieu de 0.05)
-        // Le Bias doit être plus rapide que le Lerp de la caméra pour être visible.
         this._currentBiasX = Scalar.Lerp(this._currentBiasX, targetBiasX, 0.15);
         this._currentBiasY = Scalar.Lerp(this._currentBiasY, targetBiasY, 0.15);
 
-        // 2. POSITION CIBLE
         let tx = this._player.transform.position.x + this._currentBiasX;
         let ty =
             this._player.transform.position.y +
             CAM_CONFIG.OFFSET_Y +
             this._currentBiasY;
 
-        // 3. CONFINEMENT
         if (this._currentBounds) {
             tx = Scalar.Clamp(
                 tx,
@@ -80,14 +109,11 @@ export class CameraManager {
             );
         }
 
-        // 4. LISSAGE FINAL
-        // lerpX un peu plus faible pour accentuer l'effet de "traînée" du décor
         this._camera.position.x = Scalar.Lerp(
             this._camera.position.x,
             tx,
             CAM_CONFIG.LERP_X,
         );
-
         const lerpY =
             this._player.velocity.y < -0.1
                 ? CAM_CONFIG.LERP_Y_DOWN
@@ -97,7 +123,6 @@ export class CameraManager {
             ty,
             lerpY,
         );
-
         this._camera.position.z = CAM_CONFIG.DISTANCE_Z;
 
         this._camera.setTarget(

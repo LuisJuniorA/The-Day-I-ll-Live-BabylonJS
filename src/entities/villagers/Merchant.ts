@@ -52,6 +52,7 @@ export class Merchant extends NPCInteractable {
 
                 return true;
             },
+            portraitUrl: "./assets/img/portrait/effroi.png",
         });
     }
 }

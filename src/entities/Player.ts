@@ -83,6 +83,7 @@ export class Player extends Character {
     private _visualPivot: AbstractMesh | null = null;
     private _soulParticles: ParticleSystem | null = null;
     private _pointLight: PointLight | null = null;
+    private _pointLight2: PointLight | null = null;
     private _weaponSocket: TransformNode | null = null;
 
     private _timeCounter: number = 0;
@@ -106,7 +107,7 @@ export class Player extends Character {
     private _activeSpell: Spell | null = null;
 
     public readonly gravity: number = -0.9;
-    public readonly jumpForce: number = 21;
+    public readonly jumpForce: number = 24;
     public coyoteTimeCounter: number = 0;
     private readonly coyoteTimeDuration: number = 0.2;
 
@@ -372,10 +373,19 @@ export class Player extends Character {
             new Vector3(0, 0.5, -4),
             this._scene,
         );
-        this._pointLight.includedOnlyMeshes = [];
+        this._pointLight2 = new PointLight(
+            "player_light2",
+            new Vector3(0, 0.5, 4),
+            this._scene,
+        );
         this._pointLight.diffuse = new Color3(1, 0.98, 0.9);
-        this._pointLight.intensity = 0.7;
-        this._pointLight.range = 30;
+        this._pointLight.intensity = 2;
+        this._pointLight.range = 60;
+
+        this._pointLight2.includedOnlyMeshes = [];
+        this._pointLight2.diffuse = new Color3(1, 0.98, 0.9);
+        this._pointLight2.intensity = 0.7;
+        this._pointLight2.range = 30;
 
         // 5. Socket pour l'arme (Remplace le Skeleton lourd)
         this._weaponSocket = new TransformNode("RightHandSocket", this._scene);
@@ -435,8 +445,10 @@ export class Player extends Character {
             if (this._pointLight) {
                 // On copie la position du joueur manuellement
                 this._pointLight.position.x = this.transform.position.x;
-                this._pointLight.position.y = this.transform.position.y + 0.5;
-                this._pointLight.position.z = -10; // Toujours fixe vers la caméra
+                this._pointLight.position.y = this.transform.position.y;
+                this._pointLight.position.z = -10;
+                this._pointLight2!.position = this._pointLight.position;
+                this._pointLight2!.position.z = 4;
             }
         }
 
@@ -841,6 +853,7 @@ export class Player extends Character {
     public dispose(): void {
         if (this._soulParticles) this._soulParticles.dispose();
         if (this._pointLight) this._pointLight.dispose();
+        if (this._pointLight2) this._pointLight2.dispose();
         if (this._visualPivot) this._visualPivot.dispose();
         if (this._weaponSocket) this._weaponSocket.dispose();
         super.dispose();

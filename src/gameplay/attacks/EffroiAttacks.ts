@@ -5,6 +5,7 @@ import {
     OnStatusApplied,
 } from "../../core/interfaces/CombatEvent";
 import { PlayerReactionAnim, StatusType } from "../../core/types/StatusEffects";
+import { AudioManager } from "../../managers/AudioManager";
 
 export class EffroiClaw implements ActionBehavior {
     public readonly name = "Claw";
@@ -38,10 +39,11 @@ export class EffroiRoar implements ActionBehavior {
     public readonly damageMoment = 0.8; // Le cri part assez vite
     public readonly range = 12;
     public readonly basePriority = 5;
-    public readonly cooldown = 8000; // 8 secondes de repos
+    public readonly cooldown = 16000; // 16 secondes de repos
     public lastUsed = 0;
 
     executeEffect(_owner: Enemy): void {
+        AudioManager.getInstance().playSfx("MONSTER_ROAR");
         console.log("📢 ROAR !");
     }
 

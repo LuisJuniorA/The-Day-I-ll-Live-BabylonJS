@@ -164,14 +164,19 @@ export class EnemyChaseState extends EnemyState {
         target: TransformNode,
         dt: number,
     ): void {
-        const visualPivot = owner.transform
-            .getChildren()
-            .find((c) => c.name.includes("visual_pivot"));
-        if (visualPivot instanceof TransformNode) {
+        // On cible le mesh directement au lieu de chercher un "visual_pivot"
+        if (owner.type === "slime") return;
+        const visualMesh = owner.mesh;
+
+        if (visualMesh) {
             const diffX = target.position.x - owner.transform.position.x;
+
+            // Logique de rotation :
+            // Ajustez les valeurs 0 et Math.PI si le personnage regarde toujours du mauvais côté
             const targetAngle = diffX > 0 ? 0 : Math.PI;
-            visualPivot.rotation.y = Scalar.LerpAngle(
-                visualPivot.rotation.y,
+
+            visualMesh.rotation.y = Scalar.LerpAngle(
+                visualMesh.rotation.y,
                 targetAngle,
                 owner.config.behavior.turnSpeed * (dt * 60),
             );

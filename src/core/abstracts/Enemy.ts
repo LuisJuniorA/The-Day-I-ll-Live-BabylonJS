@@ -14,6 +14,7 @@ import { OnEntityDamaged } from "../interfaces/CombatEvent";
 import { ItemData } from "../../data/ItemData";
 
 export abstract class Enemy extends Character {
+    public readonly type: string = "generic";
     public readonly movementFSM: FSM<Enemy>;
     public readonly attackFSM: FSM<Enemy>;
     public readonly config: EnemyConfig;

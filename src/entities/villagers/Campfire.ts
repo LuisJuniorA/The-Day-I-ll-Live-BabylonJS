@@ -6,11 +6,10 @@ import { CheckpointManager } from "../../managers/CheckpointManager"; // Ajuste 
 export class Campfire extends NPCInteractable {
     public onInteract(): void {
         const text =
-            this.data.texts?.[this._currentIndex] ||
-            "Le feu brûle silencieusement...";
+            this.data.texts?.[this._currentIndex] || "Such a beautiful day...";
 
         OnDialogueRequest.notifyObservers({
-            speakerName: "FEU DE CAMP",
+            speakerName: "CAMPFIRE",
             text: text,
             onComplete: () => {
                 // On met à jour le checkpoint mondial avec la position de CE feu de camp
@@ -24,6 +23,7 @@ export class Campfire extends NPCInteractable {
                 this._currentIndex = 0;
                 return true;
             },
+            portraitUrl: "./assets/img/portrait/campfire.png",
         });
     }
 }

@@ -24,3 +24,16 @@ export interface DialogueRequest {
 }
 
 export const OnDialogueRequest = new Observable<DialogueRequest>();
+
+export interface AcquisitionEvent {
+    items: { id: string; slot: string }[];
+}
+
+export const OnInitialGearAcquired = new Observable<AcquisitionEvent>();
+
+export interface ChestReward {
+    items?: { slot: string; id: string }[];
+    spells?: string[];
+}
+
+export const OnChestOpened = new Observable<ChestReward>();

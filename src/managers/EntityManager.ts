@@ -77,19 +77,25 @@ export class EntityManager {
     public async spawnFromMetadata(spawner: TransformNode): Promise<void> {
         const type = spawner.metadata?.type || "unknown";
 
+        // 1. Utilise getAbsolutePosition() au lieu de position
+        const worldPos = spawner.getAbsolutePosition();
+
+        console.log(
+            `[EntityManager] Spawn : type="${type}" | WorldPos: ${worldPos.toString()}`,
+        );
+
         const entity = await EntityFactory.Create(
             type,
             this._scene,
-            spawner.position.clone(),
+            worldPos, // On passe la position mondiale
             this._proximitySystem,
         );
 
-        if (spawner.rotationQuaternion) {
-            entity.transform.rotationQuaternion =
-                spawner.rotationQuaternion.clone();
-        } else {
-            entity.transform.rotation = spawner.rotation.clone();
-        }
+        // 2. Utilise getRotationQuaternion() pour récupérer la rotation mondiale réelle
+        // Cela gère automatiquement le fait que le spawner ait une rotation héritée ou non
+
+        // On force la position absolue une dernière fois par sécurité après la création
+        entity.transform.setAbsolutePosition(worldPos);
 
         this.add(entity);
     }

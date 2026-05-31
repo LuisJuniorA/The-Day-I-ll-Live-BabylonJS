@@ -17,6 +17,8 @@ import type { EnemyState } from "../../core/abstracts/EnemyState";
 import { NoAttack } from "../../gameplay/attacks/NoAttack";
 
 export class Slime extends Enemy {
+    public readonly type: string = "slime";
+
     private _initialBodyPositions: Float32Array;
     private _initialSoulPositions: Float32Array;
 

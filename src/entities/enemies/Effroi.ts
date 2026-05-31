@@ -12,10 +12,12 @@ import type { EnemyConfig } from "../../core/types/EnemyConfig";
 import type { ActionBehavior } from "../../core/interfaces/Behaviors";
 import { EffroiClaw, EffroiRoar } from "../../gameplay/attacks/EffroiAttacks";
 import { CollisionLayers } from "../../core/constants/CollisionLayers";
+import { NoAttack } from "../../gameplay/attacks/NoAttack";
 
 export class Effroi extends Enemy {
     private _claw = new EffroiClaw();
     private _roar = new EffroiRoar();
+    private _nothing = new NoAttack();
 
     // Physique & IA
     private readonly GRAVITY = -0.98;
@@ -54,52 +56,36 @@ export class Effroi extends Enemy {
      */
     public getNextAttack(): ActionBehavior {
         const target = this.targetTransform;
-        if (!target) return this._claw;
+        if (!target) return this._nothing;
 
         const dist = Vector3.Distance(this.position, target.position);
         const now = Date.now();
 
-        // Est-ce que le joueur s'éloigne ?
-        const isEscaping = dist > this._lastDistToTarget + 0.01;
-        this._lastDistToTarget = dist;
-
-        // --- SCORES ---
-
-        // 1. Logique du CLAW (Priorité : Corps à corps)
-        let clawScore = this._claw.basePriority;
-        if (dist <= 3.5) {
-            clawScore += 80; // Priorité quasi-absolue au contact
-        } else if (!isEscaping) {
-            clawScore += 20; // Plus enclin à griffer s'il te poursuit de face
-        }
-
-        // 2. Logique du ROAR (Priorité : Contrôle de zone / Fuite)
-        let roarScore = this._roar.basePriority;
-
-        // Cooldown Strict
-        if (now - this._roar.lastUsed < this._roar.cooldown) {
-            roarScore = -100;
-        } else {
-            // Ligne de vue (Raycast) : Ne rugit pas derrière un mur
-            if (!this.canSeeTarget(target)) {
-                roarScore = -100;
-            } else {
-                // Bonus de distance (Zone idéale entre 4m et 12m)
-                if (dist > 4 && dist <= 12) roarScore += 40;
-
-                // Bonus de Fuite : Si le joueur s'enfuit, l'Effroi s'énerve
-                if (isEscaping) roarScore += 50;
-
-                // Facteur de fatigue/patience : plus le temps passe sans rugir, plus il a envie
-                const timeFactor = (now - this._roar.lastUsed) / 1000;
-                roarScore += Math.min(timeFactor, 20);
-
-                // Facteur aléatoire pour casser la monotonie
-                roarScore += Math.random() * 25;
+        // 1. --- LOGIQUE DU ROAR ---
+        const timeSinceLastRoar = now - this._roar.lastUsed;
+        // On garde la logique probabiliste pour le Roar
+        if (
+            timeSinceLastRoar >= this._roar.cooldown &&
+            this.canSeeTarget(target) &&
+            dist > 4
+        ) {
+            const isEscaping = dist > this._lastDistToTarget + 0.01;
+            const chance = isEscaping ? 0.2 : 0.05;
+            if (Math.random() < chance) {
+                return this._roar;
             }
         }
+        this._lastDistToTarget = dist;
 
-        return roarScore > clawScore ? this._roar : this._claw;
+        // 2. --- LOGIQUE DU CLAW ---
+        // ICI : On vérifie la portée avant de retourner l'attaque
+        if (dist <= this._claw.range) {
+            return this._claw;
+        }
+
+        // 3. --- RIEN À FAIRE ---
+        // Le joueur est trop loin, l'IA ne doit pas lancer d'attaque
+        return this._nothing;
     }
 
     /**

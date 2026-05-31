@@ -21,7 +21,7 @@ export class SettingsView extends BaseView {
     private _isRebinding: boolean = false;
     private _rebindingAction: PlayerAction | null = null;
 
-    // Couleurs du thème (Délabré / Sombre)
+    // Theme colors (Dark / Gritty)
     private readonly _COLOR_BG = "#050508";
     private readonly _COLOR_BORDER = "#444444";
     private readonly _COLOR_BORDER_HIGHLIGHT = "#aaaaaa";
@@ -40,7 +40,7 @@ export class SettingsView extends BaseView {
     protected buildUI(): void {
         this.rootContainer.clearControls();
 
-        // --- 1. FOND ÉCRAN SOMBRE ---
+        // --- 1. DARK BACKGROUND ---
         const bgRect = new Rectangle("settingsBg");
         bgRect.width = "100%";
         bgRect.height = "100%";
@@ -48,14 +48,14 @@ export class SettingsView extends BaseView {
         bgRect.background = this._COLOR_BG;
         this.rootContainer.addControl(bgRect);
 
-        // --- Container Principal centré ---
+        // --- Main Centered Container ---
         const mainPanel = new StackPanel("settingsMain");
         mainPanel.width = "800px";
         mainPanel.spacing = 20;
         this.rootContainer.addControl(mainPanel);
 
-        // --- 2. TITRE ---
-        const title = new TextBlock("title", "CONFIGURER LES CONTRÔLES");
+        // --- 2. TITLE ---
+        const title = new TextBlock("title", "CONFIGURE CONTROLS");
         title.height = "80px";
         title.color = this._COLOR_TEXT_BRIGHT;
         title.fontSize = 36;
@@ -64,7 +64,7 @@ export class SettingsView extends BaseView {
         title.shadowColor = "rgba(255,255,255,0.2)";
         mainPanel.addControl(title);
 
-        // --- 3. PANEL DES PRESETS ---
+        // --- 3. PRESETS PANEL ---
         const presetPanel = new StackPanel("presets");
         presetPanel.isVertical = false;
         presetPanel.height = "70px";
@@ -83,7 +83,7 @@ export class SettingsView extends BaseView {
             this.refreshList();
         });
 
-        // --- 4. LISTE DES TOUCHES ---
+        // --- 4. KEY LIST ---
         const gridContainer = new Rectangle("gridContainer");
         gridContainer.height = "400px";
         gridContainer.width = "90%";
@@ -106,13 +106,13 @@ export class SettingsView extends BaseView {
 
         this.refreshList();
 
-        // --- 5. BOUTON RETOUR ---
+        // --- 5. BACK BUTTON ---
         const footer = new StackPanel("footer");
         footer.height = "100px";
         footer.paddingTop = "20px";
         mainPanel.addControl(footer);
 
-        this._createStyledMenuButton(footer, "RETOUR AU MENU", () => {
+        this._createStyledMenuButton(footer, "BACK TO MENU", () => {
             if (this._isRebinding) return;
             this.hide();
             this.onBackObservable.notifyObservers();
@@ -128,14 +128,18 @@ export class SettingsView extends BaseView {
             grid._rowDefinitions = [];
         }
 
+        // Ajout des actions manquantes : up, down, inventory
         const actions: { label: string; id: PlayerAction }[] = [
-            { label: "ALLER À GAUCHE", id: "left" },
-            { label: "ALLER À DROITE", id: "right" },
-            { label: "SAUTER", id: "jump" },
-            { label: "ATTAQUER", id: "attack" },
-            { label: "LANCER UN SORT", id: "cast" },
-            { label: "CHANGER D'ARME", id: "switch" },
-            { label: "INTERAGIR", id: "interact" },
+            { label: "LOOK UP", id: "up" },
+            { label: "LOOK DOWN", id: "down" },
+            { label: "MOVE LEFT", id: "left" },
+            { label: "MOVE RIGHT", id: "right" },
+            { label: "JUMP", id: "jump" },
+            { label: "ATTACK", id: "attack" },
+            { label: "CAST SPELL", id: "cast" },
+            { label: "INVENTORY", id: "inventory" },
+            { label: "SWITCH WEAPON", id: "switch" },
+            { label: "INTERACT", id: "interact" },
         ];
 
         actions.forEach((action, index) => {
@@ -162,7 +166,7 @@ export class SettingsView extends BaseView {
 
         const currentKeyRaw = InputConfig.current[actionId][0];
         const displayKey =
-            currentKeyRaw === " " ? "ESPACE" : currentKeyRaw.toUpperCase();
+            currentKeyRaw === " " ? "SPACE" : currentKeyRaw.toUpperCase();
 
         const btn = Button.CreateSimpleButton("btn_" + actionId, displayKey);
         btn.width = "160px";
@@ -213,7 +217,7 @@ export class SettingsView extends BaseView {
             if (kbInfo.type === KeyboardEventTypes.KEYDOWN) {
                 const newKey = kbInfo.event.key.toLowerCase();
 
-                // Gestion des doublons
+                // Handle duplicates
                 for (const key in InputConfig.current) {
                     const action = key as PlayerAction;
                     if (action !== actionId) {
@@ -226,7 +230,6 @@ export class SettingsView extends BaseView {
 
                 InputConfig.setKey(actionId, newKey);
 
-                // Feedback sonore de réussite
                 AudioManager.getInstance().playSfx("UI_CLICK");
 
                 scene.onKeyboardObservable.remove(obs);
@@ -245,7 +248,6 @@ export class SettingsView extends BaseView {
         const btn = Button.CreateSimpleButton("menuBtn_" + text, text);
         btn.height = "50px";
         btn.width = "220px";
-        btn.color = this._COLOR_TEXT_DIM;
         btn.fontSize = 18;
         btn.fontFamily = "Georgia, serif";
         btn.background = "#1a1a1a";

@@ -31,6 +31,10 @@ export const AUDIO_CONFIG = {
             url: "./assets/audio/sfx/monster_roar.mp3",
             volume: 0.35,
         },
+        OPEN_CHEST: {
+            url: "./assets/audio/sfx/open_chest.mp3",
+            volume: 2,
+        },
     },
     MUSIC: {
         BOSS: "./assets/audio/music/boss_theme.mp3",
