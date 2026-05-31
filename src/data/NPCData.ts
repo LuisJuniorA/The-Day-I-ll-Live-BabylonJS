@@ -134,7 +134,7 @@ export const NPC_DATA: Record<string, NPCConfig> = {
     BONFIRE_MAIN: {
         name: "Feu de Camp",
         assetPath: "./assets/models/props/campfire.glb",
-        texts: ["Le feu crépite doucement. Vous vous sentez reposé."],
+        texts: ["The fire crackles softly. You feel rested."],
         metadata: {},
     },
 };

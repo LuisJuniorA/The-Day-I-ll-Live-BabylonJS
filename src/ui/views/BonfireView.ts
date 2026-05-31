@@ -33,23 +33,23 @@ const BONFIRE_CONFIG = {
 
 const STAT_DESCRIPTIONS: Record<string, { desc: string; icon: string }> = {
     strength: {
-        desc: "Augmente la puissance brute et les dégâts physiques infligés par vos armes.",
+        desc: "Increases raw power and physical damage dealt by your weapons.",
         icon: "icon_strength.png",
     },
     vitality: {
-        desc: "Augmente votre réserve de santé maximum pour survivre plus longtemps.",
+        desc: "Increases your maximum health pool to survive longer.",
         icon: "icon_vitality.png",
     },
     agility: {
-        desc: "Améliore votre vitesse de déplacement et votre réactivité au sol.",
+        desc: "Improves your movement speed and responsiveness on the ground.",
         icon: "icon_agility.png",
     },
     dexterity: {
-        desc: "Augmente votre vitesse d'attaque, vous permettant de frapper plus souvent.",
+        desc: "Increases your attack speed, allowing you to strike more often.",
         icon: "icon_dexterity.png",
     },
     intelligence: {
-        desc: "Augmente la puissance de vos sorts de 5% par point.",
+        desc: "Increases the power of your spells by 5% per point.",
         icon: "icon_intelligence.png",
     },
 };
@@ -135,7 +135,7 @@ export class BonfireView extends BaseView {
 
         this._descriptionText = new TextBlock(
             "DescText",
-            "Sélectionnez une statistique.",
+            "Select a statistic.",
         );
         this._descriptionText.color = BONFIRE_CONFIG.COLORS.TEXT_MUTED;
         this._descriptionText.fontSize = 16;
@@ -151,7 +151,7 @@ export class BonfireView extends BaseView {
         footerInfo.top = "-100px";
         mainPanel.addControl(footerInfo);
 
-        this._levelText = new TextBlock("LevelText", "NIVEAU ACTUEL : 1");
+        this._levelText = new TextBlock("LevelText", "CURRENT LEVEL : 1");
         this._levelText.width = "50%";
         this._levelText.color = "white";
         this._levelText.textHorizontalAlignment =
@@ -168,7 +168,7 @@ export class BonfireView extends BaseView {
             Control.HORIZONTAL_ALIGNMENT_RIGHT;
         footerInfo.addControl(this._pointsText);
 
-        const backBtn = Button.CreateSimpleButton("BackBtn", "QUITTER LE FEU");
+        const backBtn = Button.CreateSimpleButton("BackBtn", "EXIT BONFIRE");
         backBtn.width = "250px";
         backBtn.height = "45px";
         backBtn.color = "white";
@@ -190,12 +190,12 @@ export class BonfireView extends BaseView {
         const statsArray = Array.isArray(stats)
             ? stats
             : [
-                  { id: "strength", label: "Force", val: stats.strength },
-                  { id: "vitality", label: "Vitalité", val: stats.vitality },
-                  { id: "agility", label: "Agilité", val: stats.agility || 1 },
+                  { id: "strength", label: "Strength", val: stats.strength },
+                  { id: "vitality", label: "Vitality", val: stats.vitality },
+                  { id: "agility", label: "Agility", val: stats.agility || 1 },
                   {
                       id: "dexterity",
-                      label: "Dextérité",
+                      label: "Dexterity",
                       val: stats.dexterity || 1,
                   },
                   {
@@ -210,8 +210,8 @@ export class BonfireView extends BaseView {
         if (this._lastStatsValues === statsHash) return;
         this._lastStatsValues = statsHash;
 
-        this._pointsText.text = `POINTS DISPONIBLES : ${availablePoints}`;
-        this._levelText.text = `NIVEAU ACTUEL : ${currentLevel}`;
+        this._pointsText.text = `AVAILABLE POINTS: ${availablePoints}`;
+        this._levelText.text = `CURRENT LEVEL: ${currentLevel}`;
 
         this._statsGrid.clearControls();
         while (this._statsGrid.rowCount > 0) {

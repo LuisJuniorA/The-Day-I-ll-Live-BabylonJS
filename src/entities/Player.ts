@@ -124,6 +124,7 @@ export class Player extends Character {
                 vitality: 1,
                 dexterity: 1,
                 agility: 1,
+                intelligence: 1,
             },
             Faction.PLAYER,
             "Player",
@@ -592,6 +593,9 @@ export class Player extends Character {
             case "agility":
                 this.stats.agility! += 1;
                 this.stats.speed += 0.5;
+                break;
+            case "intelligence":
+                this.stats.intelligence! += 1;
                 break;
         }
     }

@@ -79,7 +79,7 @@ export class WeaponStatsComponent extends Grid {
         // --- SECTION 1: CARACTÉRISTIQUES ---
         this.addRowDefinition(25, true);
         this.addControl(
-            this._createSectionTitle("CARACTÉRISTIQUES"),
+            this._createSectionTitle("ATTRIBUTES"),
             currentRow++,
             0,
         );
@@ -103,7 +103,7 @@ export class WeaponStatsComponent extends Grid {
 
             this.addRowDefinition(25, true);
             this.addControl(
-                this._createSectionTitle("MODIFICATEURS"),
+                this._createSectionTitle("MODIFIERS"),
                 currentRow++,
                 0,
             );
@@ -128,7 +128,7 @@ export class WeaponStatsComponent extends Grid {
     }
 
     private _drawLegend(rowIndex: number): void {
-        const activeLabel = new TextBlock("", "⚔ BONUS ACTIF");
+        const activeLabel = new TextBlock("", "⚔ ACTIVE");
         activeLabel.color = this._colors.active;
         activeLabel.fontSize = 10;
         activeLabel.fontStyle = "italic";
@@ -137,7 +137,7 @@ export class WeaponStatsComponent extends Grid {
         activeLabel.paddingRight = "10px";
         this.addControl(activeLabel, rowIndex, 1);
 
-        const passiveLabel = new TextBlock("", "✦ BONUS PASSIF");
+        const passiveLabel = new TextBlock("", "✦ PASSIVE");
         passiveLabel.color = this._colors.passive;
         passiveLabel.fontSize = 10;
         passiveLabel.fontStyle = "italic";

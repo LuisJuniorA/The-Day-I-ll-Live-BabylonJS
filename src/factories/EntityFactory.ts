@@ -368,6 +368,17 @@ export class EntityFactory {
         path: string,
         scene: Scene,
     ): Promise<VisualAssets> {
+        // AJOUT DE LA SÉCURITÉ : Pas de chargement si c'est procédural
+        if (path.toLowerCase() === "procedural") {
+            return {
+                root: new TransformNode(
+                    "procedural_root",
+                    scene,
+                ) as unknown as AbstractMesh,
+                anims: [],
+            };
+        }
+
         try {
             const container = await this.LoadAsset(path, scene);
             const entries = container.instantiateModelsToScene(
@@ -380,12 +391,14 @@ export class EntityFactory {
                 anims: entries.animationGroups,
             };
         } catch (e) {
-            // Retourne un nœud invisible qui ne sera jamais affiché
+            console.warn(
+                `[EntityFactory] Impossible de charger l'asset : ${path}`,
+                e,
+            );
             const invisibleRoot = new TransformNode(
                 "placeholder_invisible",
                 scene,
             );
-
             return {
                 root: invisibleRoot as unknown as AbstractMesh,
                 anims: [],

@@ -157,7 +157,7 @@ export class InventoryView extends BaseView {
             UI_CONFIG.LAYOUT.RIGHT_PANEL_PADDING;
 
         // Header : Quantité (Aligné droite comme dans la Forge)
-        this._detailQuantity = new TextBlock("DetailQty", "EN POSSESSION : 0");
+        this._detailQuantity = new TextBlock("DetailQty", "OWN : 0");
         this._detailQuantity.fontFamily = UI_CONFIG.FONTS.FAMILY;
         this._detailQuantity.fontSize = UI_CONFIG.FONTS.SIZE_QTY;
         this._detailQuantity.color = UI_CONFIG.COLORS.TEXT_SECONDARY;
@@ -233,7 +233,7 @@ export class InventoryView extends BaseView {
         // Bouton Action (Equiper/Utiliser)
         this._actionButton = Button.CreateSimpleButton(
             "ActionBtn",
-            "UTILISER L'OBJET",
+            "USE OBJECT",
         );
         this._actionButton.width = "100%";
         this._actionButton.height = UI_CONFIG.POSITIONS.ACTION_BTN_HEIGHT;
@@ -252,7 +252,7 @@ export class InventoryView extends BaseView {
         rightPanel.addControl(this._actionButton);
 
         // Bouton Retour
-        const closeBtn = Button.CreateSimpleButton("CloseBtn", "RETOUR AU JEU");
+        const closeBtn = Button.CreateSimpleButton("CloseBtn", "BACK TO GAME");
         closeBtn.width = "100%";
         closeBtn.height = UI_CONFIG.POSITIONS.CLOSE_BTN_HEIGHT;
         closeBtn.color = UI_CONFIG.COLORS.BTN_CLOSE;
@@ -284,7 +284,7 @@ export class InventoryView extends BaseView {
 
         this._detailName.text =
             itemData?.name?.toUpperCase() || item.id.toUpperCase();
-        this._detailQuantity.text = `EN POSSESSION : ${item.quantity || 0}`;
+        this._detailQuantity.text = `OWN : ${item.quantity || 0}`;
         this._detailIcon.source = itemData?.iconPath || "";
         this._descriptionComp.setText(
             itemData?.description || "Aucune description.",
@@ -301,8 +301,8 @@ export class InventoryView extends BaseView {
                     ).includes(item.id);
 
                     this._actionButton.textBlock.text = isEquipped
-                        ? "DÉSÉQUIPER L'ARME"
-                        : "ÉQUIPER L'ARME";
+                        ? "UNEQUIP WEAPON"
+                        : "EQUIP WEAPON";
                     this._actionButton.background = isEquipped
                         ? "#34495e" // Une couleur plus neutre/grise pour déséquiper
                         : UI_CONFIG.COLORS.BTN_PRIMARY;
@@ -311,12 +311,12 @@ export class InventoryView extends BaseView {
                     break;
 
                 case ItemType.CONSUMABLE:
-                    this._actionButton.textBlock.text = "UTILISER L'OBJET";
+                    this._actionButton.textBlock.text = "USE OBJECT";
                     this._actionButton.background = "#27ae60";
                     break;
 
                 case ItemType.MATERIAL:
-                    this._actionButton.textBlock.text = "JETER L'OBJET";
+                    this._actionButton.textBlock.text = "DROP OBJECT";
                     this._actionButton.background = "#c0392b";
                     break;
             }
@@ -333,15 +333,15 @@ export class InventoryView extends BaseView {
         const currentWeapon = currentId ? WEAPONS_DB[currentId] : null;
 
         const statsCfg: any[] = [
-            { id: "damage", label: "DÉGÂTS" },
-            { id: "range", label: "PORTÉE" },
+            { id: "damage", label: "DAMAGE" },
+            { id: "range", label: "RANGE" },
             {
                 id: "attackDuration",
                 label: "COOLDOWN",
                 suffix: "s",
                 invert: true,
             },
-            { id: "knockbackForce", label: "RECUL" },
+            { id: "knockbackForce", label: "KNOCKBACK" },
         ];
 
         if (targetWeapon.modifiers) {
@@ -350,13 +350,13 @@ export class InventoryView extends BaseView {
                     let label = key.toUpperCase();
                     let suffix = "";
                     if (key === "speedBoost") {
-                        label = "VITESSE";
+                        label = "SPEED";
                         suffix = "%";
                     } else if (key === "damageMultiplier") {
-                        label = "PUISSANCE";
+                        label = "POWER";
                         suffix = "%";
                     } else if (key === "healthBoost") {
-                        label = "VIE MAX";
+                        label = "MAX HEALTH";
                     }
 
                     statsCfg.push({
@@ -476,7 +476,7 @@ export class InventoryView extends BaseView {
         };
 
         // 3. Texte de question
-        const label = new TextBlock("confirm_text", "JETER CET OBJET ?");
+        const label = new TextBlock("confirm_text", "DROP OBJECT ?");
         label.color = UI_CONFIG.COLORS.TEXT_MAIN;
         label.fontSize = 16;
         label.fontWeight = "bold";
@@ -495,7 +495,7 @@ export class InventoryView extends BaseView {
 
         // 5. Bouton CONFIRMER (OUI)
         // Note: On utilise un simple bouton si ItemSlotComponent pose problème sans item
-        const btnYes = Button.CreateSimpleButton("btn_yes", "OUI");
+        const btnYes = Button.CreateSimpleButton("btn_yes", "YES");
         btnYes.width = "90%";
         btnYes.height = "40px";
         btnYes.color = "white";
@@ -512,7 +512,7 @@ export class InventoryView extends BaseView {
         grid.addControl(btnYes, 0, 0);
 
         // 6. Bouton ANNULER (NON)
-        const btnNo = Button.CreateSimpleButton("btn_no", "NON");
+        const btnNo = Button.CreateSimpleButton("btn_no", "NO");
         btnNo.width = "90%";
         btnNo.height = "40px";
         btnNo.color = "white";
